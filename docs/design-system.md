@@ -30,7 +30,7 @@ The tool page frame holds the setup steps, the Enabled switch (a native `button`
 The Write permissions, Raw API and Advanced tabs are Astryx views.
 The operation picker in `src/views/tool-writes.tsx` derives filtered rows and selection counts for both server rendering and the interactive view.
 The search and view inputs belong to the `ops-filter` GET form through the `form` attribute, and the operation checkboxes belong to the write permissions form.
-On hydration, the picker reads the current search, view, checkbox and native `details` states from the same document before taking control.
+The write permissions fieldset keeps the search, view and operation controls disabled until React hydrates, while the native `details` groups can be opened or closed during page load.
 The Instances tab (`src/views/tool-instances.tsx`) is an Astryx table with the Test, Edit, Enable or Disable, and Delete actions, and the Edit sheet on the shared `Sheet`; the actions menu stays a native `details` with the `more-menu` class, and the page's `Card` allows overflow so the menu is not clipped.
 The table sits in an `instances-list` container: a table from 900 px of container width, with the instance name and description wrapping in their column, and stacked cards below it, so every action stays inside the card.
 Its row props carry the displayed instance details and status, action paths, identity and revision, but no credential values or raw metadata.
@@ -47,7 +47,7 @@ The editor marks required fields, hides and disables forbidden fields, and makes
 It renders the initial field state from the server-provided values and reads the current form values during hydration.
 The Certificate verification fieldset (`CertificateVerification` in `src/views/certificate-verification.tsx`) is React inside `CredentialEditor`, built from the `TlsSection` that `tlsSection()` in `src/server/admin/tls-fields.ts` derives once from the tool's TLS settings and the saved metadata.
 Its text, upload, select and removal controls are native and uncontrolled inside Astryx `Field`.
-Each PEM picker reads its selected file into the corresponding textarea, including files selected before hydration.
+Once React hydrates, each PEM picker reads its selected file into the corresponding textarea.
 The picker clears its selection after copying the PEM, leaving the textarea available for edits.
 The pasted trusted certificate and each file upload are emptied when the sheet closes, like the secrets.
 The hostname choice defaults to hostname verification, or to keeping the saved setting when a fingerprint is stored, followed by Yes and No; removal checkboxes start unchecked.
@@ -142,7 +142,7 @@ A form whose confirmation route has a native confirmation page (the `native` ent
 Every form built on `ActionForm`, including `Sheet`, inherits this; a new form must not add its own pre-hydration handling or its own `<form>` that posts to an API route.
 See [browser administration](admin-guide.md#browser-administration) for the actions that support server confirmation.
 The New role and Rename sheets pass no confirmation text, so they submit without a confirmation dialog.
-Their name fields read the current input value during hydration so text entered while the bundle is loading is preserved.
+Their name fields and submit buttons become available after React hydrates.
 Astryx checkboxes emit inline SVG shapes, so the role and administrator checkboxes stay native.
 `ActionForm` in `src/views/action-form.tsx` owns the `data-api` form attributes (method, consequence, title, action, typed name, success URL and success message) and the submission itself, and `Sheet` builds on it, so a view writes an API form without repeating them.
 The person detail page's "More actions" overflow menu keeps a native `details` disclosure, because Astryx dropdown components need runtime inline styles (see issue 462), and builds its items from Astryx `Button` and `ActionForm`.

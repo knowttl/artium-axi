@@ -24,9 +24,9 @@ let fixture: Fixture
 const pickerWithLateHydration = 'operation picker is inert until late hydration and then follows edits'
 const trackChangesWithLateHydration = 'role tool grants ignore a click made before late hydration'
 const actionsWithLateHydration = 'admin forms are inert until delayed hydration and native confirmation works'
-const instanceSheetWithLateHydration = 'Add instance preserves a credential draft through modal promotion'
-const credentialEditorWithLateHydration = 'the credential editor applies a selection made before hydration'
-const connectionDraftWithLateHydration = 'the instance connection preserves text edited before hydration'
+const instanceSheetWithLateHydration = 'Add instance accepts a credential draft after modal promotion'
+const credentialEditorWithLateHydration = 'the credential editor applies selections after delayed hydration'
+const connectionDraftWithLateHydration = 'the instance connection applies certificate edits after delayed hydration'
 const editedOverrides = ' endpoint changes keep explicitly edited certificate overrides'
 const resizeCadence = 'confirmation expiry survives resizing across the mobile breakpoint'
 const graphCertificateRotation = 'certificate inspection pins and replaces the selected Graph endpoint'
@@ -105,6 +105,12 @@ function browser(script: string) {
         await wait(...args);
       }
     };
+    const resumeHydration = () => page.eval(() => new Promise(resolve => {
+      document.addEventListener('astryx-hydrated', () => resolve(true), { once: true });
+      const script = document.createElement('script');
+      script.src = '/admin/assets/hydrate.js?resume';
+      document.head.append(script);
+    }));
     const dismissSheet = async (sheet, opener, closeButton) => {
       await page.wait(sheet + ':modal');
       await page.eval('() => { document.sheetClosed = new Promise(resolve => document.querySelector(' + JSON.stringify(sheet) + ').addEventListener("close", () => resolve(true), { once: true })); }');
@@ -1616,15 +1622,12 @@ test(instanceSheetWithLateHydration, () => {
   browser(`
     await page.open(base + '/admin/tools/falcon-axi?sheet=add-instance');
     await page.wait('#sheet-add-instance[open]:not(:modal)');
-    await page.fill('#sheet-add-instance [data-profile-field=clientSecret]', 'CANARY-promotion-draft');
-    await page.eval(() => {
-      const script = document.createElement('script');
-      script.src = '/admin/assets/hydrate.js?resume';
-      document.head.append(script);
-    });
+    check(await page.eval(() => document.querySelector('#sheet-add-instance [data-profile-field=clientSecret]').matches(':disabled')), 'Add instance accepted a secret before hydration');
+    await resumeHydration();
     await page.wait('#sheet-add-instance:modal');
-    await page.eval(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(true)))));
-    check(await page.eval(() => document.querySelector('#sheet-add-instance [data-profile-field=clientSecret]').value === 'CANARY-promotion-draft'), 'Modal promotion cleared the draft');
+    await page.wait('#sheet-add-instance [data-profile-field=clientSecret]:enabled');
+    await page.fill('#sheet-add-instance [data-profile-field=clientSecret]', 'CANARY-promotion-draft');
+    check(await page.eval(() => document.querySelector('#sheet-add-instance [data-profile-field=clientSecret]').value === 'CANARY-promotion-draft'), 'The hydrated sheet did not accept the draft');
     await page.press('Escape');
     await page.wait('a[data-sheet="sheet-add-instance"]:focus');
     check(await page.eval(() => document.querySelector('#sheet-add-instance [data-profile-field=clientSecret]').value === ''), 'Dismissing the modal kept the draft');
@@ -1979,17 +1982,17 @@ test(connectionDraftWithLateHydration, () => {
     await createInstance('kubernetes-axi', { origin: 'https://cluster.example', auth: 'certificate', certificateAuthority: 'CANARY-cluster-CA',
       clientCertificate: 'synthetic-saved-certificate', privateKey: 'CANARY-stored-key' });
     check(await page.eval(() => !document.querySelector('[data-profile-field=privateKey]').required), 'Unchanged identity required a replacement key');
+    check(await page.eval(() => document.querySelector('[data-profile-field=origin]').matches(':disabled')
+      && document.querySelector('[data-profile-field=clientCertificate]').matches(':disabled')), 'The connection allowed edits before hydration');
+    await resumeHydration();
+    await page.wait('[data-profile-field=origin]:enabled');
+    await page.wait('[data-profile-field=clientCertificate]:enabled');
     await page.fill('[data-profile-field=origin]', 'https://other-cluster.example');
     const certificate = 'synthetic-replacement\\ncertificate';
     await page.fill('[data-profile-field=clientCertificate]', certificate);
-    await page.eval(() => {
-      const script = document.createElement('script');
-      script.src = '/admin/assets/hydrate.js?resume';
-      document.head.append(script);
-    });
     await page.wait('[data-profile-field=privateKey][required]');
-    check(await page.eval(() => document.querySelector('[data-profile-field=origin]').value) === 'https://other-cluster.example', 'Hydration discarded the URL');
-    check(await page.eval(() => document.querySelector('[data-profile-field=clientCertificate]').value) === certificate, 'Hydration discarded the client certificate');
+    check(await page.eval(() => document.querySelector('[data-profile-field=origin]').value) === 'https://other-cluster.example', 'The edited URL was lost');
+    check(await page.eval(() => document.querySelector('[data-profile-field=clientCertificate]').value) === certificate, 'The edited client certificate was lost');
   `)
 })
 
@@ -2625,20 +2628,22 @@ test('Graph federated authentication hides incompatible fields before entering a
 
 test(credentialEditorWithLateHydration, () => {
   browser(`
-    await page.open(base + '/admin/tools/mg-axi');
+    await page.open(base + '/admin/tools/mg-axi?sheet=add-instance');
+    check(await page.eval(() => document.querySelector('[data-profile-field=mode]').matches(':disabled')
+      && document.querySelector('[data-profile-field=auth]').matches(':disabled')), 'The credential editor accepted selections before hydration');
+    await resumeHydration();
+    await page.wait('#sheet-add-instance:modal [data-profile-field=mode]:enabled');
+    await page.wait('#sheet-add-instance:modal [data-profile-field=auth]:enabled');
     await page.eval(() => {
       for (const [name, value] of [['mode', 'application'], ['auth', 'federated']]) {
         const input = document.querySelector('[data-profile-field=' + name + ']');
         input.value = JSON.stringify(value);
         input.dispatchEvent(new Event('change', { bubbles: true }));
       }
-      const script = document.createElement('script');
-      script.src = '/admin/assets/hydrate.js?resume';
-      document.head.append(script);
     });
     await page.wait('[data-profile-field=thumbprintSha256]:disabled');
     await page.wait('[data-profile-field=token][required]');
-    check(await page.eval(() => document.querySelector('[data-profile-field=auth]').value === '"federated"'), 'Hydration discarded the selection');
+    check(await page.eval(() => document.querySelector('[data-profile-field=auth]').value === '"federated"'), 'The credential editor did not retain the selected authentication');
   `)
 })
 
@@ -2770,24 +2775,22 @@ for (const tool of ['technitium-axi', 'unifi-axi', 'kubernetes-axi']) for (const
   const field = tool === 'unifi-axi' ? 'tls.connectAddress' : 'tlsServerName'
   const savedOverride = tool === 'unifi-axi' ? tls.connectAddress : value.tlsServerName
   browser(`
-    const resume = () => page.eval(() => new Promise(resolve => {
-      document.addEventListener('astryx-hydrated', () => resolve(true), { once: true });
-      const script = document.createElement('script');
-      script.src = '/admin/assets/hydrate.js?resume';
-      document.head.append(script);
-    }));
     await createInstance('${tool}', ${JSON.stringify(value)});
-    if (${edited}) await resume();
+    if (${edited}) await resumeHydration();
+    await page.wait('[data-save-and-test]:enabled');
     await page.click('[data-save-and-test]');
     await page.click('form[data-save-tool] button');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
     await page.wait('form[data-save-tool] [name=expectedRevision][value="2"]');
     check(await page.eval(() => document.querySelector('[data-profile-field="${field}"]').value === ${JSON.stringify(savedOverride)}), 'Unchanged override was lost');
     if (${edited}) {
+      check(await page.eval(() => document.querySelector('[data-profile-field="${field}"]').matches(':disabled')), 'The override accepted edits before hydration');
+      await resumeHydration();
+      await page.wait('[data-profile-field="${field}"]:enabled');
       await page.fill('[data-profile-field="${field}"]', ${JSON.stringify(tool === 'unifi-axi' ? '127.0.0.2' : 'replacement.example')});
       await page.fill('[data-profile-field="${field}"]', ${JSON.stringify(savedOverride)});
-      await resume();
     }
+    await page.wait('[data-profile-field=origin]:enabled');
     await page.fill('[data-profile-field=origin]', 'https://replacement.example');
     await page.fill('[data-profile-field=${tool === 'unifi-axi' ? 'apiKey' : 'token'}]', 'CANARY-new-secret');
     ${tool === 'kubernetes-axi' ? `await page.click('details:has([data-profile-field="certificateAuthority"]) summary'); await page.fill('[data-profile-field="certificateAuthority"]', ${JSON.stringify(certificate)});` : ''}
@@ -2939,12 +2942,8 @@ test(trackChangesWithLateHydration, () => {
     await page.open(base + '/admin/roles/synthetic-role');
     check(await page.eval(() => document.querySelector('[name=tools][type=checkbox]').matches(':disabled')), 'The grants form accepted edits before hydration');
     await page.click(tile);
-    await page.eval(() => {
-      const script = document.createElement('script');
-      script.src = '/admin/assets/hydrate.js?resume';
-      document.head.append(script);
-    });
-    await page.wait('form[action$="/tools"] fieldset:not(:disabled) button[type=submit][aria-disabled=true]');
+    await resumeHydration();
+    await page.wait('form[action$="/tools"] [name=tools][type=checkbox]:enabled');
     await expectState(false, false, 'Form clicked before hydration');
   `)
 })
@@ -2952,12 +2951,6 @@ test(trackChangesWithLateHydration, () => {
 test(actionsWithLateHydration, () => {
   const fingerprint = new X509Certificate(fixture.certificatePem).fingerprint256.replaceAll(':', '').toLowerCase()
   browser(`
-    const resume = () => page.eval(() => new Promise(resolve => {
-      document.addEventListener('astryx-hydrated', () => resolve(true), { once: true });
-      const script = document.createElement('script');
-      script.src = '/admin/assets/hydrate.js?resume';
-      document.head.append(script);
-    }));
     const confirm = async () => {
       await page.wait('#confirmation[open]');
       await page.click('#confirmation button[value=confirmed]');
@@ -2965,7 +2958,9 @@ test(actionsWithLateHydration, () => {
 
     const testButton = 'form[data-test-tool] button[type=submit]';
     await createInstance('vectra-axi', { kind: 'qux', apiVersion: '2.5', origin: base, auth: 'token', token: 'CANARY-cached-test' });
-    await resume();
+    check(await page.eval(() => document.querySelector('form[data-test-tool] button[type=submit]').matches(':disabled')), 'The connection test could submit before hydration');
+    await resumeHydration();
+    await page.wait(testButton + ':enabled');
     await page.click(testButton);
     await page.wait('[data-check-failure]:not([hidden]) [data-check-error]:not(:empty)');
     check(await page.eval(() => document.querySelector('[data-check-error]').textContent) === 'UPSTREAM_TLS_FAILED', 'The untrusted loopback certificate did not reach the connection health result');
@@ -2980,7 +2975,8 @@ test(actionsWithLateHydration, () => {
     const initial = await readPerson();
     check(JSON.stringify(initial.roleIds) === '["synthetic-role"]', 'The synthetic person must start with one role');
     check(await page.eval(() => document.querySelector('form[action$="/synthetic-ordinary/roles"] [name=roleIds][value=synthetic-role]').matches(':disabled')), 'The role assignment accepted edits before hydration');
-    await resume();
+    await resumeHydration();
+    await page.wait(assignment + ' [name=roleIds][value=synthetic-role]:enabled');
     await page.click(assignment + ' [name=roleIds][value=synthetic-role]');
     await page.eval(() => {
       const form = document.querySelector('form[action$="/synthetic-ordinary/roles"]');
@@ -2998,10 +2994,11 @@ test(actionsWithLateHydration, () => {
 
     const creation = '#sheet-new-role';
     await page.open(base + '/admin/roles?sheet=new-role');
+    check(await page.eval(() => document.querySelector('#sheet-new-role [name=name]').matches(':disabled')
+      && document.querySelector('#sheet-new-role button[type=submit]').matches(':disabled')), 'The new role form was enabled before hydration');
+    await resumeHydration();
+    await page.wait(creation + ':modal [name=name]:enabled');
     await page.fill(creation + ' [name=name]', 'Synthetic readers');
-    await page.click(creation + ' button[type=submit]');
-    check(await page.eval(() => location.pathname === '/admin/roles' && document.querySelector('#sheet-new-role button[type=submit]').matches(':disabled')), 'The new role form submitted before hydration');
-    await resume();
     await page.click(creation + ' button[type=submit]');
     await page.wait('[name=tools]');
     check(await page.eval(() => document.querySelector('h1').textContent) === 'Synthetic readers', 'Role creation did not open the new role');
@@ -3010,22 +3007,29 @@ test(actionsWithLateHydration, () => {
     const rolePath = await page.eval(() => location.pathname);
     await page.open(base + rolePath + '?sheet=rename-role');
     const roleRevision = await page.eval(() => Number(document.querySelector('#sheet-rename-role [name=expectedRevision]').value));
+    check(await page.eval(() => document.querySelector('#sheet-rename-role [name=name]').matches(':disabled')
+      && document.querySelector('#sheet-rename-role button[type=submit]').matches(':disabled')), 'The rename form was enabled before hydration');
+    await resumeHydration();
+    await page.wait(rename + ':modal [name=name]:enabled');
     await page.fill(rename + ' [name=name]', 'Synthetic reviewers');
-    await resume();
     await page.click(rename + ' button[type=submit]');
     await page.wait(rename + ' [name=expectedRevision][value="' + (roleRevision + 1) + '"]');
     check(await page.eval(() => document.querySelector('h1').textContent) === 'Synthetic reviewers', 'Role rename did not save the staged name');
 
     await createInstance('az-axi', { tenantId: '11111111-1111-4111-8111-111111111111', clientId: '22222222-2222-4222-8222-222222222222',
       auth: 'certificate', thumbprintSha256: 'a'.repeat(64), privateKey: 'CANARY-original-key' });
-    await page.wait('[data-certificate]:not([hidden]) [data-certificate-file]');
+    check(await page.eval(() => document.querySelector('[data-certificate-file]').matches(':disabled')
+      && document.querySelector('[data-save-and-test]').matches(':disabled')
+      && document.querySelector('form[data-save-tool] button[type=submit]').matches(':disabled')), 'The connection form was enabled before hydration');
+    await resumeHydration();
+    await page.wait('[data-certificate]:not([hidden]) [data-certificate-file]:enabled');
+    await page.wait('[data-save-and-test]:enabled');
     await page.eval(${pemSelection('[data-certificate-file]', fixture.certificatePem)});
     await page.click('[data-save-and-test]');
-    await resume();
     await page.click('form[data-save-tool] button');
     await confirm();
     await page.wait('form[data-save-tool] [name=expectedRevision][value="2"]');
-    check(await page.eval(() => document.querySelector('[data-profile-field=thumbprintSha256]').value) === ${JSON.stringify(fingerprint)}, 'Hydration lost the selected certificate');
+    check(await page.eval(() => document.querySelector('[data-profile-field=thumbprintSha256]').value) === ${JSON.stringify(fingerprint)}, 'Save lost the selected certificate');
 
     const revoke = 'form[action="/v1/admin/tokens/revoke-all"]';
     await page.open(base + '/admin/tokens');
@@ -3241,12 +3245,9 @@ test(pickerWithLateHydration, () => {
     const mail = 'details:has(' + mark + ')';
     const groups = 'details:has([name=operations][value="mg.entra.group.member.add"])';
     const hydrate = async () => {
-      await page.eval(() => {
-        const script = document.createElement('script');
-        script.src = '/admin/assets/hydrate.js?resume';
-        document.head.append(script);
-      });
-      await page.wait('.ops-actions:not([hidden])');
+      await resumeHydration();
+      await page.wait('.ops-actions:not([hidden]) button:enabled');
+      await page.wait('input[name=q]:enabled');
     };
     const save = async revision => {
       await page.click('form[action$="/write-access"] button:not([form], [data-ops-select])');
@@ -3254,7 +3255,9 @@ test(pickerWithLateHydration, () => {
       await page.click('#confirmation button[value=confirmed]');
       await page.wait('form[action$="/write-access"] [name=expectedRevision][value="' + revision + '"]');
     };
-    const inert = async () => check(await page.eval(() => [...document.querySelectorAll('[name=operations], [name=q]')].every(input => input.matches(':disabled'))), 'The picker accepted edits before hydration');
+    const inert = async () => check(await page.eval(() => [
+      '[name=operations]', '[name=q]', '[name=show]', 'button[form=ops-filter]', '[role=switch]', 'button[type=submit]:not([form])',
+    ].every(selector => document.querySelector('form[action$="/write-access"]').querySelector(selector).matches(':disabled'))), 'The picker accepted edits before hydration');
     await inert();
     await hydrate();
     await page.click(mail + ' > summary');
@@ -3266,23 +3269,21 @@ test(pickerWithLateHydration, () => {
     await inert();
     await page.click(mail + ' > summary');
     await page.click(groups + ' > summary');
-    await page.fill('[name=q]', 'mail.');
-    await page.eval(() => { document.querySelector('[name=show][value=selected]').checked = true; });
     await hydrate();
+    check(await page.eval(() => !document.querySelector('details:has([value="mail.message.mark"])').open
+      && document.querySelector('details:has([value="mg.entra.group.member.add"])').open), 'Hydration lost the edited group disclosure state');
+    await page.fill('[name=q]', 'mail.');
+    await page.click('label:has([name=show][value=selected])');
     const picker = await page.eval(() => ({
       query: document.querySelector('[name=q]').value,
       view: document.querySelector('[name=show]:checked').value,
       shown: [...document.querySelectorAll('[data-op]:not([hidden]) [name=operations]')].map(input => input.value).sort(),
-      mailOpen: document.querySelector('details:has([value="mail.message.mark"])').open,
-      groupsOpen: document.querySelector('details:has([value="mg.entra.group.member.add"])').open,
     }));
-    check(picker.query === 'mail.' && picker.view === 'selected', 'Hydration lost the edited filter');
-    check(JSON.stringify(picker.shown) === JSON.stringify(['mail.folder.delete', 'mail.message.mark']), 'Hydration lost the saved selection');
-    check(!picker.mailOpen && picker.groupsOpen, 'Hydration lost the edited group disclosure state');
-    await page.eval(() => {
-      document.querySelector('[name=operations][value="mail.folder.delete"]').click();
-      document.querySelector('[name=operations][value="mail.rule.delete"]').click();
-    });
+    check(picker.query === 'mail.' && picker.view === 'selected', 'The picker did not apply the edited filter');
+    check(JSON.stringify(picker.shown) === JSON.stringify(['mail.folder.delete', 'mail.message.mark']), 'The picker did not show the saved selection');
+    await page.click('label:has([name=show][value=all])');
+    await page.click(folderDelete);
+    await page.click(ruleDelete);
     await save(3);
     const saved = await page.eval(async () => (await (await fetch('/v1/admin/tools/mg-axi')).json()).writeAccess.allowedOperations.sort());
     check(JSON.stringify(saved) === JSON.stringify(['mail.message.mark', 'mail.rule.delete']), 'Save did not preserve the edited selection');
