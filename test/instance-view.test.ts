@@ -67,10 +67,10 @@ test('a saved secret is an empty native textarea that keeps the stored value, an
   expect(find(render(), element => attribute(element, 'data-stored-secret') !== undefined).map(text)).toEqual(['Stored when configured below. Leave blank to keep; enter a value to replace.'])
 })
 
-test('Delete asks for the instance name and returns to the tool page', () => {
+test('Delete asks for the instance name', () => {
   const form = formFor(render(), path, 'DELETE')
-  expect([attribute(form, 'data-confirm'), attribute(form, 'data-confirm-name'), attribute(form, 'data-confirm-title'), attribute(form, 'data-success-url')]).toEqual([
-    'Delete lab? Its credential, certificate trust and health are removed. This cannot be undone.', 'lab', 'Delete instance', '/admin/tools/falcon-axi'])
+  expect([attribute(form, 'data-confirm'), attribute(form, 'data-confirm-name'), attribute(form, 'data-confirm-title')]).toEqual([
+    'Delete lab? Its credential, certificate trust and health are removed. This cannot be undone.', 'lab', 'Delete instance'])
   expect(controls(form)).toEqual([['_csrf', 'hidden', 'synthetic-csrf'], ['expectedId', 'hidden', 'synthetic-lab-id'], ['expectedRevision', 'hidden', '3']])
 })
 

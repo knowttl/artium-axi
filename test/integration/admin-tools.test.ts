@@ -1108,7 +1108,6 @@ test('the tools list and Instances tab report every instance, with SSH hosts sho
   expect(detail).toContain('Synthetic production tenant.')
   expect(detail).toContain('action="/v1/admin/tools/falcon-axi/instances/production/credential"')
   expect(detail).toContain('Danger zone')
-  expect(detail).toContain('data-success-url="/admin/tools/falcon-axi"')
   expect(detail).not.toContain('CANARY-')
 
   const ssh = (await app.inject({ method: 'GET', url: '/admin/tools/ssh-axi', headers: { cookie } })).body

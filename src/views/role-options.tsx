@@ -4,7 +4,7 @@ export function RoleOptions({ legend, roles, selected }: { legend: string, roles
   return (
     <fieldset className="options">
       <legend>{legend}</legend>
-      <input type="hidden" name="roleIds" disabled />
+      <input type="hidden" name="roleIds" disabled data-type="array" />
       {roles.length ? roles.map(role => (
         <label key={role.id} className="check">
           <input type="checkbox" name="roleIds" value={role.id} defaultChecked={selected.includes(role.id)} />

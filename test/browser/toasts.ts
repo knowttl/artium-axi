@@ -27,15 +27,26 @@ test('a rejected save announces its error assertively with a reload action, and 
   browser(`
     await page.open(base + '/admin/tools/falcon-axi');
     ${staleSave}
+    await page.wait('#confirmation:not([open])');
     await page.wait('.astryx-toast[data-type=error]');
     check(await page.eval(() => {
       const toast = document.querySelector('.astryx-toast[data-type=error]');
       return toast.textContent.includes('(REVISION_CONFLICT)') && [...toast.querySelectorAll('button')].some(button => button.textContent === 'Reload latest');
     }), 'The error toast lacks its message or reload action');
     check(await page.eval(() => document.querySelector('[data-astryx-live-region=assertive]').textContent.includes('(REVISION_CONFLICT)') && document.querySelector('[data-astryx-live-region=polite]').textContent === ''), 'The error was not announced assertively');
-    await page.click('form:has([name=enabled]) button');
-    await page.wait('#confirmation[open]');
-    check(await page.eval(() => !document.querySelector('.astryx-toast[data-type=error]')), 'Submitting again left the previous error showing');
+    await page.eval(() => {
+      const pending = Promise.withResolvers();
+      window.finishTest = pending.resolve;
+      const send = window.fetch;
+      window.fetch = async (url, options) => {
+        if (url === '/v1/admin/tools/falcon-axi/instances/lab/test') await pending.promise;
+        return send(url, options);
+      };
+    });
+    await page.click('form[action$="/instances/lab/test"] button');
+    await page.wait('form[action$="/instances/lab/test"] button:disabled');
+    await page.wait('body:not(:has(.astryx-toast[data-type=error]))');
+    await page.eval(() => { window.finishTest(); });
   `)
 })
 

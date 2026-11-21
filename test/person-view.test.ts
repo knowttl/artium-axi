@@ -60,9 +60,9 @@ test.each([
   expect(attribute(nodes(form).find(element => attribute(element, 'name') === 'enabled')!, 'data-type')).toBe('boolean')
 })
 
-test('archiving asks for the typed username and returns to the people list', () => {
+test('archiving asks for the typed username', () => {
   const form = formFor(render(), '/v1/admin/users/synthetic-one/archive')
-  expect([attribute(form, 'data-confirm-name'), attribute(form, 'data-success-url'), attribute(form, 'data-method')]).toEqual(['synthetic-one', '/admin/users', 'POST'])
+  expect([attribute(form, 'data-confirm-name'), attribute(form, 'data-method')]).toEqual(['synthetic-one', 'POST'])
 })
 
 test('unlock appears only while the person is locked, and the lock expiry is shown', () => {

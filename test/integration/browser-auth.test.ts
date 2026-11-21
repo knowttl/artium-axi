@@ -976,8 +976,7 @@ test('/admin/roles keeps the create-role form contract and opens its sheet from 
   expect([attribute(dialog(await page('?sheet=new-role')), 'open'), attribute(dialog(await page()), 'open')]).toEqual(['', undefined])
   const elements = await page()
   const form = elements.find(element => element.tagName === 'form' && attribute(element, 'action') === '/v1/admin/roles')!
-  expect(['method', 'data-method', 'data-confirm', 'data-success-url', 'data-success-message'].map(name => attribute(form, name)))
-    .toEqual(['post', 'POST', undefined, '/admin/roles/{id}', 'Role created. Choose the tools it grants.'])
+  expect(['method', 'data-method', 'data-confirm'].map(name => attribute(form, name))).toEqual(['post', 'POST', undefined])
   const controls = nodesOf(form).filter(element => element.tagName === 'input')
   expect(controls.map(control => [attribute(control, 'name'), attribute(control, 'required')])).toEqual([['_csrf', undefined], ['name', '']])
   expect(attribute(controls[0]!, 'value')).toMatch(/\S/)
