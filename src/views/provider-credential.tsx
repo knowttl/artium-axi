@@ -1,8 +1,9 @@
 import { Badge } from '@astryxdesign/core/Badge'
+import { Button } from '@astryxdesign/core/Button'
 import { HStack } from '@astryxdesign/core/HStack'
 import { Text } from '@astryxdesign/core/Text'
 import { VStack } from '@astryxdesign/core/VStack'
-import { ActionForm, ActionSubmit, Revision } from './action-form.js'
+import { ActionForm, Revision } from './action-form.js'
 import { CredentialEditor, type CredentialEditorProps } from './credential-editor.js'
 import { Panel } from './panel.js'
 import { LastChange } from './time.js'
@@ -27,7 +28,7 @@ export function ProviderCredential({ csrf, api, providerRevision, credential }: 
           <Revision value={revision} />
           <input type="hidden" name="expectedProviderRevision" data-type="number" value={providerRevision} />
           <CredentialEditor {...editor} />
-          <HStack justify="end"><ActionSubmit label="Save credential" variant="primary" /></HStack>
+          <HStack justify="end"><Button type="submit" label="Save credential" variant="primary" /></HStack>
         </VStack>
       </Panel>
     </ActionForm>

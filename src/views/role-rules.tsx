@@ -8,7 +8,7 @@ import { TextInput } from '@astryxdesign/core/TextInput'
 import { VisuallyHidden } from '@astryxdesign/core/VisuallyHidden'
 import { VStack } from '@astryxdesign/core/VStack'
 import { useState } from 'react'
-import { ActionForm, ActionSubmit, Revision } from './action-form.js'
+import { ActionForm, Revision } from './action-form.js'
 import { Icon } from './icon.js'
 import { Panel } from './panel.js'
 import { Sheet, sheetTrigger } from './sheet.js'
@@ -71,7 +71,7 @@ function RuleActions({ csrf, page, rule }: { csrf: string, page: string, rule: R
         <ActionForm action={`${rulesPath}/${rule.id}`} method="DELETE" csrf={csrf} confirmation={{ typedName: rule.value,
           consequence: 'Remove this mapping and immediately remove its rule-origin grants? Direct grants and grants from other rules are retained. This cannot be undone.' }}>
           <Revision value={rule.revision} />
-          <ActionSubmit label="Remove rule" variant="ghost" className="danger" icon={<Icon name="trash" />} />
+          <Button type="submit" label="Remove rule" variant="ghost" className="danger" icon={<Icon name="trash" />} />
         </ActionForm>
       </div>
     </details>

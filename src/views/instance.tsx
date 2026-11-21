@@ -1,5 +1,6 @@
 import { Badge } from '@astryxdesign/core/Badge'
 import { Banner } from '@astryxdesign/core/Banner'
+import { Button } from '@astryxdesign/core/Button'
 import { HStack } from '@astryxdesign/core/HStack'
 import { Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow } from '@astryxdesign/core/Table'
 import { Text } from '@astryxdesign/core/Text'
@@ -7,7 +8,7 @@ import { TextInput } from '@astryxdesign/core/TextInput'
 import { VisuallyHidden } from '@astryxdesign/core/VisuallyHidden'
 import { VStack } from '@astryxdesign/core/VStack'
 import { useState } from 'react'
-import { ActionForm, ActionSubmit, ActionToggle, Revision } from './action-form.js'
+import { ActionForm, Revision } from './action-form.js'
 import { CertificateInspectionDialog, type CertificateInspection, type TrustOptions } from './certificate-inspection.js'
 import { CredentialEditor, type CredentialEditorProps } from './credential-editor.js'
 import { Icon } from './icon.js'
@@ -93,14 +94,14 @@ function Header({ csrf, tool, mark, path, id, name, revision, enabled, state, ou
       </HStack>
       <HStack gap={2} vAlign="center">
         <ActionForm action={`${path}/test`} method="POST" csrf={csrf} showTest={show} attributes={{ 'data-test-tool': tool }}>
-          <ActionSubmit label="Test connection" variant="secondary" icon={<Icon name="test" />} />
+          <Button type="submit" label="Test connection" variant="secondary" icon={<Icon name="test" />} />
         </ActionForm>
         <ActionForm action={path} method="PATCH" csrf={csrf}
           confirmation={{ consequence: enabled ? `Disable ${name}? Calls to it fail with INSTANCE_DISABLED until you enable it again.` : `Enable ${name}? Agents who can use it can call it again.`,
             title: enabled ? 'Disable instance' : 'Enable instance', action: enabled ? 'Disable' : 'Enable' }}>
           <Versions id={id} revision={revision} />
           <input type="hidden" name="enabled" data-type="boolean" value={String(!enabled)} />
-          <ActionToggle enabled={enabled} />
+          <button type="submit" className="toggle" role="switch" aria-checked={enabled}><span className={`switch${enabled ? ' on' : ''}`} aria-hidden="true" />Enabled</button>
         </ActionForm>
       </HStack>
     </HStack>
@@ -145,7 +146,7 @@ function Controller({ csrf, api, props, origin }: { csrf: string, api: string, p
           <Text as="p" type="supporting">Changing the saved address removes the previous token and certificate trust.</Text>
           <HStack gap={3} justify="between" vAlign="center" wrap="wrap">
             <Text type="supporting">Sends no credentials.</Text>
-            <ActionSubmit label="Save controller address" variant="secondary" size="sm" />
+            <Button type="submit" label="Save controller address" variant="secondary" size="sm" />
           </HStack>
         </VStack>
       </Panel>
@@ -165,7 +166,7 @@ function Connection({ csrf, props }: { csrf: string, props: InstanceProps }) {
           <CredentialEditor {...connection} />
           <HStack gap={3} justify="between" vAlign="center" wrap="wrap">
             <label className="check"><input type="checkbox" name="testAfterSave" data-save-and-test="" defaultChecked /> Test after saving</label>
-            <ActionSubmit label="Save connection" variant="primary" size="sm" />
+            <Button type="submit" label="Save connection" variant="primary" size="sm" />
           </HStack>
         </VStack>
       </Panel>
@@ -208,7 +209,7 @@ function PinTable({ csrf, path, pins }: { csrf: string, path: string, pins: Pin[
               <ActionForm action={`${path}/certificates`} method="DELETE" csrf={csrf}
                 confirmation={{ consequence: 'Remove this endpoint trust record? Separately saved Certificate verification fields remain.' }}>
                 <input type="hidden" name="id" value={pin.id} />
-                <ActionSubmit label="Remove endpoint trust" variant="secondary" size="sm" />
+                <Button type="submit" label="Remove endpoint trust" variant="secondary" size="sm" />
               </ActionForm>
             </TableCell>
           </TableRow>
@@ -254,7 +255,7 @@ function Certificates({ csrf, path, name, certificates, savedTlsFailure }: { csr
                       <input type="hidden" name="endpointIndex" data-type="number" value={0} />
                       <code>{endpoints[0]}</code>
                     </>}
-                  <ActionSubmit label="Inspect certificate" variant="secondary" size="sm" icon={<Icon name="cert" />} />
+                  <Button type="submit" label="Inspect certificate" variant="secondary" size="sm" icon={<Icon name="cert" />} />
                 </HStack>
               </ActionForm>
             )}
@@ -294,7 +295,7 @@ export function Instance(props: InstanceProps) {
           <ActionForm action={path} method="DELETE" csrf={csrf} successUrl={`/admin/tools/${tool}`}
             confirmation={{ consequence: `Delete ${name}? Its credential, certificate trust and health are removed. This cannot be undone.`, title: 'Delete instance', action: 'Delete', typedName: name }}>
             <Versions id={props.id} revision={props.revision} />
-            <ActionSubmit label="Delete…" variant="ghost" size="sm" className="danger" icon={<Icon name="trash" />} />
+            <Button type="submit" label="Delete…" variant="ghost" size="sm" className="danger" icon={<Icon name="trash" />} />
           </ActionForm>
         </HStack>
       </Panel>

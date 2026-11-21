@@ -2,7 +2,7 @@ import { Button } from '@astryxdesign/core/Button'
 import { IconButton } from '@astryxdesign/core/IconButton'
 import { Heading, Text } from '@astryxdesign/core/Text'
 import { createContext, useContext, useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react'
-import { ActionForm, ActionSubmit, FormMessage } from './action-form.js'
+import { ActionForm, FormMessage } from './action-form.js'
 import { Icon } from './icon.js'
 
 const SheetClose = createContext<{ closeHref: string, close: () => void } | null>(null)
@@ -109,7 +109,7 @@ export function Sheet({ name, open, query, returnFocusId, closeHref, title, desc
         <div className="sheet-foot">
           <SheetCancel />
           {footLead}
-          <ActionSubmit label={submit} variant="primary" />
+          <Button type="submit" label={submit} variant="primary" />
         </div>
       </ActionForm>
     </SheetFrame>

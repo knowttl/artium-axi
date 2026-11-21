@@ -6,6 +6,7 @@ import { completePemFields } from './certificate-verification.js'
 import { claimLinkEvent } from './claim-link.js'
 import { confirmationEvent, type ConfirmationRequest } from './confirmation.js'
 import { createdTokenEvent } from './created-token.js'
+import { snapshotForm, type FormControl, type FormDraft } from './form-draft.js'
 import type { GithubDeviceStart } from './github-device.js'
 import { requestReauth } from './reauth.js'
 import { storeTestOutcome, type TestOutcome } from './test-outcome.js'
@@ -14,6 +15,7 @@ import { successKey } from './toasts.js'
 export interface SubmitRequest {
   form: HTMLFormElement
   submitter: HTMLButtonElement | null
+  draft?: FormDraft
   action: string
   method: string
   confirmation?: Confirmation
@@ -33,9 +35,7 @@ export interface SubmitRequest {
 
 export type Report = (text: string, reload?: boolean) => void
 
-type Control = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
 type Body = Record<string, unknown>
-type FormDraft = ReturnType<typeof snapshotForm>
 
 const hydrated = typeof document === 'undefined' ? undefined : new Promise<void>(resolve => {
   document.addEventListener('astryx-hydrated', () => resolve(), { once: true })
@@ -57,14 +57,8 @@ function beginSubmit(form: HTMLFormElement, submitter: HTMLButtonElement | null)
   }
 }
 
-function wasEdited(input: HTMLInputElement) {
-  const clone = input.cloneNode() as HTMLInputElement
-  clone.defaultValue = `${clone.value} `
-  return clone.value !== clone.defaultValue
-}
-
-function applyProfile(form: HTMLFormElement, fields: FormData, body: Body): string | null {
-  const inputs = Array.from(form.querySelectorAll<Control>('[data-profile-field]'))
+function applyProfile(form: HTMLFormElement, { fields, editedOverrides }: FormDraft, body: Body): string | null {
+  const inputs = Array.from(form.querySelectorAll<FormControl>('[data-profile-field]'))
   if (!inputs.length) return null
   const endpointChanged = Array.from(form.querySelectorAll<HTMLInputElement>('[data-profile-field="origin"], [data-profile-field="url"]'))
     .some(endpoint => fields.has(endpoint.name) && fields.get(endpoint.name) !== (endpoint.dataset.saved ?? endpoint.defaultValue))
@@ -75,7 +69,7 @@ function applyProfile(form: HTMLFormElement, fields: FormData, body: Body): stri
     const clearable = input.hasAttribute('data-profile-clearable')
     const tls = input.hasAttribute('data-tls-input')
     if (raw === null || raw === '' && !clearable) continue
-    if (input instanceof HTMLInputElement && clearable && endpointChanged && !wasEdited(input)) continue
+    if (input instanceof HTMLInputElement && clearable && endpointChanged && !editedOverrides.has(input.name)) continue
     const path = tls ? input.dataset.profileField!.split('.') : [input.dataset.profileField!]
     const key = path.pop()!
     const parent = path.reduce((node, name) => node[name] ??= Object.create(null), value)
@@ -93,18 +87,6 @@ function applyProfile(form: HTMLFormElement, fields: FormData, body: Body): stri
   if (certificate) value.certificatePem = certificate
   body.value = value
   return null
-}
-
-function snapshotForm(form: HTMLFormElement) {
-  return {
-    fields: new FormData(form),
-    typed: Array.from(form.querySelectorAll<Control>('[data-type]'), input => ({
-      name: input.name,
-      value: input.value,
-      type: input.dataset.type,
-      checked: input instanceof HTMLInputElement && input.type === 'checkbox' ? input.checked : undefined,
-    })),
-  }
 }
 
 function ask<Answer>(type: string, detail: object) {
@@ -156,15 +138,15 @@ async function retestConnection(url: string, csrf: unknown): Promise<TestOutcome
   return { message }
 }
 
-export async function submitForm({ form, submitter, action, method, confirmation, token, successUrl, successMessage, claimLink, createdToken, bodyFrom, saveTool, retestUrl, showTest, showInspection, showDevice, report }: SubmitRequest) {
+export async function submitForm({ form, submitter, draft, action, method, confirmation, token, successUrl, successMessage, claimLink, createdToken, bodyFrom, saveTool, retestUrl, showTest, showInspection, showDevice, report }: SubmitRequest) {
   const submission = beginSubmit(form, submitter)
   if (!submission) return
   const { button, release } = submission
   try {
-    const draft = snapshotForm(form)
+    draft ??= snapshotForm(form)
     if (form.querySelector('[data-credential-editor]')) await completePemFields(draft.fields)
     const body: Body = bodyFrom ? { _csrf: draft.fields.get('_csrf'), ...bodyFrom(draft.fields) } : Object.fromEntries(draft.fields)
-    const invalidProfile = applyProfile(form, draft.fields, body)
+    const invalidProfile = applyProfile(form, draft, body)
     const testUrl = saveTool && draft.fields.has('testAfterSave')
       ? `/v1/admin/tools/${saveTool}/instances/${form.dataset.saveInstance || body.name}/test` : undefined
     if (saveTool) delete body.testAfterSave

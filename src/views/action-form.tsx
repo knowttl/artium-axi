@@ -1,7 +1,8 @@
-import { Button, type ButtonProps } from '@astryxdesign/core/Button'
+import { Button } from '@astryxdesign/core/Button'
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { confirmationRouteFor } from '../shared/confirmation-routes.js'
 import type { CertificateInspection } from './certificate-inspection.js'
+import type { DeferredSubmitEvent } from './form-draft.js'
 import type { GithubDeviceStart } from './github-device.js'
 import { submitForm, type Report } from './submit.js'
 import type { TestOutcome } from './test-outcome.js'
@@ -22,7 +23,6 @@ export interface ConfirmationTokens {
 export const ConfirmationTokenContext = createContext<ConfirmationTokens>({ issued: {} })
 
 const FormDirtyContext = createContext(false)
-const SubmitReadyContext = createContext(false)
 
 export interface FormMessageState {
   text: string
@@ -60,18 +60,6 @@ export function useTextDraft(initialValue: string) {
   return { ref, value, onChange }
 }
 
-export function ActionSubmit(props: Omit<ButtonProps, 'type' | 'form' | 'href'>) {
-  const ready = useContext(SubmitReadyContext)
-  return <Button {...props} type="submit" {...{ disabled: !ready }} />
-}
-
-export function ActionToggle({ enabled }: { enabled: boolean }) {
-  const ready = useContext(SubmitReadyContext)
-  return <button type="submit" className="toggle" role="switch" aria-checked={enabled} disabled={!ready}>
-    <span className={`switch${enabled ? ' on' : ''}`} aria-hidden="true" />Enabled
-  </button>
-}
-
 const differsFromDefaults = (form: HTMLFormElement) =>
   Array.from(form.elements).some(field => field instanceof HTMLInputElement && field.type === 'checkbox' && field.checked !== field.defaultChecked)
 
@@ -100,11 +88,9 @@ export interface ActionFormProps {
 export function ActionForm({ action, method, csrf, confirmation, successUrl, successMessage, trackChanges, claimLink, createdToken, bodyFrom, saveTool, retestUrl, showTest, showInspection, showDevice, onMessage, className, attributes, children }: ActionFormProps) {
   const tokens = useContext(ConfirmationTokenContext)
   const form = useRef<HTMLFormElement>(null)
-  const [ready, setReady] = useState(false)
   const [dirty, setDirty] = useState(false)
   const [message, setMessage] = useState<FormMessageState | null>(null)
   const area = useRef(false)
-  useLayoutEffect(() => { setReady(true) }, [])
   useLayoutEffect(() => { if (trackChanges) setDirty(differsFromDefaults(form.current!)) }, [trackChanges])
   const route = confirmationRouteFor(method, action)
   if (Boolean(route) !== Boolean(confirmation) || route && (route.tier === 3) !== Boolean(confirmation?.typedName)) {
@@ -118,13 +104,15 @@ export function ActionForm({ action, method, csrf, confirmation, successUrl, suc
     else document.dispatchEvent(new CustomEvent<ToastDetail>(toastEvent, { detail: { text, reload } }))
   }
   return (
-    <form ref={form} className={className} data-api="" data-method={method} data-confirm={confirmation?.consequence} data-confirm-title={confirmation?.title}
+    <form ref={form} className={className} data-api="" data-native-submit={route?.native ? '' : undefined}
+      data-method={method} data-confirm={confirmation?.consequence} data-confirm-title={confirmation?.title}
       data-confirm-action={confirmation?.action} data-confirm-name={confirmation?.typedName} data-confirm-token={token || undefined}
       data-save-tool={saveTool} {...attributes} action={action} method="post"
       onSubmit={event => {
         event.preventDefault()
         event.stopPropagation()
-        void submitForm({ form: event.currentTarget, submitter: (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null, action, method, confirmation,
+        const { submitter, draft } = event.nativeEvent as DeferredSubmitEvent
+        void submitForm({ form: event.currentTarget, submitter: submitter as HTMLButtonElement | null, draft, action, method, confirmation,
           token: token || undefined, successUrl, successMessage, claimLink, createdToken, bodyFrom, saveTool, retestUrl, showTest, showInspection, showDevice, report })
       }}
       onInput={trackChanges ? event => setDirty(differsFromDefaults(event.currentTarget)) : undefined} onReset={trackChanges ? () => setDirty(false) : undefined}>
@@ -136,9 +124,7 @@ export function ActionForm({ action, method, csrf, confirmation, successUrl, suc
           <input type="hidden" name="_confirmText" value={confirmation.consequence} />
         </>
       )}
-      <SubmitReadyContext value={ready}>
-        <FormMessageContext value={{ message, area }}><FormDirtyContext value={dirty}>{children}</FormDirtyContext></FormMessageContext>
-      </SubmitReadyContext>
+      <FormMessageContext value={{ message, area }}><FormDirtyContext value={dirty}>{children}</FormDirtyContext></FormMessageContext>
     </form>
   )
 }

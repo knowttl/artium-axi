@@ -1,9 +1,10 @@
+import { Button } from '@astryxdesign/core/Button'
 import { HStack } from '@astryxdesign/core/HStack'
 import { Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow } from '@astryxdesign/core/Table'
 import { Text } from '@astryxdesign/core/Text'
 import { VisuallyHidden } from '@astryxdesign/core/VisuallyHidden'
 import { VStack } from '@astryxdesign/core/VStack'
-import { ActionForm, ActionSubmit } from './action-form.js'
+import { ActionForm } from './action-form.js'
 import { Icon } from './icon.js'
 import { Panel } from './panel.js'
 import { Time } from './time.js'
@@ -16,8 +17,8 @@ export function SignOutEverywhere({ csrf, path, sessions, inMenu = false }: Sess
   return (
     <ActionForm action={path + '/revoke'} method="POST" csrf={csrf} confirmation={{ consequence, title: 'Sign out everywhere', action: 'Sign out everywhere' }}>
       {inMenu
-        ? <ActionSubmit label="Sign out everywhere…" variant="ghost" icon={<Icon name="logout" />} />
-        : <ActionSubmit label="Sign out everywhere" variant="secondary" size="sm" />}
+        ? <Button type="submit" label="Sign out everywhere…" variant="ghost" icon={<Icon name="logout" />} />
+        : <Button type="submit" label="Sign out everywhere" variant="secondary" size="sm" />}
     </ActionForm>
   )
 }
@@ -52,7 +53,7 @@ export function Sessions({ csrf, path, sessions }: SessionsProps) {
                 <TableCell>
                   <ActionForm action={`${path}/${encodeURIComponent(session.id)}/revoke`} method="POST" csrf={csrf} confirmation={{ title: 'Revoke session', action: 'Revoke',
                     consequence: `Revoke this ${session.kind === 'browser' ? 'browser session' : 'CLI session and all its access and refresh tokens'}?${session.current ? ' This signs you out now.' : ''}` }}>
-                    <ActionSubmit label="Revoke" variant="ghost" size="sm" />
+                    <Button type="submit" label="Revoke" variant="ghost" size="sm" />
                   </ActionForm>
                 </TableCell>
               </TableRow>

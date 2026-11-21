@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow } f
 import { Text } from '@astryxdesign/core/Text'
 import { TextInput } from '@astryxdesign/core/TextInput'
 import { VStack } from '@astryxdesign/core/VStack'
-import { ActionForm, ActionSubmit, Revision, useFormDirty, useTextDraft } from './action-form.js'
+import { ActionForm, Revision, useFormDirty, useTextDraft } from './action-form.js'
 import { Panel } from './panel.js'
 import { Sheet } from './sheet.js'
 import { badgeVariants, type Status } from './status.js'
@@ -27,7 +27,7 @@ function SaveOrDiscard() {
   const dirty = useFormDirty()
   return (
     <HStack gap={2}>
-      <ActionSubmit label="Save tools" variant="primary" size="sm" isDisabled={!dirty} />
+      <Button type="submit" label="Save tools" variant="primary" size="sm" isDisabled={!dirty} />
       <Button type="reset" label="Discard" variant="ghost" size="sm" hidden={!dirty} />
     </HStack>
   )
@@ -82,7 +82,7 @@ function RawApi({ csrf, path, name, changed, rawApi }: Pick<RoleProps, 'csrf' | 
                   <input type="checkbox" className="switch" role="switch" name="enabled" data-type="boolean" aria-label={`Allow Raw API for ${tool.product}`} defaultChecked={tool.allowed} />
                   <span>Allow</span>
                 </label>
-                <ActionSubmit label="Save" variant="secondary" size="sm" />
+                <Button type="submit" label="Save" variant="secondary" size="sm" />
               </ActionForm>
             </HStack>
           ))}
@@ -141,7 +141,7 @@ function Delete({ csrf, path, name, changed, blocked }: Pick<RoleProps, 'csrf' |
         <ActionForm action={path} method="DELETE" csrf={csrf} successUrl="/admin/roles" successMessage="Role deleted."
           confirmation={{ consequence: `Delete ${name}? Its tool grants will be removed. This cannot be undone.`, action: 'Delete role', typedName: name }}>
           <Revision value={changed.revision} />
-          <ActionSubmit label="Delete…" variant="destructive" size="sm" />
+          <Button type="submit" label="Delete…" variant="destructive" size="sm" />
         </ActionForm>
       )} />
   )

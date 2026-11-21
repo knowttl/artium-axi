@@ -18,9 +18,9 @@ function respond<Name extends ViewName>(reply: FastifyReply, title: string, name
   const confirmations: ConfirmationTokens = { issued: {}, mint: current && ((method, path, name) => mintConfirmation(current.id, method, path, name)) }
   const { html, style } = hoistInlineStyles(renderToString(<Root name={name} props={props} frame={frame} mode={mode} confirmations={confirmations} />), reply.styleNonce)
   const data = JSON.stringify({ frame, props, confirmations: confirmations.issued }).replace(/</g, '\\u003c')
-  const body = `<div data-astryx-root data-view="${name}" data-mode="${mode}">${html}</div><script type="application/json" data-astryx-props>${data}</script>${overlays}`
+  const body = `<script src="/admin/assets/hydrate.js"></script><div data-astryx-root data-view="${name}" data-mode="${mode}">${html}</div><script type="application/json" data-astryx-props>${data}</script>${overlays}`
   const completion = notifiesOpener ? '<script src="/admin/assets/reauth-complete.js"></script>' : ''
-  const head = `${completion}${style}<script defer src="/admin/assets/hydrate.js"></script>`
+  const head = completion + style
   return browserDocument(reply, title, body, current, head)
 }
 

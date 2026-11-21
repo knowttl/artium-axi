@@ -6,7 +6,7 @@ import { Text } from '@astryxdesign/core/Text'
 import { TextInput } from '@astryxdesign/core/TextInput'
 import { VStack } from '@astryxdesign/core/VStack'
 import { useLayoutEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
-import { ActionForm, ActionSubmit, Revision } from './action-form.js'
+import { ActionForm, Revision } from './action-form.js'
 import { Icon } from './icon.js'
 import { Panel } from './panel.js'
 
@@ -173,7 +173,7 @@ export function Writes({ csrf, name, api, product, revision, panel }: { csrf: st
     setHydrated(true)
   }, [])
   const update = (change?: (current: Picker) => Partial<Picker>) => setPicker(current => openMatchingGroups(groups, change ? { ...current, ...change(current) } : current))
-  const save = <ActionSubmit label="Save write permissions" variant="primary" size="sm" />
+  const save = <Button type="submit" label="Save write permissions" variant="primary" size="sm" />
   return (
     <div ref={root} className="split has-aside" data-write-access="">
       <VStack gap={4}>

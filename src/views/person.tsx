@@ -9,7 +9,7 @@ import { Text } from '@astryxdesign/core/Text'
 import { Token } from '@astryxdesign/core/Token'
 import { VStack } from '@astryxdesign/core/VStack'
 import { useState, type ReactNode } from 'react'
-import { ActionForm, ActionSubmit, Revision } from './action-form.js'
+import { ActionForm, Revision } from './action-form.js'
 import { Icon } from './icon.js'
 import { Panel } from './panel.js'
 import { temporaryPasswordHint } from './people.js'
@@ -81,7 +81,7 @@ function Roles({ active, ruleGrants, username }: { active: Active, ruleGrants: P
           <HStack gap={3} justify="between" vAlign="center" wrap="wrap">
             <Text type="supporting">Saving replaces direct roles and keeps rule grants. Changes apply on their next tool call.</Text>
             <Revision value={active.revision} />
-            <ActionSubmit label="Save roles" variant="primary" size="sm" />
+            <Button type="submit" label="Save roles" variant="primary" size="sm" />
           </HStack>
         </VStack>
       </ActionForm>
@@ -134,7 +134,7 @@ function Danger({ active, username }: { active: Active, username: string }) {
             : { consequence: `Enable ${username}? They can sign in again; revoked sessions stay signed out.`, title: 'Enable access', action: 'Enable' }}>
             <Revision value={revision} />
             <input type="hidden" name="enabled" data-type="boolean" value={String(!enabled)} />
-            <ActionSubmit label={enabled ? 'Disable…' : 'Enable…'} variant={enabled ? 'destructive' : 'secondary'} size="sm" />
+            <Button type="submit" label={enabled ? 'Disable…' : 'Enable…'} variant={enabled ? 'destructive' : 'secondary'} size="sm" />
           </ActionForm>
         </Row>
         <Row title="Archive person" text="Permanent. Hides them from People, blocks sign-in and revokes all sessions. History and role membership are kept.">
@@ -142,7 +142,7 @@ function Danger({ active, username }: { active: Active, username: string }) {
             confirmation={{ title: 'Archive person', action: 'Archive', typedName: username,
               consequence: `Archive ${username}? All browser and CLI sessions are revoked, sign-in is blocked, and history is retained. This cannot be undone here.` }}>
             <Revision value={revision} />
-            <ActionSubmit label="Archive…" variant="destructive" size="sm" />
+            <Button type="submit" label="Archive…" variant="destructive" size="sm" />
           </ActionForm>
         </Row>
       </VStack>
@@ -163,7 +163,7 @@ function Profile({ active, username }: { active: Active, username: string }) {
             <input type="checkbox" name="administrator" data-type="boolean" defaultChecked={active.administrator} />
             <span><strong>Administrator</strong><span>Manage people, roles, tools and sign-in. Changes immediately.</span></span>
           </label>
-          <div><ActionSubmit label="Save profile" variant="secondary" size="sm" /></div>
+          <div><Button type="submit" label="Save profile" variant="secondary" size="sm" /></div>
         </VStack>
       </ActionForm>
     </Panel>
@@ -184,7 +184,7 @@ function SignIn({ active, username }: { active: Active, username: string }) {
         {lockedUntil !== null && (
           <ActionForm action={active.path + '/unlock'} method="POST" csrf={active.csrf}
             confirmation={{ consequence: `Clear ${username}’s failed sign-in attempts and lockout? Their password and sessions stay unchanged.`, title: 'Unlock', action: 'Unlock' }}>
-            <ActionSubmit label="Unlock" variant="secondary" size="sm" icon={<Icon name="unlock" />} />
+            <Button type="submit" label="Unlock" variant="secondary" size="sm" icon={<Icon name="unlock" />} />
           </ActionForm>
         )}
       </VStack>
@@ -222,7 +222,7 @@ function MoreActions({ active, username }: { active: Active, username: string })
               title: 'Make break-glass admin', action: 'Designate' }}>
             <Revision value={active.revision} />
             <input type="hidden" name="breakGlass" data-type="boolean" value={String(!designated)} />
-            <ActionSubmit label={designated ? 'Remove break-glass designation…' : 'Make break-glass admin…'} variant="ghost" icon={<Icon name="shield" />} />
+            <Button type="submit" label={designated ? 'Remove break-glass designation…' : 'Make break-glass admin…'} variant="ghost" icon={<Icon name="shield" />} />
           </ActionForm>
         )}
         <hr />

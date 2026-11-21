@@ -9,7 +9,7 @@ import { VStack } from '@astryxdesign/core/VStack'
 import { useState } from 'react'
 import type { z } from 'zod'
 import type { certificateInspectionSchema } from '../shared/api.js'
-import { ActionForm, ActionSubmit, MessageArea, type FormMessageState } from './action-form.js'
+import { ActionForm, MessageArea, type FormMessageState } from './action-form.js'
 import { Icon } from './icon.js'
 
 export type CertificateInspection = z.infer<typeof certificateInspectionSchema>
@@ -75,7 +75,7 @@ function InspectionBody({ csrf, path, trust, inspection }: InspectionProps & { i
       {nameChange && !nameChange.refusalReason && (
         <ActionForm action={`${path}/certificates/use-name`} method="POST" csrf={csrf} onMessage={setMessage}>
           <input type="hidden" name="inspectionId" value={inspection.inspectionId} />
-          <ActionSubmit label={`Use ${nameChange.certificateName} as the name and keep connecting to ${nameChange.connectAddress}`} variant="secondary" data-use-certificate-name="" />
+          <Button type="submit" label={`Use ${nameChange.certificateName} as the name and keep connecting to ${nameChange.connectAddress}`} variant="secondary" data-use-certificate-name="" />
         </ActionForm>
       )}
       {trustable && (
@@ -96,7 +96,7 @@ function InspectionBody({ csrf, path, trust, inspection }: InspectionProps & { i
               </select>
             </Field>
             <label className="check"><input type="checkbox" name="confirmedFingerprint" value={leaf.fingerprint} required /> I compared the displayed SHA-256 fingerprint with the appliance through a trusted route.</label>
-            <div><ActionSubmit label={rotation ? 'Replace trusted certificate' : 'Trust this certificate'} variant="primary" /></div>
+            <div><Button type="submit" label={rotation ? 'Replace trusted certificate' : 'Trust this certificate'} variant="primary" /></div>
           </VStack>
         </ActionForm>
       )}

@@ -4,7 +4,7 @@ import { readTestResponse } from '../src/shared/diagnostic.js'
 
 test('a stale browser test request gives reload guidance without replacing health', async () => {
   const response = Response.json({ error: { code: 'CSRF_INVALID', source: 'artium-axi', requestId: 'synthetic-request',
-    message: 'The form token or request origin is invalid.', next: 'Reload the form on this server and submit it again.' } }, { status: 403 })
+    message: 'Synthetic request rejection.', next: 'Retry.' } }, { status: 403 })
   await expect(readTestResponse(response)).resolves.toEqual({ error: {
     code: 'CSRF_INVALID', message: 'The form token or request origin is invalid.', next: 'Reload the form on this server and submit it again.',
   } })

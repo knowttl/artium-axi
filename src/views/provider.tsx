@@ -5,7 +5,7 @@ import { HStack } from '@astryxdesign/core/HStack'
 import { Text } from '@astryxdesign/core/Text'
 import { VStack } from '@astryxdesign/core/VStack'
 import type { ReactNode } from 'react'
-import { ActionForm, ActionSubmit, Revision } from './action-form.js'
+import { ActionForm, Revision } from './action-form.js'
 import { useCopy } from './copy.js'
 import { Icon } from './icon.js'
 import { Panel } from './panel.js'
@@ -46,7 +46,7 @@ function Activation({ csrf, api, enabled, revision, problems, activationConseque
     <ActionForm action={`${api}/activation`} method="PATCH" csrf={csrf} confirmation={{ consequence: activationConsequence }}>
       <Revision value={revision} />
       <input type="hidden" name="enabled" data-type="boolean" value={String(!enabled)} />
-      <ActionSubmit label={enabled ? 'Disable sign-in' : 'Enable sign-in'} variant={enabled ? 'secondary' : 'primary'} />
+      <Button type="submit" label={enabled ? 'Disable sign-in' : 'Enable sign-in'} variant={enabled ? 'secondary' : 'primary'} />
     </ActionForm>
   )
 }
@@ -158,7 +158,7 @@ function Settings({ csrf, api, kind, name, issuer, tenantId, revision, changed }
           <LastChange {...changed} />
           <Revision value={revision} />
           <ProviderFields kind={kind} name={name} identifier={kind === 'entra' ? tenantId ?? '' : issuer} />
-          <HStack justify="end"><ActionSubmit label="Save provider settings" variant="primary" /></HStack>
+          <HStack justify="end"><Button type="submit" label="Save provider settings" variant="primary" /></HStack>
         </VStack>
       </Panel>
     </ActionForm>

@@ -14,7 +14,7 @@ This document describes the current screens and their design rules.
 | `src/server/admin/design/status.ts` | The status vocabulary: one word and tone per state, the badge and status-dot helpers, and the product display name and mark of each tool. |
 
 The tokens and components in `src/server/admin/design` are concatenated and served from `/admin/assets/style.css`.
-The build also produces a React and Astryx browser bundle and the Astryx neutral stylesheet, served at `/admin/assets/hydrate.js` and `/admin/assets/astryx.css`.
+The browser entry at `/admin/assets/hydrate.js` loads the React and Astryx bundle, and the Astryx neutral stylesheet is served at `/admin/assets/astryx.css`.
 All pages load the stylesheet; render-seam pages also load the browser bundle.
 
 ## Render seam
@@ -137,8 +137,8 @@ After creating or updating an instance with credentials, `submitForm` runs the o
 `ActionForm` uses `artium-confirm` for action confirmation and `artium-reauth-request` for identity confirmation.
 After certificate trust is saved, `submitForm` tests with `X-Artium-Retest: 1` and stores the outcome for the reloaded instance page.
 `ActionForm` captures the submitted values before waiting for `astryx-hydrated`, when the dialog listeners are ready, and holds a page-wide submit lock.
-Action form drafts can be edited before hydration.
-Their submit controls become available when React takes ownership of the form.
+Before hydration, the browser entry holds the first React-dependent submission and its draft for `ActionForm`.
+Forms with server confirmation can submit natively while React loads or when JavaScript is off.
 The New role and Rename sheets pass no confirmation text, so they submit without a confirmation dialog.
 Astryx checkboxes emit inline SVG shapes, so the role and administrator checkboxes stay native.
 `ActionForm` in `src/views/action-form.tsx` owns the `data-api` form attributes (method, consequence, title, action, typed name, success URL and success message) and the submission itself, and `Sheet` builds on it, so a view writes an API form without repeating them.

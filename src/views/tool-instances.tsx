@@ -9,7 +9,7 @@ import { TextInput } from '@astryxdesign/core/TextInput'
 import { VisuallyHidden } from '@astryxdesign/core/VisuallyHidden'
 import { VStack } from '@astryxdesign/core/VStack'
 import { useState } from 'react'
-import { ActionForm, ActionSubmit, Revision } from './action-form.js'
+import { ActionForm, Revision } from './action-form.js'
 import { CredentialEditor, type CredentialEditorProps } from './credential-editor.js'
 import { Icon } from './icon.js'
 import { GithubConnection, type GithubConnectionProps } from './github-connection.js'
@@ -110,7 +110,7 @@ function Actions({ csrf, page, ssh, row }: { csrf: string, page: string, ssh: bo
   return (
     <HStack gap={1} justify="end" vAlign="center">
       <ActionForm action={`${instance.path}/test`} method="POST" csrf={csrf} successMessage="Test passed.">
-        <ActionSubmit label="Test" variant="secondary" size="sm" icon={<Icon name="test" />} />
+        <Button type="submit" label="Test" variant="secondary" size="sm" icon={<Icon name="test" />} />
       </ActionForm>
       <Button href={`${page}?sheet=${sheet}`} label="Edit" variant="ghost" size="sm" icon={<Icon name="pen" />} {...sheetTrigger(`sheet-${sheet}`)} />
       <details className="more-menu">
@@ -121,14 +121,14 @@ function Actions({ csrf, page, ssh, row }: { csrf: string, page: string, ssh: bo
             : { consequence: `Enable ${row.name}? Agents who can use it can call it again.`, title: 'Enable instance', action: 'Enable' }}>
             {versions}
             <input type="hidden" name="enabled" data-type="boolean" value={String(!instance.enabled)} />
-            <ActionSubmit label={instance.enabled ? 'Disable' : 'Enable'} variant="ghost" />
+            <Button type="submit" label={instance.enabled ? 'Disable' : 'Enable'} variant="ghost" />
           </ActionForm>
           <hr />
           <ActionForm action={instance.path} method="DELETE" csrf={csrf}
             confirmation={{ consequence: `Delete ${row.name}? Its credential, certificate trust and health are removed. Calls that name it fail with INSTANCE_NOT_FOUND. Audit history is kept.`,
               title: 'Delete instance', action: 'Delete', typedName: row.name }}>
             {versions}
-            <ActionSubmit label="Delete…" variant="ghost" className="danger" icon={<Icon name="trash" />} />
+            <Button type="submit" label="Delete…" variant="ghost" className="danger" icon={<Icon name="trash" />} />
           </ActionForm>
         </div>
       </details>

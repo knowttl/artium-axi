@@ -4,6 +4,7 @@ import type { FastifyInstance } from 'fastify'
 const figtree = [400, 500, 600, 700].map(weight => ({ name: `fonts/figtree-${weight}.woff2`, type: 'font/woff2' }))
 const assets = [
   { name: 'hydrate.js', type: 'application/javascript' },
+  { name: 'hydrate-app.js', type: 'application/javascript' },
   { name: 'astryx.css', type: 'text/css' },
   ...figtree,
   { name: 'fonts/figtree-OFL.txt', type: 'text/plain; charset=utf-8' },
