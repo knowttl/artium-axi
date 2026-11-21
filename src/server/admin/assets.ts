@@ -485,18 +485,6 @@ document.addEventListener('submit', async event => {
       location.reload();
       return;
     }
-    if (response.ok && form.hasAttribute('data-invitation-link')) {
-      const result = await response.json();
-      form.dispatchEvent(new Event('artium-invitation-link-created', { bubbles: true }));
-      const dialog = document.getElementById('invitation-link');
-      const link = dialog.querySelector('[data-claim-link]');
-      link.value = new URL(result.claimPath, location.origin).href;
-      dialog.addEventListener('close', () => location.reload(), { once: true });
-      dialog.showModal();
-      link.focus();
-      link.select();
-      return;
-    }
     if (response.ok && form.dataset.saveTool) {
       const saved = await response.json();
       const normalized = (saved.normalizations || []).map(change => change.field + ': ' + change.reason + '.').join(' ');

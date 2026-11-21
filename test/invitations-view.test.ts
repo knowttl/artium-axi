@@ -29,8 +29,6 @@ const find = (html: string, match: (element: Element) => boolean) => nodes(parse
 const formTo = (html: string, action: string) => find(html, element => element.tagName === 'form' && attribute(element, 'action') === action)[0]!
 const fields = (form: Element) => nodes(form).filter(element => ['input', 'select'].includes(element.tagName)).map(control =>
   [attribute(control, 'name'), attribute(control, 'type') ?? (control.tagName === 'select' ? 'select' : 'text'), attribute(control, 'value') ?? '', attribute(control, 'data-type') ?? ''])
-const formAttributes = (form: Element) => ['method', 'data-method', 'data-confirm', 'data-confirm-title', 'data-confirm-action', 'data-invitation-link']
-  .map(name => attribute(form, name))
 
 test('each invitation row names the person, expected username, provider, roles, status and expiry', () => {
   const [row] = find(render(), element => element.tagName === 'tr' && attribute(element, 'data-invitation') === 'synthetic-invitation')
@@ -47,29 +45,26 @@ test('an invitation that cannot be resent or revoked shows no actions, and one w
   expect(find(html, element => attribute(element, 'id') === 'sheet-resend-synthetic-invitation')).toEqual([])
 })
 
-test('revoke posts the revision with the CSRF token behind a confirmation that names its consequence', () => {
+test('revoke posts the revision with the CSRF token', () => {
   const form = formTo(render(), '/v1/admin/sso/invitations/synthetic-invitation/revoke')
   expect(fields(form)).toEqual([['_csrf', 'hidden', 'synthetic-csrf', ''], ['expectedRevision', 'hidden', '3', 'number']])
-  expect(formAttributes(form)).toEqual(['post', 'POST', 'Revoke this invitation? The link can no longer be claimed. Existing accounts and access are unchanged.',
-    'Revoke invitation', 'Revoke', undefined])
+  expect(attribute(form, 'method')).toBe('post')
 })
 
-test('resend opens from its own link and posts the revision and lifetime, then shows the new link once', () => {
+test('resend opens from its own link and posts the revision and lifetime', () => {
   const html = render()
   const [link] = find(html, element => attribute(element, 'data-sheet') === 'sheet-resend-synthetic-invitation')
   expect([attribute(link!, 'href'), text(link!)]).toEqual(['/admin/invitations?sheet=resend-synthetic-invitation', 'Resend'])
   const form = formTo(html, '/v1/admin/sso/invitations/synthetic-invitation/resend')
   expect(fields(form)).toEqual([['_csrf', 'hidden', 'synthetic-csrf', ''], ['expectedRevision', 'hidden', '3', 'number'], ['expiresInDays', 'text', '7', 'number']])
-  expect(formAttributes(form)).toEqual(['post', 'POST', 'Replace this invitation link? The old link immediately stops working. Send the new link securely yourself.',
-    'Resend invitation', 'Resend', ''])
+  expect(attribute(form, 'method')).toBe('post')
 })
 
-test('the new-invitation form posts every field with the CSRF token behind a confirmation and shows the link once', () => {
+test('the new-invitation form posts every field with the CSRF token', () => {
   const form = formTo(render(), '/v1/admin/sso/invitations')
   expect(fields(form)).toEqual([['_csrf', 'hidden', 'synthetic-csrf', ''], ['providerId', 'select', '', ''], ['displayName', 'text', '', ''],
     ['expectedUsername', 'text', '', ''], ['roleIds', 'hidden', '', 'array'], ['roleIds', 'checkbox', 'synthetic-role', ''], ['expiresInDays', 'text', '7', 'number']])
-  expect(formAttributes(form)).toEqual(['post', 'POST', 'Create a one-time invitation link? It is shown once; copy it before closing the result and send it securely yourself.',
-    'Create invitation', 'Create link', ''])
+  expect(attribute(form, 'method')).toBe('post')
   expect(find(render(), element => element.tagName === 'option').map(option => [attribute(option, 'value'), text(option)]))
     .toEqual([['synthetic-entra', 'Synthetic Entra'], ['synthetic-oidc', 'Synthetic OIDC (not enabled yet)']])
 })
@@ -88,10 +83,12 @@ test.each([true, false])('the new-invitation sheet is open without JavaScript on
   expect(attribute(dialog!, 'open')).toBe(open ? '' : undefined)
 })
 
-test('the claim link dialog is empty, read only and labelled until a link is created', () => {
-  const [input] = find(render(), element => element.tagName === 'input' && attribute(element, 'data-claim-link') !== undefined)
-  expect([attribute(input!, 'readonly'), attribute(input!, 'value'), attribute(input!, 'aria-label')]).toEqual(['', undefined, 'Invitation link'])
-  expect(find(render(), element => element.tagName === 'dialog' && attribute(element, 'id') === 'invitation-link' && attribute(element, 'open') === undefined)).toHaveLength(1)
+test('the claim link dialog is closed, empty, read only and labelled until a link is created', () => {
+  const [dialog] = find(render(), element => element.tagName === 'dialog' && attribute(element, 'id') === 'invitation-link')
+  expect(attribute(dialog!, 'open')).toBeUndefined()
+  const [input] = nodes(dialog!).filter(element => element.tagName === 'input' && attribute(element, 'aria-label') === 'Invitation link')
+  expect(attribute(input!, 'readonly')).toBeDefined()
+  expect(attribute(input!, 'value') ?? '').toBe('')
 })
 
 test('a banner names its problem and links to the fix', () => {

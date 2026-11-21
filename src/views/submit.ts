@@ -1,4 +1,5 @@
 import type { Confirmation } from './action-form.js'
+import { claimLinkEvent } from './claim-link.js'
 import { confirmationEvent, type ConfirmationRequest } from './confirmation.js'
 import { reauthRequestEvent } from './reauth.js'
 import { successKey } from './toasts.js'
@@ -13,6 +14,7 @@ export interface SubmitRequest {
   token?: string
   successUrl?: string
   successMessage?: string
+  claimLink?: boolean
   report: (text: string, reload?: boolean) => void
 }
 
@@ -73,7 +75,7 @@ function shapeBody({ fields, typed }: FormDraft, body: Body): string | null {
   return null
 }
 
-export async function submitForm({ form, submitter, draft, action, method, confirmation, token, successUrl, successMessage, report }: SubmitRequest) {
+export async function submitForm({ form, submitter, draft, action, method, confirmation, token, successUrl, successMessage, claimLink, report }: SubmitRequest) {
   const submission = beginSubmit(form, submitter)
   if (!submission) return
   const { button, release } = submission
@@ -128,6 +130,12 @@ export async function submitForm({ form, submitter, draft, action, method, confi
     if (!response.ok) {
       const { error } = await response.json() as { error: { message: string, next: string, code: string } }
       report(`${error.message} ${error.next} (${error.code})`, error.code === 'REVISION_CONFLICT')
+      return
+    }
+    if (claimLink) {
+      const { claimPath } = await response.json() as { claimPath: string }
+      form.closest('dialog')!.close()
+      document.dispatchEvent(new CustomEvent(claimLinkEvent, { detail: new URL(claimPath, location.origin).href }))
       return
     }
     sessionStorage.setItem(successKey, successMessage || 'Change saved.')

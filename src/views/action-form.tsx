@@ -28,7 +28,7 @@ interface FormMessageState {
 const FormMessageContext = createContext<{ message: FormMessageState | null, area: RefObject<boolean> } | null>(null)
 
 export const scriptedFormSelector = [
-  '[data-create-token]', '[data-token-settings]', '[data-connect-github]', '[data-test-tool]', '[data-save-tool]', '[data-invitation-link]',
+  '[data-create-token]', '[data-token-settings]', '[data-connect-github]', '[data-test-tool]', '[data-save-tool]',
   '[data-trust-certificate]', '[data-certificate-name-form]', '[data-inspect-certificate]', ':has([data-profile-field])',
 ].join(',')
 
@@ -88,14 +88,14 @@ export function ActionForm({ action, method, csrf, confirmation, successUrl, suc
   return (
     <form ref={form} className={className} data-api="" data-method={method} data-confirm={confirmation?.consequence} data-confirm-title={confirmation?.title}
       data-confirm-action={confirmation?.action} data-confirm-name={confirmation?.typedName} data-confirm-token={token || undefined}
-      data-invitation-link={claimLink ? '' : undefined} data-save-tool={saveTool} {...attributes} action={action} method="post"
+      data-save-tool={saveTool} {...attributes} action={action} method="post"
       onSubmit={event => {
         if (event.currentTarget.matches(scriptedFormSelector)) return
         event.preventDefault()
         event.stopPropagation()
         const { submitter, astryxDraft } = event.nativeEvent as DeferredSubmitEvent
         void submitForm({ form: event.currentTarget, submitter: submitter as HTMLButtonElement | null, draft: astryxDraft, action, method, confirmation,
-          token: token || undefined, successUrl, successMessage, report })
+          token: token || undefined, successUrl, successMessage, claimLink, report })
       }}
       onInput={trackChanges ? event => setDirty(differsFromDefaults(event.currentTarget)) : undefined} onReset={trackChanges ? () => setDirty(false) : undefined}>
       <input type="hidden" name="_csrf" value={csrf} />
