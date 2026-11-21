@@ -888,7 +888,6 @@ test('user detail designates a break-glass administrator and removing it signs t
 })
 
 const invitationResult = `
-    ${waitForTime}
     const watchInvitationResponse = () => page.eval(() => {
       const original = window.fetch.bind(window);
       window.fetch = async (input, options) => {
@@ -920,15 +919,16 @@ const invitationResult = `
     const closeClaimLink = async (close, url, expiresAt) => {
       await page.eval(() => { document.documentElement.dataset.beforeInvitationReload = ''; });
       await close();
-      await page.wait('html:not([data-before-invitation-reload]) #invitation-link');
+      await page.wait('html[data-test-hydrated]:not([data-before-invitation-reload]) #invitation-link');
       const { href, type } = await page.eval(() => ({ href: location.href, type: performance.getEntriesByType('navigation')[0].type }));
       check(href === url && type === 'reload', 'Closing the claim link did not reload the same URL');
-      const expiry = new Date(expiresAt).toISOString();
-      await waitForTime('tr[data-invitation] time', expiry);
       check(await page.eval(() => {
         const dialog = document.querySelector('#invitation-link');
         return !dialog.open && dialog.querySelector('[data-claim-link]').value === '';
       }), 'The claim link dialog was open or retained the link after hydration');
+      await page.wait('tr[data-invitation] time');
+      const expiry = await page.eval(() => document.querySelector('tr[data-invitation] time').dateTime);
+      check(Date.parse(expiry) === expiresAt, 'The reloaded row did not show the saved invitation expiry');
       return expiry;
     };
 `

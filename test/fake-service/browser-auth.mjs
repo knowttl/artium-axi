@@ -173,6 +173,14 @@ server.get('/test/tools/:tool', async request => {
   return { stored: reference ? store.readCredential(reference) : null,
     delivered: request.params.tool === 'ldap-axi' && existsSync(deliveryFile) ? JSON.parse(readFileSync(deliveryFile, 'utf8')) : null }
 })
+server.addHook('onSend', async (request, reply, payload) => {
+  if (request.url !== '/admin/assets/hydrate.js' || reply.statusCode !== 200) return payload
+  const observeHydration = `'use strict';
+    document.addEventListener('astryx-hydrated', () => {
+      document.documentElement.dataset.testHydrated = '';
+    }, { once: true });`
+  return Buffer.concat([Buffer.from(observeHydration), payload])
+})
 const address = new URL(await server.listen({ host: '127.0.0.1', port: 0 }))
 const proxy = createServer({ key: readFileSync(join(directory, 'server.key')),
   cert: readFileSync(join(directory, 'server.crt'), 'utf8') + readFileSync(join(directory, 'ca.crt'), 'utf8') }, (request, response) => {
