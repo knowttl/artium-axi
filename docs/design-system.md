@@ -110,10 +110,11 @@ Below the Astryx mobile breakpoint a native navigation disclosure remains usable
 The frame retains one banner, one main and one navigation landmark, labelled "Administration" for administrators and "Account" for other people.
 The icon sprite stays outside the React root.
 The root contains the toasts and both confirmation dialogs.
-`confirm.js` requests action confirmation through `artium-confirm` and identity confirmation through `artium-reauth-request`.
-The New role and Rename sheets pass no confirmation text, so `confirm.js` submits them without a confirmation dialog.
+`ActionForm` submits its plain forms itself through `submitForm` in `src/views/submit.ts`: it shapes the body from the form's `data-type` controls, asks for action confirmation through `artium-confirm` and identity confirmation through `artium-reauth-request`, sends the request with the CSRF token and `expectedRevision`, and reports an error in the sheet's `FormMessage` or in a toast.
+`confirm.js` still submits the forms that `scriptedFormSelector` names (credential, token, invitation, GitHub and certificate forms) through the same two events, and holds any other form until `astryx-hydrated` so `ActionForm` can submit it.
+The New role and Rename sheets pass no confirmation text, so they submit without a confirmation dialog.
 Astryx checkboxes emit inline SVG shapes, so the role and administrator checkboxes stay native.
-`ActionForm` in `src/views/action-form.tsx` owns the `data-api` form attributes that `confirm.js` reads (method, consequence, title, action, typed name, success URL and success message), and `Sheet` builds on it, so a view writes an API form without repeating them.
+`ActionForm` in `src/views/action-form.tsx` owns the `data-api` form attributes (method, consequence, title, action, typed name, success URL and success message) and the submission itself, and `Sheet` builds on it, so a view writes an API form without repeating them.
 The person detail page's "More actions" overflow menu keeps a native `details` disclosure, because Astryx dropdown components need runtime inline styles (see issue 462), and builds its items from Astryx `Button` and `ActionForm`.
 The Sessions card (`Sessions` in `src/views/sessions.tsx`) is also on the Account page; see the Account rendering details below.
 The People filter chips are native `select` elements.
@@ -244,7 +245,7 @@ Icons are drawn on a 24px grid with a 1.75 stroke in `currentColor`, shown at 16
 | Code and copy | Copy controls use [`useCopy`](../src/views/copy.ts) in the hydrated React view | Idle, copied, or clipboard access unavailable (the source is selected for manual copying) | `role="status"` announces the copy result |
 | Disclosure card | `details.card.disclosure` | closed, open | Native disclosure |
 | Dialog | Astryx `Dialog` in [`Confirmation`](../src/views/confirmation.tsx) and [`ReauthDialog`](../src/views/reauth-dialog.tsx) | confirmation tier 2 or 3, identity confirmation | `showModal`, Esc closes, a backdrop press does not, the action confirmation title names the action, focus returns to the control that submitted |
-| Toasts | `Toasts` in `src/views/toasts.tsx` on the Astryx toast viewport | none, success, error, conflict with **Reload latest** | A success saved by `confirm.js` shows after the page reloads and is announced politely; an error from a form with no message area of its own is announced assertively and clears on the next submission of a form without its own message area |
+| Toasts | `Toasts` in `src/views/toasts.tsx` on the Astryx toast viewport | none, success, error, conflict with **Reload latest** | A success saved by a form shows after the page reloads and is announced politely; an error from a form with no message area of its own is announced assertively and clears on the next submission of a form without its own message area |
 | Steps | `steps()`: `ol.steps`, `.step` | done, fail, to do, current | Ordered list; the state is in visually hidden text |
 | Segmented control and search | `.seg` (links or visually hidden radios), `.search`, `.filters` | current or checked | GET forms; JavaScript may apply them live |
 | Switch | `.switch` on a native checkbox, or `.toggle` button holding a decorative `.switch` | off, on, disabled | `role="switch"`; checkboxes save with their form; the Enabled button submits a confirmed change |

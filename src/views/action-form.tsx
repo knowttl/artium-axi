@@ -1,5 +1,8 @@
-import { createContext, useContext, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { Button } from '@astryxdesign/core/Button'
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { confirmationRouteFor } from '../shared/confirmation-routes.js'
+import { submitForm } from './submit.js'
+import { toastEvent, type ToastDetail } from './toasts.js'
 
 export interface Confirmation {
   consequence: string
@@ -16,6 +19,34 @@ export interface ConfirmationTokens {
 export const ConfirmationTokenContext = createContext<ConfirmationTokens>({ issued: {} })
 
 const FormDirtyContext = createContext(false)
+
+interface FormMessageState {
+  text: string
+  reload: boolean
+}
+
+const FormMessageContext = createContext<{ message: FormMessageState | null, area: RefObject<boolean> } | null>(null)
+
+export const scriptedFormSelector = [
+  '[data-create-token]', '[data-token-settings]', '[data-connect-github]', '[data-test-tool]', '[data-save-tool]', '[data-invitation-link]',
+  '[data-trust-certificate]', '[data-certificate-name-form]', '[data-inspect-certificate]', ':has([data-profile-field])',
+].join(',')
+
+export function FormMessage() {
+  const { message, area } = useContext(FormMessageContext)!
+  const element = useRef<HTMLParagraphElement>(null)
+  useLayoutEffect(() => {
+    area.current = true
+    return () => { area.current = false }
+  }, [area])
+  useEffect(() => { if (message?.text) element.current!.focus() }, [message])
+  return (
+    <p ref={element} className="message" data-sheet-message="" role="alert" tabIndex={-1}>
+      {message?.text}
+      {message?.reload && <><br /><Button label="Reload latest" size="sm" variant="secondary" onClick={() => location.reload()} /></>}
+    </p>
+  )
+}
 
 export const useFormDirty = () => useContext(FormDirtyContext)
 
@@ -41,6 +72,8 @@ export function ActionForm({ action, method, csrf, confirmation, successUrl, suc
   const tokens = useContext(ConfirmationTokenContext)
   const form = useRef<HTMLFormElement>(null)
   const [dirty, setDirty] = useState(false)
+  const [message, setMessage] = useState<FormMessageState | null>(null)
+  const area = useRef(false)
   useLayoutEffect(() => { if (trackChanges) setDirty(differsFromDefaults(form.current!)) }, [trackChanges])
   const route = confirmationRouteFor(method, action)
   if (Boolean(route) !== Boolean(confirmation) || route && (route.tier === 3) !== Boolean(confirmation?.typedName)) {
@@ -48,10 +81,21 @@ export function ActionForm({ action, method, csrf, confirmation, successUrl, suc
   }
   const tokenKey = JSON.stringify([method, action, confirmation?.typedName ?? ''])
   const token = confirmation && (tokens.issued[tokenKey] ??= tokens.mint?.(method, action, confirmation.typedName ?? '') ?? '')
+  const report = (text: string, reload = false) => {
+    if (area.current) setMessage({ text, reload })
+    else document.dispatchEvent(new CustomEvent<ToastDetail>(toastEvent, { detail: { text, reload } }))
+  }
   return (
     <form ref={form} className={className} data-api="" data-method={method} data-confirm={confirmation?.consequence} data-confirm-title={confirmation?.title}
       data-confirm-action={confirmation?.action} data-confirm-name={confirmation?.typedName} data-confirm-token={token || undefined} data-success-url={successUrl} data-success-message={successMessage}
       data-invitation-link={claimLink ? '' : undefined} data-save-tool={saveTool} {...attributes} action={action} method="post"
+      onSubmit={event => {
+        if (event.currentTarget.matches(scriptedFormSelector)) return
+        event.preventDefault()
+        event.stopPropagation()
+        void submitForm({ form: event.currentTarget, submitter: (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null, action, method, confirmation,
+          token: token || undefined, successUrl, successMessage, report })
+      }}
       onInput={trackChanges ? event => setDirty(differsFromDefaults(event.currentTarget)) : undefined} onReset={trackChanges ? () => setDirty(false) : undefined}>
       <input type="hidden" name="_csrf" value={csrf} />
       {confirmation && route?.native && (
@@ -61,7 +105,7 @@ export function ActionForm({ action, method, csrf, confirmation, successUrl, suc
           <input type="hidden" name="_confirmText" value={confirmation.consequence} />
         </>
       )}
-      <FormDirtyContext value={dirty}>{children}</FormDirtyContext>
+      <FormMessageContext value={{ message, area }}><FormDirtyContext value={dirty}>{children}</FormDirtyContext></FormMessageContext>
     </form>
   )
 }

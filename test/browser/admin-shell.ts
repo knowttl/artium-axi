@@ -2087,8 +2087,10 @@ for (const action of ['save', 'test']) {
             const outcome = ${JSON.stringify(outcome)};
             if (outcome === 'redirect') {
               // Revoke without clearing cookies so the test request receives a browser redirect.
+              const account = new DOMParser().parseFromString(await (await original('/account')).text(), 'text/html');
               const revoked = await original('/v1/account/sessions/revoke', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ _csrf: document.querySelector('form[data-test-tool] [name=_csrf]').value }) });
+                body: JSON.stringify({ _csrf: document.querySelector('form[data-test-tool] [name=_csrf]').value,
+                  _confirm: account.querySelector('form[action="/v1/account/sessions/revoke"]').dataset.confirmToken }) });
               if (!revoked.ok) throw new Error('Could not revoke the browser session');
               const response = await original(url, options);
               if (!response.redirected) throw new Error('Expected a browser sign-in redirect');

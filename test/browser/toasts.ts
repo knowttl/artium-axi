@@ -35,7 +35,7 @@ test('a rejected save announces its error assertively with a reload action, and 
     check(await page.eval(() => document.querySelector('[data-astryx-live-region=assertive]').textContent.includes('(REVISION_CONFLICT)') && document.querySelector('[data-astryx-live-region=polite]').textContent === ''), 'The error was not announced assertively');
     await page.click('form:has([name=enabled]) button');
     await page.wait('#confirmation[open]');
-    check(await page.eval(() => !document.querySelector('.astryx-toast[data-type=error]')), 'Submitting again left the previous error showing');
+    check(await page.eval(() => { const toast = document.querySelector('.astryx-toast[data-type=error]'); return !toast || getComputedStyle(toast).opacity === '0'; }), 'Submitting again left the previous error showing');
   `)
 })
 

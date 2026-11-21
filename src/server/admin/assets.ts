@@ -1,5 +1,6 @@
 import { components } from './design/components.js'
 import { tokens } from './design/tokens.js'
+import { scriptedFormSelector } from '../../views/action-form.js'
 import { reauthCompleteMessage, reauthRequestEvent } from '../../views/reauth.js'
 import { retestScript } from './retest.js'
 
@@ -118,7 +119,7 @@ function confirmChange(form, fallbackAction) {
   const action = form.dataset.confirmAction || fallbackAction;
   return new Promise(resolve => {
     const request = new CustomEvent('artium-confirm', { cancelable: true, detail: { action, title: form.dataset.confirmTitle || action + '?',
-      consequence: form.dataset.confirm, typedName: form.dataset.confirmName || '', resolve } });
+      consequence: form.dataset.confirm, typedName: '', resolve } });
     if (document.dispatchEvent(request)) document.addEventListener('astryx-hydrated', () => document.dispatchEvent(request), { once: true });
   });
 }
@@ -366,6 +367,10 @@ document.addEventListener('submit', async event => {
   const form = event.target;
   if (!form.matches('[data-api]')) return;
   event.preventDefault();
+  if (!form.matches('${scriptedFormSelector}')) {
+    hydrated.then(() => form.requestSubmit(event.submitter));
+    return;
+  }
   // A filter control placed inside this form can belong to another form.
   const button = event.submitter || form.querySelector('button:not([form]):not([type=button]):not([type=reset])');
   if (pendingAction || button.disabled) return;
@@ -388,11 +393,7 @@ document.addEventListener('submit', async event => {
       button.focus();
       return;
     }
-    if (form.dataset.confirm) {
-      body._confirm = form.dataset.confirmToken;
-      if (form.dataset.confirmName) body._confirmName = typedName;
-      for (const name of ['_confirmTitle', '_confirmAction', '_confirmText']) delete body[name];
-    }
+    if (form.dataset.confirm) body._confirm = form.dataset.confirmToken;
     const profileFields = form.querySelectorAll('[data-profile-field]');
     if (profileFields.length) {
       body.value = Object.create(null);
@@ -416,12 +417,6 @@ document.addEventListener('submit', async event => {
     for (const input of form.querySelectorAll('[data-type]')) {
       if (input.dataset.type === 'boolean') body[input.name] = input.type === 'checkbox' ? input.checked : input.value === 'true';
       if (input.dataset.type === 'number') body[input.name] = Number(input.value);
-      if (input.dataset.type === 'array') body[input.name] = fields.getAll(input.name);
-      if (input.dataset.type === 'lines') body[input.name] = input.value.split(/\\r?\\n/).map(value => value.trim()).filter(Boolean);
-      if (input.dataset.type === 'json') {
-        try { body[input.name] = JSON.parse(input.value); }
-        catch { say(message, 'Enter valid JSON in ' + input.name + '.'); return; }
-      }
     }
     if (form.hasAttribute('data-create-token')) {
       const tools = [];
@@ -539,11 +534,8 @@ document.addEventListener('submit', async event => {
       dialog.showModal(); field.focus(); field.select();
       return;
     }
-    sessionStorage.setItem('artium-toast', form.dataset.successMessage || 'Change saved.');
-    // {id} names the record the request created, such as a new role.
-    if (form.dataset.successUrl?.includes('{id}')) location.assign(form.dataset.successUrl.replace('{id}', encodeURIComponent((await response.json()).id)));
-    else if (form.dataset.successUrl) location.assign(form.dataset.successUrl);
-    else location.reload();
+    sessionStorage.setItem('artium-toast', 'Change saved.');
+    location.reload();
   } catch { say(message, 'Request could not complete. Reload the page to check the current state before trying again.'); }
   finally { button.disabled = false; pendingAction = false; }
 });
