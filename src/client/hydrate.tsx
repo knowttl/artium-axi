@@ -1,6 +1,7 @@
 import type { ThemeMode } from '@astryxdesign/core/theme'
 import { useEffect, type ReactNode } from 'react'
 import { hydrateRoot } from 'react-dom/client'
+import { captureCredentialTextareaDrafts } from '../views/credential-editor.js'
 import type { FrameProps } from '../views/frame.js'
 import { Root, type ViewName, type ViewProps } from '../views/root.js'
 
@@ -23,5 +24,6 @@ if (root && props) {
     }
   }
   const { frame, props: viewProps, confirmations } = JSON.parse(props.textContent!) as { frame?: FrameProps, props: ViewProps[ViewName], confirmations: Record<string, string> }
+  captureCredentialTextareaDrafts(root)
   hydrateRoot(root, <Hydrated><Root name={root.dataset.view as ViewName} props={viewProps} frame={frame} mode={root.dataset.mode as ThemeMode} confirmations={{ issued: confirmations }} /></Hydrated>)
 }

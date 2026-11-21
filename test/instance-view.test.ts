@@ -54,8 +54,8 @@ test('the Connection card patches the credential with identity, both revisions, 
   const form = formFor(render(), `${path}/credential`)
   expect([attribute(form, 'data-method'), attribute(form, 'data-save-tool'), attribute(form, 'data-save-instance'),
     attribute(form, 'data-confirm')]).toEqual(['PATCH', 'falcon-axi', 'lab', 'Save this credential, retaining unchanged stored secrets for the same identity and keeping native settings?'])
-  expect(controls(form).filter(([name]) => !String(name).startsWith('profile.'))).toEqual([['_csrf', 'hidden', 'synthetic-csrf'], ['expectedId', 'hidden', 'synthetic-lab-id'],
-    ['expectedRevision', 'hidden', '3'], ['expectedToolRevision', 'hidden', '7'], [undefined, 'file', undefined], [undefined, 'textarea', undefined], [undefined, 'checkbox', undefined]])
+  expect(controls(form).filter(([name, type]) => type !== 'file' && !String(name).startsWith('profile.'))).toEqual([['_csrf', 'hidden', 'synthetic-csrf'], ['expectedId', 'hidden', 'synthetic-lab-id'],
+    ['expectedRevision', 'hidden', '3'], ['expectedToolRevision', 'hidden', '7'], ['certificatePem', 'textarea', undefined], ['testAfterSave', 'checkbox', undefined]])
   expect(nodes(form).filter(element => attribute(element, 'data-save-and-test') !== undefined).map(input => attribute(input, 'checked'))).toEqual([''])
   expect(nodes(form).filter(element => element.tagName === 'button').map(text)).toEqual(['Save connection'])
 })
@@ -64,7 +64,7 @@ test('a saved secret is an empty native textarea that keeps the stored value, an
   const fields = nodes(formFor(render(), `${path}/credential`)).filter(element => attribute(element, 'data-profile-field') !== undefined)
   expect(fields.map(field => [attribute(field, 'name'), field.tagName, attribute(field, 'autocomplete'), attribute(field, 'value') ?? text(field)])).toEqual([
     ['profile.region', 'input', 'off', 'us-2'], ['profile.clientSecret', 'textarea', 'off', '']])
-  expect(find(render(), element => attribute(element, 'data-stored-secret') !== undefined).map(text)).toEqual(['Stored when configured below. Leave blank to keep; enter a value to replace.'])
+  expect(find(render(), element => attribute(element, 'data-stored-secret') !== undefined).map(text)).toEqual(['Stored when configured. Leave blank to keep; enter a value to replace.'])
 })
 
 test('Delete asks for the instance name', () => {

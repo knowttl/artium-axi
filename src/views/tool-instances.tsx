@@ -59,7 +59,7 @@ function AddInstanceSheet({ csrf, page, add }: { csrf: string, page: string, add
     <Sheet name="add-instance" open={add.open} closeHref={page} title="Add instance" description={`Connect another ${product} endpoint under its own name.`}
       submit="Add instance" confirmTitle="Add instance" confirmAction="Add instance" action={awx ? `${api}/origin` : `${api}/instances`} method={awx ? 'PUT' : 'POST'} csrf={csrf}
       consequence={`Add this ${product} instance? It starts read-only.`} saveTool={awx ? undefined : tool}
-      footLead={awx ? undefined : <label className="check"><input type="checkbox" data-save-and-test="" defaultChecked /> Test after saving</label>}>
+      footLead={awx ? undefined : <label className="check"><input type="checkbox" name="testAfterSave" data-save-and-test="" defaultChecked /> Test after saving</label>}>
       <VStack gap={3}>
         <input type="hidden" name="expectedToolRevision" data-type="number" value={add.toolRevision} />
         {awx && <Revision value={0} />}

@@ -1,4 +1,6 @@
+import { readTestResponse } from '../shared/diagnostic.js'
 import type { Confirmation } from './action-form.js'
+import { completePemFields } from './certificate-verification.js'
 import { claimLinkEvent } from './claim-link.js'
 import { confirmationEvent, type ConfirmationRequest } from './confirmation.js'
 import { createdTokenEvent } from './created-token.js'
@@ -18,6 +20,7 @@ export interface SubmitRequest {
   claimLink?: boolean
   createdToken?: boolean
   bodyFrom?: (fields: FormData) => Body
+  saveTool?: string
   report: (text: string, reload?: boolean) => void
 }
 
@@ -49,6 +52,44 @@ export function beginSubmit(form: HTMLFormElement, submitter: HTMLButtonElement 
   }
 }
 
+function wasEdited(input: HTMLInputElement) {
+  const clone = input.cloneNode() as HTMLInputElement
+  clone.defaultValue = `${clone.value} `
+  return clone.value !== clone.defaultValue
+}
+
+function applyProfile(form: HTMLFormElement, fields: FormData, body: Body): string | null {
+  const inputs = Array.from(form.querySelectorAll<Control>('[data-profile-field]'))
+  if (!inputs.length) return null
+  const endpointChanged = Array.from(form.querySelectorAll<HTMLInputElement>('[data-profile-field="origin"], [data-profile-field="url"]'))
+    .some(endpoint => fields.has(endpoint.name) && fields.get(endpoint.name) !== (endpoint.dataset.saved ?? endpoint.defaultValue))
+  const value: Record<string, any> = Object.create(null)
+  for (const input of inputs) {
+    delete body[input.name]
+    const raw = fields.get(input.name) as string | null
+    const clearable = input.hasAttribute('data-profile-clearable')
+    const tls = input.hasAttribute('data-tls-input')
+    if (raw === null || raw === '' && !clearable) continue
+    if (input instanceof HTMLInputElement && clearable && endpointChanged && !wasEdited(input)) continue
+    const path = tls ? input.dataset.profileField!.split('.') : [input.dataset.profileField!]
+    const key = path.pop()!
+    const parent = path.reduce((node, name) => node[name] ??= Object.create(null), value)
+    try {
+      parent[key] = raw === '' ? null : input.dataset.profileType === 'list' ? raw.split(/\r?\n/).map(line => line.trim()).filter(Boolean)
+        : input.dataset.profileType === 'json' ? JSON.parse(raw) : raw
+    } catch { return `Enter valid JSON in ${input.dataset.profileField}.` }
+  }
+  for (const removal of form.querySelectorAll<HTMLInputElement>('[data-tls-remove]')) {
+    delete body[removal.name]
+    if (fields.has(removal.name)) value[removal.dataset.tlsRemove!] = null
+  }
+  delete body.certificatePem
+  const certificate = fields.get('certificatePem')
+  if (certificate) value.certificatePem = certificate
+  body.value = value
+  return null
+}
+
 export function snapshotForm(form: HTMLFormElement) {
   return {
     fields: new FormData(form),
@@ -78,15 +119,20 @@ function shapeBody({ fields, typed }: FormDraft, body: Body): string | null {
   return null
 }
 
-export async function submitForm({ form, submitter, draft, action, method, confirmation, token, successUrl, successMessage, claimLink, createdToken, bodyFrom, report }: SubmitRequest) {
+export async function submitForm({ form, submitter, draft, action, method, confirmation, token, successUrl, successMessage, claimLink, createdToken, bodyFrom, saveTool, report }: SubmitRequest) {
   const submission = beginSubmit(form, submitter)
   if (!submission) return
   const { button, release } = submission
   try {
     draft ??= snapshotForm(form)
+    if (form.querySelector('[data-credential-editor]')) await completePemFields(draft.fields)
+    const body: Body = bodyFrom ? { _csrf: draft.fields.get('_csrf'), ...bodyFrom(draft.fields) } : Object.fromEntries(draft.fields)
+    const invalidProfile = applyProfile(form, draft.fields, body)
+    const testUrl = saveTool && draft.fields.has('testAfterSave')
+      ? `/v1/admin/tools/${saveTool}/instances/${form.dataset.saveInstance || body.name}/test` : undefined
+    if (saveTool) delete body.testAfterSave
     await hydrated
     report('')
-    const body: Body = bodyFrom ? { _csrf: draft.fields.get('_csrf'), ...bodyFrom(draft.fields) } : Object.fromEntries(draft.fields)
     if (confirmation) {
       const confirmAction = confirmation.action || button.textContent!.trim()
       const typedName = await ask<string | null>(confirmationEvent, { action: confirmAction, title: confirmation.title || `${confirmAction}?`,
@@ -102,7 +148,7 @@ export async function submitForm({ form, submitter, draft, action, method, confi
       if (confirmation.typedName) body._confirmName = typedName
       for (const name of ['_confirmTitle', '_confirmAction', '_confirmText']) delete body[name]
     }
-    const invalid = shapeBody(draft, body)
+    const invalid = invalidProfile ?? shapeBody(draft, body)
     if (invalid) {
       report(invalid)
       return
@@ -133,6 +179,22 @@ export async function submitForm({ form, submitter, draft, action, method, confi
     if (!response.ok) {
       const { error } = await response.json() as { error: { message: string, next: string, code: string } }
       report(`${error.message} ${error.next} (${error.code})`, error.code === 'REVISION_CONFLICT')
+      return
+    }
+    if (saveTool) {
+      const { normalizations = [] } = await response.json() as { normalizations?: { field: string, reason: string }[] }
+      const tested = testUrl ? await fetch(testUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ _csrf: body._csrf }) }).catch(() => undefined) : undefined
+      if (tested?.redirected) {
+        location.assign(tested.url)
+        return
+      }
+      const result = tested ? await readTestResponse(tested).catch(() => undefined) : undefined
+      let message = !testUrl ? 'Saved.' : !result ? 'Saved. Test could not complete. Run Test connection again.'
+        : result.error ? `Saved. Test failed. ${result.error.message} ${result.error.next} (${result.error.code})` : 'Saved. Test passed.'
+      for (const { field, reason } of normalizations) message += ` ${field}: ${reason}.`
+      sessionStorage.setItem('credential-test:' + location.pathname, JSON.stringify({ diagnosticVersion: 1, message, health: result?.health }))
+      location.reload()
       return
     }
     if (claimLink) {

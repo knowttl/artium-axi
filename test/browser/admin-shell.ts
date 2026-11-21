@@ -28,6 +28,10 @@ const trackChangesWithLateHydration = 'role tool grants count a selection edited
 const submitWithLateHydration = 'a server-rendered submit saves its original draft after hydration'
 const submitBeforeDialogs = 'a React submit waits for dialogs and saves its original draft'
 const instanceSheetWithLateHydration = 'Add instance preserves a credential draft through modal promotion'
+const credentialEditorWithLateHydration = 'the credential editor applies a selection made before hydration'
+const connectionDraftWithLateHydration = 'the instance connection preserves text edited before hydration'
+const combinedPemWithLateHydration = 'the instance credential waits for a PEM selected before hydration'
+const editedOverrides = ' endpoint changes keep explicitly edited certificate overrides'
 const resizeCadence = 'confirmation expiry survives resizing across the mobile breakpoint'
 let chromeDebugPort: number
 
@@ -50,6 +54,16 @@ function chrome(args: string[], input?: string) {
   assert.equal(result.error, undefined)
   assert.equal(result.status, 0, result.stdout + result.stderr)
   return result.stdout
+}
+
+function pemSelection(selector: string, content: string) {
+  return JSON.stringify(`(() => {
+    const transfer = new DataTransfer();
+    transfer.items.add(new File([${JSON.stringify(content)}], 'synthetic.pem'));
+    const input = document.querySelector(${JSON.stringify(selector)});
+    input.files = transfer.files;
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  })()`)
 }
 
 function browser(script: string) {
@@ -109,7 +123,8 @@ function browser(script: string) {
 beforeEach(async context => {
   server = spawn(process.execPath, ['test/fake-service/browser-auth.mjs'], {
     env: { ...process.env, ARTIUM_TEST_SKIP_HYDRATION: [testWithoutHydration, testWithLateHydration, pickerWithLateHydration, trackChangesWithLateHydration,
-      submitWithLateHydration, submitBeforeDialogs, instanceSheetWithLateHydration, resizeCadence].includes(context.name) ? '1' : '0' },
+      submitWithLateHydration, submitBeforeDialogs, instanceSheetWithLateHydration, credentialEditorWithLateHydration, connectionDraftWithLateHydration,
+      combinedPemWithLateHydration, resizeCadence].includes(context.name) || context.name.endsWith(editedOverrides) ? '1' : '0' },
     stdio: ['ignore', 'pipe', 'inherit'],
   })
   const lines = createInterface({ input: server.stdout })
@@ -1329,13 +1344,27 @@ test('sign-in settings creates a disabled provider and saves a certificate witho
     await page.wait('[data-certificate-pem]');
     check(await page.eval(() => document.querySelector('[data-profile-field=auth]').value === '"certificate"'), 'Certificate is not the default');
     await page.fill('[data-profile-field=clientId]', '22222222-2222-4222-8222-222222222222');
-    await page.fill('[data-certificate-pem]', ${JSON.stringify(fixture.certificatePem)});
+    await page.eval(${pemSelection('[data-certificate-file]', fixture.certificatePem)});
+    await page.wait('[data-profile-field=privateKey]:not([required])');
     await page.click('form[action$="/credential"] button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
     await page.wait('form[action$="/credential"] [name=expectedRevision][value="1"]');
     check(await page.eval(() => document.querySelector('[data-profile-field=privateKey]').value === '' && document.querySelector('[data-certificate-pem]').value === ''), 'Private key redisplayed');
     check(await page.eval(() => document.querySelector('[data-profile-field=thumbprintSha256]').value) === ${JSON.stringify(new X509Certificate(fixture.certificatePem).fingerprint256.replaceAll(':', '').toLowerCase())}, 'Incorrect fingerprint');
+    await page.eval(${pemSelection('[data-certificate-file]', fixture.certificatePem)});
+    await page.eval(() => {
+      const field = document.querySelector('[data-certificate-pem]');
+      return field.value || new Promise(resolve => field.addEventListener('input', () => resolve(field.value), { once: true }));
+    });
+    await page.fill('[data-certificate-pem]', 'CANARY-invalid-replacement');
+    await page.click('form[action$="/credential"] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('.astryx-toast[data-type=error]');
+    check(await page.eval(() => document.querySelector('form[action$="/credential"] [name=expectedRevision]').value === '1' &&
+      document.querySelector('[data-certificate-pem]').value === 'CANARY-invalid-replacement'), 'The rejected paste changed the saved credential or lost the draft');
+    await page.fill('[data-certificate-pem]', '');
     await page.click('form[action$="/credential"] button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
@@ -1372,7 +1401,8 @@ test('sign-in settings can save a client secret and requires a replacement when 
     await page.open(base + provider + '?tab=credential');
     await page.wait('[data-profile-field=auth]');
     await page.eval(() => { const input = document.querySelector('[data-profile-field=auth]'); input.value = '"secret"'; input.dispatchEvent(new Event('change', { bubbles: true })); });
-    check(await page.eval(() => document.querySelector('[data-certificate]').hidden && document.querySelector('[role=main]').innerText.includes('less secure than certificates')), 'Missing secret warning or conditional fields');
+    await page.wait('[data-certificate][hidden]');
+    check(await page.eval(() => document.querySelector('[role=main]').innerText.includes('less secure than certificates')), 'Missing secret warning or conditional fields');
     await page.fill('[data-profile-field=clientId]', '22222222-2222-4222-8222-222222222222');
     await page.fill('[data-profile-field=clientSecret]', 'CANARY-provider-secret');
     await page.click('form[action$="/credential"] button');
@@ -1380,8 +1410,9 @@ test('sign-in settings can save a client secret and requires a replacement when 
     await page.click('#confirmation button[value=confirmed]');
     await page.wait('form[action$="/credential"] [name=expectedRevision][value="1"]');
     check(await page.eval(() => document.querySelector('[data-profile-field=clientSecret]').value === '' && !document.documentElement.outerHTML.includes('CANARY-provider-secret')), 'Secret redisplayed');
+    check(await page.eval(() => !document.querySelector('[data-profile-field=clientSecret]').required), 'Saved client required a replacement secret');
     await page.fill('[data-profile-field=clientId]', '33333333-3333-4333-8333-333333333333');
-    check(await page.eval(() => document.querySelector('[data-profile-field=clientSecret]').required), 'Changed client does not require a replacement secret');
+    await page.wait('[data-profile-field=clientSecret][required]');
   `)
 })
 
@@ -1449,8 +1480,9 @@ test('Proxmox stored password administration saves one credential without a sepa
     check(await page.eval(() => document.querySelector('[data-profile-field=password]').value === '' && !document.documentElement.outerHTML.includes('CANARY-proxmox-browser-password')), 'Password redisplayed');
     check(await page.eval(() => document.querySelector('[data-profile-field=auth]').value === '"password"' && document.querySelector('[data-profile-field=userId]').value === 'automation@pve'), 'Selected identity was not saved');
     check(await page.eval(() => document.querySelector('[role=main]').innerText.includes('signs in automatically') && !document.querySelector('form[action*="/connect"]')), 'Automatic authentication guidance missing');
+    check(await page.eval(() => !document.querySelector('[data-profile-field=password]').required), 'Saved username required a new password');
     await page.fill('[data-profile-field=userId]', 'different@pve');
-    check(await page.eval(() => document.querySelector('[data-profile-field=password]').required), 'Changed username did not require a new password');
+    await page.wait('[data-profile-field=password][required]');
   `)
 })
 
@@ -1684,38 +1716,6 @@ test('saving an instance connection with a blank secret sends no secret and keep
   assert.equal(stored.region, 'eu-2')
 })
 
-test('changing the instance URL drops a saved connection IP override that was not edited', () => {
-  const tls = { trustedCertificatePem: readFileSync(fixture.caFile, 'utf8'), peerFingerprintSha256: new X509Certificate(fixture.certificatePem).fingerprint256.replaceAll(':', '') }
-  browser(`
-    await createInstance('unifi-axi', { origin: 'https://controller.example', apiKey: 'CANARY-stored-key', tls: ${JSON.stringify(tls)} });
-    const saved = await page.eval(async () => {
-      const form = document.querySelector('form[data-save-tool]');
-      const response = await fetch(form.action, { method: 'PATCH', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ value: { origin: 'https://controller.example', tls: { connectAddress: '127.0.0.1' } }, expectedId: form.elements.expectedId.value,
-          expectedRevision: 1, expectedToolRevision: Number(form.elements.expectedToolRevision.value), _csrf: form.elements._csrf.value, _confirm: form.dataset.confirmToken }) });
-      return response.status;
-    });
-    check(saved === 200, 'Could not save the connection IP override: ' + saved);
-    await openInstance('unifi-axi');
-    await page.eval(() => {
-      const sent = [];
-      const send = window.fetch;
-      window.fetch = (input, init) => { sent.push([String(input instanceof Request ? input.url : input), String(init && init.body || '')]); window.name = JSON.stringify(sent); return send(input, init); };
-    });
-    check(await page.eval(() => document.querySelector('[data-profile-field="tls.connectAddress"]').value === '127.0.0.1'), 'The saved connection IP is not shown');
-    await page.fill('[data-profile-field=origin]', 'https://other.example');
-    await page.fill('[data-profile-field=apiKey]', 'CANARY-replacement-key');
-    await page.click('[data-save-and-test]');
-    await page.click('form[data-save-tool] button');
-    await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
-    await page.wait('form[data-save-tool] [name=expectedRevision][value="3"]');
-    check(await page.eval(() => {
-      const saves = JSON.parse(window.name).filter(([url]) => url.endsWith('/instances/default/credential'));
-      return saves.length === 1 && JSON.parse(saves[0][1]).value.origin === 'https://other.example' && !JSON.stringify(JSON.parse(saves[0][1]).value).includes('connectAddress');
-    }), 'The unedited connection IP was sent with the new URL');
-  `)
-})
-
 test('SSH credential secret fields are cleared when the page is hidden', () => {
   browser(`
     await page.open(base + '/admin/ssh/credentials');
@@ -1845,6 +1845,25 @@ test('Kubernetes certificate editor saves separate fields and requires a key whe
     check(await page.eval(() => !document.querySelector('[data-profile-field=privateKey]').required), 'Unchanged identity cannot retain its stored key');
     await page.fill('[data-profile-field=clientCertificate]', 'CANARY-replacement-certificate');
     check(await page.eval(() => document.querySelector('[data-profile-field=privateKey]').required), 'Changed certificate does not require a replacement key');
+  `)
+})
+
+test(connectionDraftWithLateHydration, () => {
+  browser(`
+    await createInstance('kubernetes-axi', { origin: 'https://cluster.example', auth: 'certificate', certificateAuthority: 'CANARY-cluster-CA',
+      clientCertificate: 'synthetic-saved-certificate', privateKey: 'CANARY-stored-key' });
+    check(await page.eval(() => !document.querySelector('[data-profile-field=privateKey]').required), 'Unchanged identity required a replacement key');
+    await page.fill('[data-profile-field=origin]', 'https://other-cluster.example');
+    const certificate = 'synthetic-replacement\\ncertificate';
+    await page.fill('[data-profile-field=clientCertificate]', certificate);
+    await page.eval(() => {
+      const script = document.createElement('script');
+      script.src = '/admin/assets/hydrate.js?resume';
+      document.head.append(script);
+    });
+    await page.wait('[data-profile-field=privateKey][required]');
+    check(await page.eval(() => document.querySelector('[data-profile-field=origin]').value) === 'https://other-cluster.example', 'Hydration discarded the URL');
+    check(await page.eval(() => document.querySelector('[data-profile-field=clientCertificate]').value) === certificate, 'Hydration discarded the client certificate');
   `)
 })
 
@@ -2198,6 +2217,12 @@ for (const name of [testWithoutHydration, testWithLateHydration]) test(name, () 
     }), 'Fallback did not show the response timestamp');
     if (${name === testWithLateHydration}) {
       await page.eval(() => {
+        document.querySelector('details:has([data-tls-file="caBundle"])').open = true;
+        const transfer = new DataTransfer();
+        transfer.items.add(new File(['CANARY-upload'], 'synthetic.pem'));
+        const input = document.querySelector('[data-tls-file="caBundle"]');
+        input.files = transfer.files;
+        input.dispatchEvent(new Event('change', { bubbles: true }));
         const script = document.createElement('script');
         script.src = '/admin/assets/hydrate.js?resume';
         document.head.append(script);
@@ -2209,16 +2234,10 @@ for (const name of [testWithoutHydration, testWithLateHydration]) test(name, () 
         document.querySelector('[data-tool-state]').textContent === 'Failing' &&
         document.querySelector('[data-test-checklist] [data-step-state]').textContent === 'Failed: '
       ), 'Hydrated result did not replace the fallback and update the checklist');
-      check(await page.eval(async () => {
-        const transfer = new DataTransfer();
-        transfer.items.add(new File(['CANARY-upload'], 'synthetic.pem'));
-        const input = document.querySelector('[data-tls-file="caBundle"]');
-        input.files = transfer.files;
-        File.prototype.text = async () => 'CANARY-upload';
-        input.dispatchEvent(new Event('change', { bubbles: true }));
-        await Promise.resolve();
-        return document.querySelector('[data-profile-field="caBundle"]').value === 'CANARY-upload';
-      }), 'Credential editor lost its certificate upload handler');
+      check(await page.eval(() => {
+        const field = document.querySelector('[data-profile-field="caBundle"]');
+        return field.value || new Promise(resolve => field.addEventListener('input', () => resolve(field.value), { once: true }));
+      }) === 'CANARY-upload', 'Hydration discarded the selected TLS PEM');
     }
   `)
 })
@@ -2342,6 +2361,7 @@ test('Graph federated authentication hides incompatible fields before entering a
         input.dispatchEvent(new Event('change', { bubbles: true }));
       }
     });
+    await page.wait('[data-profile-field=thumbprintSha256]:disabled');
     check(await page.eval(() => {
       const token = document.querySelector('[data-profile-field=token]');
       return token.value === '' && !token.disabled && token.required && !token.closest('[data-credential-field]').hidden;
@@ -2349,6 +2369,25 @@ test('Graph federated authentication hides incompatible fields before entering a
     for (const name of ['privateKey', 'clientSecret', 'thumbprintSha256']) {
       check(await page.eval('(() => { const input = document.querySelector(' + JSON.stringify('[data-profile-field=' + name + ']') + '); return input.disabled && input.closest("[data-credential-field]").hidden; })()'), name + ' remained visible or enabled');
     }
+  `)
+})
+
+test(credentialEditorWithLateHydration, () => {
+  browser(`
+    await page.open(base + '/admin/tools/mg-axi');
+    await page.eval(() => {
+      for (const [name, value] of [['mode', 'application'], ['auth', 'federated']]) {
+        const input = document.querySelector('[data-profile-field=' + name + ']');
+        input.value = JSON.stringify(value);
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      const script = document.createElement('script');
+      script.src = '/admin/assets/hydrate.js?resume';
+      document.head.append(script);
+    });
+    await page.wait('[data-profile-field=thumbprintSha256]:disabled');
+    await page.wait('[data-profile-field=token][required]');
+    check(await page.eval(() => document.querySelector('[data-profile-field=auth]').value === '"federated"'), 'Hydration discarded the selection');
   `)
 })
 
@@ -2367,7 +2406,10 @@ for (const entry of toolCredentials) test(entry.tool + ' guided credential save 
     await page.wait('form[data-save-tool] [name=expectedToolRevision][value="2"]');
     const fields = ${JSON.stringify(entry.fields)};
     for (const [name, value] of Object.entries(fields)) {
-      await page.eval('(() => { const input = document.querySelector(' + JSON.stringify('[data-profile-field="' + name + '"]') + '); input.value = input.tagName === "SELECT" ? ' + JSON.stringify(JSON.stringify(value)) + ' : ' + JSON.stringify(value) + '; input.dispatchEvent(new Event("change", { bubbles: true })); })()');
+      const selector = '[data-profile-field="' + name + '"]';
+      if (await page.eval('(() => document.querySelector(' + JSON.stringify(selector) + ').tagName === "SELECT")()')) {
+        await page.eval('(() => { const input = document.querySelector(' + JSON.stringify(selector) + '); input.value = ' + JSON.stringify(JSON.stringify(value)) + '; input.dispatchEvent(new Event("change", { bubbles: true })); })()');
+      } else await page.fill(selector, String(value));
     }
     check(await page.eval(() => document.querySelector('[data-save-and-test]').checked), 'Test after saving is not on by default');
     await page.click('form[data-save-tool] button');
@@ -2426,11 +2468,19 @@ test('credential save' + (saveAndTest ? ' and test' : '') + ' shows normalizatio
 })
 }
 
-test('LDAP saved CA PEM survives browser edits and multi-line secrets reach delivered files unchanged', async () => {
+test('LDAP saves the pasted CA PEM after an upload and delivers multi-line secrets unchanged', async () => {
+  const savedPem = '-----BEGIN CERTIFICATE-----\nCANARY-stored-ca\n-----END CERTIFICATE-----\n'
   const pem = '-----BEGIN CERTIFICATE-----\nCANARY-first-line\nCANARY-second-line\n-----END CERTIFICATE-----\n'
   const password = 'CANARY-first-line\nCANARY-second-line\n'
   browser(`
-    await createInstance('ldap-axi', { url: 'ldaps://directory.example', auth: 'simple', bindDn: 'cn=reader,dc=example', bindPassword: 'CANARY-original', caFile: ${JSON.stringify(pem)} });
+    await createInstance('ldap-axi', { url: 'ldaps://directory.example', auth: 'simple', bindDn: 'cn=reader,dc=example', bindPassword: 'CANARY-original', caFile: ${JSON.stringify(savedPem)} });
+    await page.click('details:has([data-tls-file="caFile"]) > summary');
+    await page.eval(${pemSelection('[data-tls-file="caFile"]', readFileSync(fixture.caFile, 'utf8'))});
+    await page.eval(() => {
+      const field = document.querySelector('textarea[data-profile-field=caFile]');
+      return field.value || new Promise(resolve => field.addEventListener('input', () => resolve(field.value), { once: true }));
+    });
+    await page.fill('textarea[data-profile-field=caFile]', ${JSON.stringify(pem)});
     await page.fill('textarea[data-profile-field=bindPassword]', ${JSON.stringify(password)});
     await page.click('form[data-save-tool] button');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
@@ -2450,7 +2500,7 @@ test('LDAP saved CA PEM survives browser edits and multi-line secrets reach deli
   assert.equal(delivered.bindPassword, password)
 })
 
-for (const tool of ['technitium-axi', 'unifi-axi', 'kubernetes-axi']) for (const edited of [false, true]) test(tool + ' endpoint changes ' + (edited ? 'keep explicitly edited' : 'omit untouched') + ' certificate overrides', async () => {
+for (const tool of ['technitium-axi', 'unifi-axi', 'kubernetes-axi']) for (const edited of [false, true]) test(tool + (edited ? editedOverrides : ' endpoint changes omit untouched certificate overrides'), async () => {
   const certificate = fixture.certificatePem.match(/-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/)![0]
   const tls = { trustedCertificatePem: certificate, peerFingerprintSha256: new X509Certificate(certificate).fingerprint256.replaceAll(':', ''), connectAddress: '127.0.0.1' }
   const value = tool === 'unifi-axi'
@@ -2459,31 +2509,52 @@ for (const tool of ['technitium-axi', 'unifi-axi', 'kubernetes-axi']) for (const
       ? { origin: 'https://cluster.example', auth: 'token', token: 'CANARY-token', certificateAuthority: certificate, tlsServerName: 'cluster.example' }
       : { origin: 'https://dns.example', auth: 'token', tokenKind: 'api', token: 'CANARY-token', tlsServerName: 'dns.example' }
   const field = tool === 'unifi-axi' ? 'tls.connectAddress' : 'tlsServerName'
+  const savedOverride = tool === 'unifi-axi' ? tls.connectAddress : value.tlsServerName
   browser(`
+    const resume = () => page.eval(() => new Promise(resolve => {
+      document.addEventListener('astryx-hydrated', () => resolve(true), { once: true });
+      const script = document.createElement('script');
+      script.src = '/admin/assets/hydrate.js?resume';
+      document.head.append(script);
+    }));
     await createInstance('${tool}', ${JSON.stringify(value)});
+    if (${edited}) await resume();
     await page.click('[data-save-and-test]');
     await page.click('form[data-save-tool] button');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
     await page.wait('form[data-save-tool] [name=expectedRevision][value="2"]');
-    check(await page.eval(() => document.querySelector('[data-profile-field="${field}"]').value === ${JSON.stringify(tool === 'unifi-axi' ? tls.connectAddress : value.tlsServerName)}), 'Unchanged override was lost');
+    check(await page.eval(() => document.querySelector('[data-profile-field="${field}"]').value === ${JSON.stringify(savedOverride)}), 'Unchanged override was lost');
+    if (${edited}) {
+      await page.fill('[data-profile-field="${field}"]', ${JSON.stringify(tool === 'unifi-axi' ? '127.0.0.2' : 'replacement.example')});
+      await page.fill('[data-profile-field="${field}"]', ${JSON.stringify(savedOverride)});
+      await resume();
+    }
     await page.fill('[data-profile-field=origin]', 'https://replacement.example');
     await page.fill('[data-profile-field=${tool === 'unifi-axi' ? 'apiKey' : 'token'}]', 'CANARY-new-secret');
     ${tool === 'kubernetes-axi' ? `await page.click('details:has([data-profile-field="certificateAuthority"]) summary'); await page.fill('[data-profile-field="certificateAuthority"]', ${JSON.stringify(certificate)});` : ''}
-    if (${edited}) {
-      await page.fill('[data-profile-field="${field}"]', ${JSON.stringify(tool === 'unifi-axi' ? '127.0.0.2' : 'replacement.example')});
-      ${tool === 'unifi-axi' ? `await page.click('details:has([data-profile-field="tls.trustedCertificatePem"]) summary'); await page.fill('[data-profile-field="tls.trustedCertificatePem"]', ${JSON.stringify(certificate)}); await page.fill('[data-profile-field="tls.peerFingerprintSha256"]', ${JSON.stringify(tls.peerFingerprintSha256)});` : ''}
-    }
+    ${tool === 'unifi-axi' && edited ? `
+      await page.click('details:has([data-profile-field="tls.trustedCertificatePem"]) summary');
+      await page.fill('[data-profile-field="tls.peerFingerprintSha256"]', ${JSON.stringify(tls.peerFingerprintSha256)});
+      await page.eval(() => {
+        const pending = new Promise(resolve => { window.finishPemRead = resolve; });
+        const read = File.prototype.text;
+        File.prototype.text = async function () { await pending; return read.call(this); };
+      });
+      await page.eval(${pemSelection('[data-tls-file="tls.trustedCertificatePem"]', certificate)});
+    ` : ''}
     await page.click('[data-save-and-test]');
     await page.click('form[data-save-tool] button');
+    ${tool === 'unifi-axi' && edited ? `await page.wait('html[data-submit-pending]'); await page.eval(() => window.finishPemRead());` : ''}
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
     await page.wait('form[data-save-tool] [name=expectedRevision][value="3"]');
-    check(await page.eval(() => document.querySelector('[data-profile-field="${field}"]').value === ${JSON.stringify(edited ? (tool === 'unifi-axi' ? '127.0.0.2' : 'replacement.example') : '')}), 'Endpoint override was incorrect');
+    check(await page.eval(() => document.querySelector('[data-profile-field="${field}"]').value === ${JSON.stringify(edited ? savedOverride : '')}), 'Endpoint override was incorrect');
   `)
   const { stored } = await (await fetch(fixture.clock.replace('/test/clock', '/test/tools/' + tool))).json() as {
-    stored: { origin: string; tls?: { connectAddress?: string }; tlsServerName?: string }
+    stored: { origin: string; tls?: unknown; tlsServerName?: string }
   }
   assert.equal(stored.origin, 'https://replacement.example')
-  assert.equal(tool === 'unifi-axi' ? stored.tls?.connectAddress : stored.tlsServerName, edited ? (tool === 'unifi-axi' ? '127.0.0.2' : 'replacement.example') : undefined)
+  if (tool === 'unifi-axi') assert.deepEqual(stored.tls, edited ? tls : undefined)
+  else assert.equal(stored.tlsServerName, edited ? savedOverride : undefined)
 })
 
 for (const field of ['certificate', 'fingerprint']) test('UniFi ' + field + ' replacement requires both trust values', async () => {
@@ -2531,6 +2602,27 @@ for (const tool of ['az-axi', 'mg-axi']) test(tool + ' certificate PEM calculate
   const certificate = new X509Certificate(fixture.certificatePem)
   assert.equal(stored.thumbprintSha256, certificate.fingerprint256.replaceAll(':', '').toLowerCase())
   assert.equal(stored.privateKey, fixture.certificatePem.match(/-----BEGIN (?:RSA |EC )?PRIVATE KEY-----[\s\S]*?-----END (?:RSA |EC )?PRIVATE KEY-----/)![0] + '\n')
+})
+
+test(combinedPemWithLateHydration, async () => {
+  const fingerprint = new X509Certificate(fixture.certificatePem).fingerprint256.replaceAll(':', '').toLowerCase()
+  browser(`
+    await createInstance('az-axi', { tenantId: '11111111-1111-4111-8111-111111111111', clientId: '22222222-2222-4222-8222-222222222222',
+      auth: 'certificate', thumbprintSha256: 'a'.repeat(64), privateKey: 'CANARY-original-key' });
+    await page.wait('[data-certificate]:not([hidden]) [data-certificate-file]');
+    await page.eval(${pemSelection('[data-certificate-file]', fixture.certificatePem)});
+    await page.click('[data-save-and-test]');
+    await page.click('form[data-save-tool] button');
+    await page.wait('html[data-submit-pending]');
+    await page.eval(() => {
+      const script = document.createElement('script');
+      script.src = '/admin/assets/hydrate.js?resume';
+      document.head.append(script);
+    });
+    await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form[data-save-tool] [name=expectedRevision][value="2"]');
+    check(await page.eval(() => document.querySelector('[data-profile-field=thumbprintSha256]').value) === ${JSON.stringify(fingerprint)}, 'Saved fingerprint did not come from the selected PEM');
+  `)
 })
 
 test('malformed certificate PEM keeps the draft and leaves the credential unconfigured', async () => {

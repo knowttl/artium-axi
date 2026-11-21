@@ -158,3 +158,27 @@ test.each(toolSchema.options.filter(tool => tool !== 'ssh-axi'))('%s editor mode
     expect(renderToString(createElement(CredentialEditor, editor))).not.toContain(`CANARY-${tool}-${name}-END`)
   }
 })
+
+const applicationProfile = new CredentialProfile({ type: 'object', required: ['tenantId'], properties: {
+  tenantId: { type: 'string' }, auth: { enum: ['secret', 'certificate'] }, clientSecret: { type: 'string', 'x-secret': true }, privateKey: { type: 'string', 'x-secret': true } },
+oneOf: [
+  { properties: { auth: { const: 'secret' } }, required: ['clientSecret'], not: { required: ['privateKey'] } },
+  { properties: { auth: { const: 'certificate' } }, required: ['privateKey'], not: { required: ['clientSecret'] } },
+] })
+
+test.each([
+  ['an unsaved credential with a chosen authentication', { auth: 'secret', tenantId: 'tenant-a' }, false, { clientSecret: 'shown-required', privateKey: 'hidden-optional' }],
+  ['an unsaved credential with no authentication chosen', {}, false, { clientSecret: 'shown-optional', privateKey: 'shown-optional' }],
+  ['a saved secret credential with an unchanged identity', { auth: 'secret', tenantId: 'tenant-a' }, true, { clientSecret: 'shown-optional', privateKey: 'hidden-optional' }],
+  ['a saved certificate credential', { auth: 'certificate', tenantId: 'tenant-a' }, true, { clientSecret: 'hidden-optional', privateKey: 'shown-optional' }],
+] as const)('the editor renders %s with the fields its schema allows and requires', (_name, metadata, configured, expected) => {
+  const html = renderToString(createElement(CredentialEditor, credentialEditor(undefined, applicationProfile, metadata, configured)))
+  const rendered = Object.fromEntries(['clientSecret', 'privateKey'].map(name => {
+    const wrapper = new RegExp(`<div data-credential-field="${name}"[^>]*>`).exec(html)![0]
+    const field = new RegExp(`<textarea[^>]*data-profile-field="${name}"[^>]*>`).exec(html)![0]
+    return [name, `${wrapper.includes(' hidden=""') ? 'hidden' : 'shown'}-${field.includes(' required=""') ? 'required' : 'optional'}`]
+  }))
+  const forbiddenFields = Object.entries(expected).filter(([, state]) => state.startsWith('hidden')).map(([name]) => name)
+  expect(rendered).toEqual(expected)
+  for (const name of forbiddenFields) expect(new RegExp(`<textarea[^>]*data-profile-field="${name}"[^>]*disabled=""`).test(html)).toBe(true)
+})
