@@ -3,8 +3,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify'
 import type { z } from 'zod'
 import { adminInstanceParamsSchema, adminInstanceRoutes, adminInstanceSchema, adminToolRoutes, adminToolSchema, githubDeviceRoutes } from '../../shared/api.js'
 import { ArtiumError, errors } from '../../shared/errors.js'
-import type { Diagnostic } from '../../shared/errors.js'
-import { structuredDiagnostic } from '../../shared/diagnostic.js'
+import { diagnosticText } from '../../shared/diagnostic.js'
 import type { CredentialProfile } from '../adapters/credential-profile.js'
 import { browserCookie } from '../auth/browser.js'
 import { readBrowserSession, requireBrowserAdmin } from '../auth/sessions.js'
@@ -68,11 +67,6 @@ export async function readInstanceRows(app: FastifyInstance, request: FastifyReq
       href: `/admin/tools/${tool.name}/instances/${instance.name}`, readOnly: tool.readOnly || instance.readOnly,
       status: instance.enabled ? setupStatus(toolSetupState({ enabled: true, configured: instance.configured, health: instance.health })) : describe('health', 'disabled'), checkedAt: instance.health.checkedAt, instance }
   })
-}
-
-function diagnosticText(detail?: Diagnostic): string {
-  const safe = structuredDiagnostic(detail)
-  return safe ? [safe.stage, safe.toolCode, safe.transportCode, safe.providerCode, safe.upstreamStatus, safe.trust].filter(value => value !== undefined).join('\n') : 'Details unavailable.'
 }
 
 function githubConnection(tool: Tool, instance?: Instance): GithubConnectionProps {
@@ -150,7 +144,7 @@ export function registerInstancePages(app: FastifyInstance, db: Database.Databas
           endpointFingerprint: pin.leafFingerprint && pin.leafFingerprint !== pin.certificate.fingerprint ? pin.leafFingerprint : null,
           note: pin.leaf ? null : pin.leafFingerprint ? 'Certificate details not yet inspected.' : 'No confirmed leaf; use Trust or Renew to confirm one',
           subject: pin.certificate.subject, expires: pin.certificate.expiresAt, endpointExpires: pin.leaf && pin.leaf.expiresAt !== pin.certificate.expiresAt ? pin.leaf.expiresAt : null })),
-        offered: awx || tool.name === 'kubernetes-axi' && Boolean(instance.metadata.tlsServerName) || instance.health.errorCode === 'UPSTREAM_TLS_FAILED' || pins.length > 0,
+        alwaysOfferInspection: awx || tool.name === 'kubernetes-axi' && Boolean(instance.metadata.tlsServerName) || pins.length > 0,
         endpoints: endpoints.map(endpoint => endpoint.host),
         trust: { fills: Boolean(credentialTlsSettings[tool.name].certificate),
           caOption: `Trust the issuing CA${unifi ? ' (confirm a new leaf fingerprint after renewal)' : proxmox ? ' (a separately saved fingerprint still applies)' : ' (recommended, renewed certificates keep working)'}` },

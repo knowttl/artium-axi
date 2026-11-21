@@ -8,7 +8,7 @@ import { Heading, Text } from '@astryxdesign/core/Text'
 import { TextInput } from '@astryxdesign/core/TextInput'
 import { VisuallyHidden } from '@astryxdesign/core/VisuallyHidden'
 import { VStack } from '@astryxdesign/core/VStack'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { ActionForm, Revision } from './action-form.js'
 import { CredentialEditor, type CredentialEditorProps } from './credential-editor.js'
 import { Icon } from './icon.js'
@@ -16,6 +16,7 @@ import { GithubConnection, type GithubConnectionProps } from './github-connectio
 import { Panel } from './panel.js'
 import { badgeVariants, type Status } from './status.js'
 import { LastChange, Time } from './time.js'
+import { TestOutcomeProvider, TestResultNote, useTestHealth, useTestOutcome } from './test-outcome.js'
 import { Setup, type ToolProps } from './tool.js'
 
 interface Pin {
@@ -56,7 +57,7 @@ export interface InstanceProps {
     intro: string
     expiring: boolean
     pins: Pin[]
-    offered: boolean
+    alwaysOfferInspection: boolean
     endpoints: string[]
     trust: { fills: boolean, caOption: string }
   }
@@ -73,34 +74,26 @@ function Versions({ id, revision }: Pick<InstanceProps, 'id' | 'revision'>) {
   )
 }
 
-function Header({ csrf, tool, mark, path, id, name, revision, enabled, state, outcomes, writes, checkedAt: initialCheckedAt }: InstanceProps) {
-  const [checkedAt, setCheckedAt] = useState(initialCheckedAt)
-  useEffect(() => {
-    const update = (event: Event) => setCheckedAt((event as CustomEvent<string | null>).detail)
-    document.addEventListener('artium-check-time', update)
-    return () => document.removeEventListener('artium-check-time', update)
-  }, [])
+function Header({ csrf, tool, mark, path, id, name, revision, enabled, state, outcomes, writes, checkedAt }: InstanceProps) {
+  const { show } = useTestOutcome()
+  const health = useTestHealth()
+  const shown = health ? outcomes[health.passed ? 'ok' : 'error'] : state
   return (
     <HStack gap={3} justify="between" vAlign="center" wrap="wrap">
       <HStack gap={3} vAlign="center">
         <span className="tool-ico lg" aria-hidden="true">{mark}</span>
         <HStack gap={2} vAlign="center" wrap="wrap">
           <code>{tool}</code>
-          <span data-tool-state=""><Badge label={state.word} variant={badgeVariants[state.tone]} /></span>
-          <span hidden>
-            <span data-outcome="ok"><Badge label={outcomes.ok.word} variant={badgeVariants[outcomes.ok.tone]} /></span>
-            <span data-outcome="error"><Badge label={outcomes.error.word} variant={badgeVariants[outcomes.error.tone]} /></span>
-          </span>
+          <span data-tool-state=""><Badge label={shown.word} variant={badgeVariants[shown.tone]} /></span>
           <Badge label={writes.word} variant={writes.tone === 'warn' ? 'warning' : 'neutral'} />
           <Text as="span" type="supporting">
             {'Checked '}
-            <span data-check-time="" suppressHydrationWarning><Time iso={checkedAt} empty="never" /></span>
-            <span data-check-time-fallback="" hidden suppressHydrationWarning dangerouslySetInnerHTML={{ __html: '' }} />
+            <span data-check-time=""><Time iso={health ? health.checkedAt : checkedAt} empty="never" /></span>
           </Text>
         </HStack>
       </HStack>
       <HStack gap={2} vAlign="center">
-        <ActionForm action={`${path}/test`} method="POST" csrf={csrf} attributes={{ 'data-test-tool': tool }}>
+        <ActionForm action={`${path}/test`} method="POST" csrf={csrf} showTest={show} attributes={{ 'data-test-tool': tool }}>
           <Button type="submit" label="Test connection" variant="secondary" icon={<Icon name="test" />} />
         </ActionForm>
         <ActionForm action={path} method="PATCH" csrf={csrf}
@@ -115,20 +108,23 @@ function Header({ csrf, tool, mark, path, id, name, revision, enabled, state, ou
   )
 }
 
-function Failure({ failure }: Pick<InstanceProps, 'failure'>) {
+function Failure({ failure: saved }: Pick<InstanceProps, 'failure'>) {
+  const health = useTestHealth()
+  const failure = health ? { shown: health.errorCode !== null, summary: health.summary, code: health.errorCode ?? '', certificateHint: health.errorCode === 'UPSTREAM_TLS_FAILED',
+    diagnostic: health.diagnostic } : saved
   return (
-    <div data-check-failure="" hidden={!failure.shown} suppressHydrationWarning>
+    <div data-check-failure="" hidden={!failure.shown}>
       <Banner status="error" icon={<Icon name="alert" />} title="Last test failed" collapsible={false}
-        description={<span data-check-summary="" suppressHydrationWarning>{failure.summary}</span>}>
+        description={<span data-check-summary="">{failure.summary}</span>}>
         <VStack gap={2}>
           <Text as="p">
             {'Agents calling this instance get '}
-            <code data-check-error="" suppressHydrationWarning>{failure.code}</code>
+            <code data-check-error="">{failure.code}</code>
             {failure.certificateHint ? '. Review the endpoint under Certificates below.' : '.'}
           </Text>
           <details>
             <summary>Show diagnostic</summary>
-            <pre data-check-diagnostic="" suppressHydrationWarning>{failure.diagnostic}</pre>
+            <pre data-check-diagnostic="">{failure.diagnostic}</pre>
           </details>
         </VStack>
       </Banner>
@@ -236,7 +232,7 @@ function InspectionDialog({ csrf, path, name, trust }: { csrf: string, path: str
           <input type="hidden" name="inspectionId" />
           <Button type="submit" label="Use certificate name" variant="secondary" data-use-certificate-name="" />
         </ActionForm>
-        <ActionForm action={`${path}/certificates/trust`} method="POST" csrf={csrf} attributes={{ 'data-trust-certificate': '', 'data-trust-test-url': `${path}/test` }}>
+        <ActionForm action={`${path}/certificates/trust`} method="POST" csrf={csrf} retestUrl={`${path}/test`} attributes={{ 'data-trust-certificate': '' }}>
           <VStack gap={3}>
             <input type="hidden" name="inspectionId" />
             <input type="hidden" name="fillFields" data-type="boolean" value={String(trust.fills)} />
@@ -260,8 +256,10 @@ function InspectionDialog({ csrf, path, name, trust }: { csrf: string, path: str
   )
 }
 
-function Certificates({ csrf, path, name, certificates }: { csrf: string, path: string, name: string, certificates: InstanceProps['certificates'] }) {
-  const { saved, intro, expiring, pins, offered, endpoints, trust } = certificates
+function Certificates({ csrf, path, name, certificates, savedTlsFailure }: { csrf: string, path: string, name: string, certificates: InstanceProps['certificates'], savedTlsFailure: boolean }) {
+  const { saved, intro, expiring, pins, alwaysOfferInspection, endpoints, trust } = certificates
+  const { tlsFailed } = useTestOutcome()
+  const inspectable = endpoints.length > 0 && (alwaysOfferInspection || (tlsFailed ?? savedTlsFailure))
   if (!saved) {
     return (
       <Panel title="Trusted certificates" description="Trust applies only to this instance’s saved endpoints.">
@@ -278,9 +276,9 @@ function Certificates({ csrf, path, name, certificates }: { csrf: string, path: 
           {pins.length ? <PinTable csrf={csrf} path={path} pins={pins} />
             : <Text as="p" type="supporting">No certificates trusted for this instance. Hostname and expiry checks always apply.</Text>}
           <HStack gap={3} justify="between" vAlign="center" wrap="wrap">
-            <Text type="supporting">{offered ? 'Compare the fingerprint with the one the appliance shows before trusting.' : 'Inspection is offered after a connection test fails with a certificate error.'}</Text>
+            <Text type="supporting">{inspectable ? 'Compare the fingerprint with the one the appliance shows before trusting.' : 'Inspection is offered after a connection test fails with a certificate error.'}</Text>
             {endpoints.length > 0 && (
-              <ActionForm action={`${path}/certificates/inspect`} method="POST" csrf={csrf} attributes={{ 'data-inspect-certificate': '', hidden: !offered, suppressHydrationWarning: true }}>
+              <ActionForm action={`${path}/certificates/inspect`} method="POST" csrf={csrf} attributes={{ 'data-inspect-certificate': '', hidden: !inspectable }}>
                 <HStack gap={2} vAlign="center">
                   {endpoints.length > 1
                     ? <>
@@ -305,18 +303,25 @@ function Certificates({ csrf, path, name, certificates }: { csrf: string, path: 
   )
 }
 
+function InstanceSetup({ setup }: Pick<InstanceProps, 'setup'>) {
+  const health = useTestHealth()
+  if (!health) return <Setup setup={setup} />
+  return <Setup setup={setup.map(step => step.test ? { ...step, state: health.passed ? 'done' : 'fail',
+    detail: health.passed ? 'Passed' : `Failing: ${health.errorCode ?? 'error'}`, at: null } : step)} />
+}
+
 export function Instance(props: InstanceProps) {
   const { csrf, api, path, name, product, tool, github, controllerOrigin, certificates, failure, testGuide, change } = props
   return (
-    <VStack gap={4}>
+    <TestOutcomeProvider><VStack gap={4}>
       <Header {...props} />
       <Failure failure={failure} />
-      <Setup setup={props.setup} />
-      <p className="note" data-test-result="" role="status" suppressHydrationWarning>{''}</p>
+      <InstanceSetup setup={props.setup} />
+      <TestResultNote />
       {github && <GithubConnection csrf={csrf} {...github} />}
       {controllerOrigin !== null && <Controller csrf={csrf} api={api} props={props} origin={controllerOrigin} />}
       <Connection csrf={csrf} props={props} />
-      <Certificates csrf={csrf} path={path} name={name} certificates={certificates} />
+      <Certificates csrf={csrf} path={path} name={name} certificates={certificates} savedTlsFailure={failure.certificateHint} />
       <Panel title="Danger zone">
         <HStack gap={3} justify="between" vAlign="center" wrap="wrap">
           <VStack gap={0.5}>
@@ -337,6 +342,6 @@ export function Instance(props: InstanceProps) {
         <Text as="p">Leave a stored secret blank to keep it. Changing authentication, mode, kind, tenant, client or URL needs new secrets.</Text>
         {change && <LastChange {...change} />}
       </Panel>
-    </VStack>
+    </VStack></TestOutcomeProvider>
   )
 }

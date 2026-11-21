@@ -66,16 +66,33 @@ export function structuredDiagnostic(input: unknown): StructuredDiagnostic | und
   }
 }
 
+export function diagnosticText(detail: unknown): string {
+  const safe = structuredDiagnostic(detail)
+  return safe ? [safe.stage, safe.toolCode, safe.transportCode, safe.providerCode, safe.upstreamStatus, safe.trust].filter(value => value !== undefined).join('\n') : 'Details unavailable.'
+}
+
+export function leavesCachedHealth(errorCode: string | null | undefined): boolean {
+  return ['TOO_MANY_CALLS', 'RUNNER_CLOSED', 'TOKEN_INVALID', 'TOKEN_EXPIRED', 'USER_DISABLED', 'ADMIN_REQUIRED', 'REAUTH_REQUIRED'].includes(errorCode ?? '')
+}
+
+export function readSuccessfulTestHealth(result: { status?: unknown, checkedAt?: unknown, credentialRevision?: unknown, errorCode?: unknown } | null) {
+  if (result?.status !== 'ok' || typeof result.checkedAt !== 'number' || !Number.isSafeInteger(result.checkedAt) ||
+      typeof result.credentialRevision !== 'number' || !Number.isSafeInteger(result.credentialRevision) || result.errorCode !== null) return
+  return { status: 'ok', checkedAt: result.checkedAt, credentialRevision: result.credentialRevision, errorCode: null }
+}
+
 export async function readTestResponse(response: Response) {
   const result = await response.json()
   if (!response.ok) {
     const submittedCode = result?.error?.code
     const code = typeof submittedCode === 'string' && Object.hasOwn(errors, submittedCode) ? submittedCode as keyof typeof errors : 'INTERNAL_ERROR'
-    const diagnostic = structuredDiagnostic(result?.error?.diagnostic)
     const { message, next } = errors[code]
-    return { error: { code, message, next }, health: { status: 'error', checkedAt: diagnostic?.checkedAt ?? null, errorCode: code, diagnostic } }
+    const error = { code, message, next }
+    if (code === 'CSRF_INVALID') return { error }
+    const diagnostic = structuredDiagnostic(result?.error?.diagnostic)
+    return { error, health: { status: 'error', checkedAt: diagnostic?.checkedAt ?? null, errorCode: code, diagnostic } }
   }
-  if (result.status !== 'ok' || !Number.isInteger(result.checkedAt) ||
-      !Number.isInteger(result.credentialRevision) || result.errorCode !== null) throw new Error()
-  return { health: { status: 'ok', checkedAt: result.checkedAt, credentialRevision: result.credentialRevision, errorCode: null } }
+  const health = readSuccessfulTestHealth(result)
+  if (!health) throw new Error()
+  return { health }
 }

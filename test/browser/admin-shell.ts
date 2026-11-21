@@ -21,8 +21,7 @@ const environment: NodeJS.ProcessEnv = { ...process.env, CHROME_DEVTOOLS_AXI_SES
   CHROME_DEVTOOLS_AXI_CHROME_ARGS: '--ignore-certificate-errors --lang=en-US' }
 let server: ChildProcessByStdio<null, Readable, null>
 let fixture: Fixture
-const testWithoutHydration = 'direct credential tests finish when hydration is unavailable'
-const testWithLateHydration = 'latest direct credential result survives late hydration'
+const testWithLateHydration = 'a connection test requested before hydration shows its result once hydration finishes'
 const pickerWithLateHydration = 'operation picker preserves edits across late hydration'
 const trackChangesWithLateHydration = 'role tool grants count a selection edited before late hydration as a change'
 const submitWithLateHydration = 'a server-rendered submit saves its original draft after hydration'
@@ -122,7 +121,7 @@ function browser(script: string) {
 
 beforeEach(async context => {
   server = spawn(process.execPath, ['test/fake-service/browser-auth.mjs'], {
-    env: { ...process.env, ARTIUM_TEST_SKIP_HYDRATION: [testWithoutHydration, testWithLateHydration, pickerWithLateHydration, trackChangesWithLateHydration,
+    env: { ...process.env, ARTIUM_TEST_SKIP_HYDRATION: [testWithLateHydration, pickerWithLateHydration, trackChangesWithLateHydration,
       submitWithLateHydration, submitBeforeDialogs, instanceSheetWithLateHydration, credentialEditorWithLateHydration, connectionDraftWithLateHydration,
       combinedPemWithLateHydration, resizeCadence].includes(context.name) || context.name.endsWith(editedOverrides) ? '1' : '0' },
     stdio: ['ignore', 'pipe', 'inherit'],
@@ -2073,6 +2072,7 @@ test('certificate inspection reviews the saved endpoint and trusts it in one con
       const audit = await (await fetch('/v1/admin/audit?event=admin-change')).json();
       return result.certificates.length === 1 && result.certificates[0].mode === 'ca' && audit.records.some(row => row.action === 'trust-certificate' && row.target_id === result.certificates[0].certificate.fingerprint);
     }), 'Trust or fingerprint audit missing');
+    await page.wait('[data-test-result]:not(:empty)');
     check(await page.eval(() => document.querySelector('[data-test-result]').textContent === 'Connected'), 'Automatic credential test did not connect after trust');
     await page.eval(async () => {
       const response = await fetch('/test/trust-ca', { method: 'POST' });
@@ -2101,6 +2101,7 @@ test('trust automatically tests credentials and displays the exact failure', () 
     await page.click('[name=confirmedFingerprint]');
     await page.click('[data-trust-certificate] button');
     await page.wait('form[data-method=DELETE][action$="/certificates"]');
+    await page.wait('[data-test-result]:not(:empty)');
     check(await page.eval(() => document.querySelector('[data-test-result]').textContent.includes('The tool exited unsuccessfully.')), 'Exact test failure missing');
     check(await page.eval(() => document.querySelector('[data-check-diagnostic]').textContent.includes('tool run') && !document.querySelector('[data-check-diagnostic]').textContent.includes('Tool exited with status 1.')), 'Structured tool failure missing');
   `)
@@ -2131,6 +2132,7 @@ for (const [failure, expected] of [
     });
     await page.click('[data-trust-certificate] button');
     await page.wait('form[data-method=DELETE][action$="/certificates"]');
+    await page.wait('[data-test-result]:not(:empty)');
     const message = await page.eval(() => document.querySelector('[data-test-result]').textContent);
     check(message.startsWith('${expected}'), 'Missing safe failure category: ' + message);
     check(!message.includes('CANARY-private-value'), 'Client failure exposed response or exception text');
@@ -2170,9 +2172,11 @@ test('disabled tool retains cached test outcomes after reloading the instance', 
       if (!response.ok) throw new Error('Could not install the fixture CA');
     });
     await openInstance('vectra-axi');
+    await page.wait('[data-inspect-certificate]:not([hidden])');
     await page.click('form[data-test-tool] button');
     await page.wait('[data-test-result]:not(:empty)');
     check(await page.eval(() => document.querySelector('[data-test-result]').textContent === 'Test passed.'), 'Loopback test did not pass after trust');
+    check(await page.eval(() => document.querySelector('[data-inspect-certificate]').hidden), 'The passing test retained the cached certificate offer');
     await openInstance('vectra-axi');
     check(await page.eval(() => document.querySelector('[data-tool-state]').textContent.includes('Healthy')), 'Detail lost the successful outcome');
     check(await page.eval(() => document.querySelector('[data-check-failure]').hidden), 'Successful test retained the failure callout');
@@ -2184,10 +2188,12 @@ test('disabled tool retains cached test outcomes after reloading the instance', 
   `)
 })
 
-for (const name of [testWithoutHydration, testWithLateHydration]) test(name, () => {
+test(testWithLateHydration, () => {
   browser(`
     ${waitForTime}
     await createInstance('vectra-axi', { kind: 'qux', apiVersion: '2.5', origin: base, auth: 'token', token: 'CANARY-cached-test' });
+    await page.click('form[data-test-tool] button');
+    check(await page.eval(() => document.querySelector('[data-test-result]').textContent === '' && document.querySelector('form[data-test-tool] button').disabled), 'The test was not held for hydration');
     await page.eval(() => {
       const original = window.fetch.bind(window);
       window.fetch = async (...args) => {
@@ -2198,47 +2204,115 @@ for (const name of [testWithoutHydration, testWithLateHydration]) test(name, () 
         }
         return response;
       };
+      document.querySelector('details:has([data-tls-file="caBundle"])').open = true;
+      const transfer = new DataTransfer();
+      transfer.items.add(new File(['CANARY-upload'], 'synthetic.pem'));
+      const input = document.querySelector('[data-tls-file="caBundle"]');
+      input.files = transfer.files;
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+      const script = document.createElement('script');
+      script.src = '/admin/assets/hydrate.js?resume';
+      document.head.append(script);
     });
-    await page.click('form[data-test-tool] button');
     await page.wait('[data-test-result]:not(:empty)');
-    const checkResult = async () => check(await page.eval(() =>
+    const iso = await page.eval(() => window.checkIso);
+    await waitForTime('[data-check-time] time', iso);
+    check(await page.eval(() =>
       document.querySelector('[data-test-result]').textContent === 'Test failed.' &&
       !document.querySelector('[data-check-failure]').hidden &&
       document.querySelector('[data-check-error]').textContent === 'UPSTREAM_TLS_FAILED' &&
-      document.querySelector('[data-check-diagnostic]').textContent.includes('TLS')
-    ), 'Direct test result or details were lost');
-    await checkResult();
+      document.querySelector('[data-check-diagnostic]').textContent.includes('TLS') &&
+      document.querySelector('[data-tool-state]').textContent === 'Failing' &&
+      document.querySelector('[data-test-checklist] [data-step-state]').textContent === 'Failed: '
+    ), 'The test result and its details were lost');
     await page.wait('form[data-test-tool] button:not([disabled])');
-    const iso = await page.eval(() => window.checkIso);
     check(await page.eval(() => {
-      const time = document.querySelector('[data-check-time-fallback]:not([hidden]) time');
-      return time?.textContent === window.checkIso && time.dateTime === window.checkIso && time.title === window.checkIso &&
-        document.querySelector('[data-check-time]').hidden;
-    }), 'Fallback did not show the response timestamp');
-    if (${name === testWithLateHydration}) {
+      const field = document.querySelector('[data-profile-field="caBundle"]');
+      return field.value || new Promise(resolve => field.addEventListener('input', () => resolve(field.value), { once: true }));
+    }) === 'CANARY-upload', 'Hydration discarded the selected TLS PEM');
+  `)
+})
+
+test('retesting replaces a failed result with a passing one without reloading', () => {
+  browser(`
+    await createInstance('vectra-axi', { kind: 'qux', apiVersion: '2.5', origin: base, auth: 'token', token: 'CANARY-retest' });
+    check(await page.eval(() => document.querySelector('[data-inspect-certificate]').hidden), 'Certificate inspection was offered before any failure');
+    await page.click('form[data-test-tool] button');
+    await page.wait('[data-check-failure]:not([hidden]) [data-check-error]:not(:empty)');
+    check(await page.eval(() =>
+      document.querySelector('[data-test-result]').textContent === 'Test failed.' &&
+      document.querySelector('[data-tool-state]').textContent === 'Failing' &&
+      document.querySelector('[data-test-checklist]').textContent.includes('Failing: UPSTREAM_TLS_FAILED') &&
+      document.querySelector('[data-test-checklist]').classList.contains('fail') &&
+      document.querySelector('[data-check-summary]').textContent === 'The upstream certificate could not be verified. Ask an administrator to check the host, certificate chain and trusted CA configuration.' &&
+      !document.querySelector('[data-inspect-certificate]').hidden &&
+      document.querySelector('[data-inspect-certificate]').parentElement.textContent.includes('Compare the fingerprint with the one the appliance shows before trusting.')
+    ), 'The failed result was not rendered');
+    await page.wait('form[data-test-tool] button:not([disabled])');
+    await page.fill('[data-profile-field=token]', 'CANARY-unsaved-retest-draft');
+    await page.eval(async () => {
+      const response = await fetch('/test/trust-ca', { method: 'POST' });
+      if (!response.ok) throw new Error('Could not install the fixture CA');
+    });
+    await page.click('form[data-test-tool] button');
+    await page.wait('[data-check-failure][hidden]');
+    check(await page.eval(() =>
+      document.querySelector('[data-test-result]').textContent === 'Test passed.' &&
+      document.querySelector('[data-tool-state]').textContent === 'Healthy' &&
+      document.querySelector('[data-test-checklist]').textContent.includes('Passed') &&
+      document.querySelector('[data-test-checklist] [data-step-state]').textContent === 'Done: ' &&
+      document.querySelector('[data-test-checklist]').classList.contains('done') &&
+      document.querySelector('[data-inspect-certificate]').hidden &&
+      document.querySelector('[data-inspect-certificate]').parentElement.textContent.includes('Inspection is offered after a connection test fails with a certificate error.')
+    ), 'The retest did not replace the failed result');
+    check(await page.eval(() => document.querySelector('[data-profile-field=token]').value === 'CANARY-unsaved-retest-draft'), 'The retest lost the unsaved credential draft');
+  `)
+})
+
+for (const reopen of [false, true]) {
+  test('a rejected retest preserves certificate inspection after a ' + (reopen ? 'reopened' : 'live') + ' TLS failure', () => {
+    browser(`
+      ${waitForTime}
+      await createInstance('vectra-axi', { kind: 'qux', apiVersion: '2.5', origin: base, auth: 'token', token: 'CANARY-retest' });
+      await page.click('form[data-test-tool] button');
+      await page.wait('[data-inspect-certificate]:not([hidden])');
+      await page.wait('form[data-test-tool] button:not([disabled])');
+      if (${reopen}) await openInstance('vectra-axi');
       await page.eval(() => {
-        document.querySelector('details:has([data-tls-file="caBundle"])').open = true;
-        const transfer = new DataTransfer();
-        transfer.items.add(new File(['CANARY-upload'], 'synthetic.pem'));
-        const input = document.querySelector('[data-tls-file="caBundle"]');
-        input.files = transfer.files;
-        input.dispatchEvent(new Event('change', { bubbles: true }));
-        const script = document.createElement('script');
-        script.src = '/admin/assets/hydrate.js?resume';
-        document.head.append(script);
+        const original = window.fetch.bind(window);
+        window.fetch = async (url, options) => new URL(url, location.href).pathname === '/v1/admin/tools/vectra-axi/instances/default/test'
+          ? Response.json({ error: { code: 'TOO_MANY_CALLS', source: 'artium-axi', requestId: 'synthetic-request',
+            message: 'The concurrent call limit was reached.', next: 'Wait for an active call to finish.',
+            diagnostic: { stage: 'configuration', message: 'Details unavailable.', checkedAt: 1700000000000, credentialRevision: 1 } } }, { status: 429 })
+          : original(url, options);
       });
-      await waitForTime('[data-check-time]:not([hidden]) time', iso);
-      await checkResult();
-      check(await page.eval(() =>
-        document.querySelector('[data-check-time-fallback]').hidden &&
-        document.querySelector('[data-tool-state]').textContent === 'Failing' &&
-        document.querySelector('[data-test-checklist] [data-step-state]').textContent === 'Failed: '
-      ), 'Hydrated result did not replace the fallback and update the checklist');
+      await page.click('form[data-test-tool] button');
+      await waitForTime('[data-check-time] time', '2023-11-14T22:13:20.000Z');
       check(await page.eval(() => {
-        const field = document.querySelector('[data-profile-field="caBundle"]');
-        return field.value || new Promise(resolve => field.addEventListener('input', () => resolve(field.value), { once: true }));
-      }) === 'CANARY-upload', 'Hydration discarded the selected TLS PEM');
-    }
+        const inspect = document.querySelector('[data-inspect-certificate]');
+        return document.querySelector('[data-check-error]').textContent === 'TOO_MANY_CALLS' && !inspect.hidden &&
+          inspect.parentElement.textContent.includes('Compare the fingerprint with the one the appliance shows before trusting.');
+      }), 'The rejected attempt did not report the error and preserve certificate inspection');
+    `)
+  })
+}
+
+test('a connection test revision conflict offers to reload the latest instance', () => {
+  browser(`
+    await createInstance('falcon-axi', falconValue);
+    await page.eval(() => {
+      const original = window.fetch.bind(window);
+      window.fetch = async (url, options) => new URL(url, location.href).pathname === '/v1/admin/tools/falcon-axi/instances/default/test'
+        ? Response.json({ error: { code: 'REVISION_CONFLICT', source: 'artium-axi', requestId: 'synthetic-request',
+          message: 'The record changed since it was read.', next: 'Read the current record revision and retry your edit.' } }, { status: 409 })
+        : original(url, options);
+    });
+    await page.click('form[data-test-tool] button');
+    await page.wait('.astryx-toast[data-type=error]');
+    check(await page.eval(() => {
+      const toast = document.querySelector('.astryx-toast[data-type=error]');
+      return toast.textContent.includes('(REVISION_CONFLICT)') && [...toast.querySelectorAll('button')].some(button => button.textContent === 'Reload latest');
+    }), 'Connection test conflict did not offer to reload the latest instance');
   `)
 })
 
@@ -2259,6 +2333,7 @@ for (const action of ['save', 'test', 'trust']) {
         const original = window.fetch.bind(window);
         window.fetch = async (url, options) => {
           if (new URL(url, location.href).pathname !== '/v1/admin/tools/vectra-axi/instances/default/test') return original(url, options);
+          if (${action === 'trust'} && new Headers(options.headers).get('X-Artium-Retest') !== '1') throw new Error('Missing certificate retest header');
           const response = await original(url, options);
           const cached = await response.json();
           if (${action === 'trust'}) {
@@ -2415,7 +2490,14 @@ for (const entry of toolCredentials) test(entry.tool + ' guided credential save 
     await page.click('form[data-save-tool] button');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
     await page.wait('[data-test-result]:not(:empty)');
-    check(await page.eval(() => document.querySelector('[data-test-result]').textContent === 'Saved. Test passed.'), 'Save and test failed');
+    check(await page.eval(() => location.pathname === '/admin/tools/${entry.tool}' &&
+      document.querySelector('[data-test-result]').textContent === 'Saved. Test passed.'), 'The tool page did not restore the successful connection test');
+    check(await page.eval(async () => {
+      const response = await fetch('/v1/admin/audit?event=credential-test&tool=${entry.tool}&instance=default');
+      const { records } = await response.json();
+      return records.some(record => record.event === 'credential-test' && record.tool === '${entry.tool}' &&
+        record.instance === 'default' && record.credential_revision === 1 && record.outcome === 'success');
+    }), 'Add instance did not run a successful explicit credential test');
     await openInstance('${entry.tool}');
     check(await page.eval(() => document.querySelector('[data-profile-field="${entry.secret}"]').value === ''), 'Stored secret was displayed');
     await page.click('[data-save-and-test]');
@@ -2459,6 +2541,7 @@ test('credential save' + (saveAndTest ? ' and test' : '') + ' shows normalizatio
     await page.wait('form[data-save-tool] [name=expectedRevision][value="2"]');
     check(await page.eval(() => document.querySelector('[data-profile-field=origin]').value === 'https://appliance.example'), 'Stored canonical origin missing');
     check(await page.eval(() => document.querySelector('[data-profile-field=token]').value === ''), 'Stored secret was displayed');
+    await page.wait('[data-test-result]:not(:empty)');
     check(await page.eval(() => document.querySelector('[data-test-result]').textContent.includes('origin: canonicalized format.')), 'Origin normalization notice missing');
     check(await page.eval(() => document.querySelector('[data-test-result]').textContent.includes('token: removed surrounding whitespace.')), 'Secret normalization notice missing');
     check(await page.eval(() => document.querySelector('[data-test-result]').textContent.startsWith(${JSON.stringify(saveAndTest ? 'Saved. Test failed.' : 'Saved.')})), 'Save result missing');

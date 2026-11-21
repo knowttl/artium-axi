@@ -11,6 +11,7 @@ import { Icon } from './icon.js'
 import { Panel } from './panel.js'
 import { badgeVariants, type Status } from './status.js'
 import { Tabs } from './tabs.js'
+import { TestOutcomeProvider, TestResultNote } from './test-outcome.js'
 import { Time } from './time.js'
 import { Access, type AccessProps } from './tool-access.js'
 import { Instances, type InstancesProps } from './tool-instances.js'
@@ -65,7 +66,7 @@ function Header({ csrf, api, mark, name, version, revision, enabled, state, writ
   )
 }
 
-export function Setup({ setup }: { setup: (Pick<ToolProps, 'setup'>['setup'][number] & { test?: boolean })[] }) {
+export function Setup({ setup }: { setup: (ToolProps['setup'][number] & { test?: boolean })[] }) {
   const current = setup.findIndex(step => step.state !== 'done')
   return (
     <ol className="steps">
@@ -173,16 +174,16 @@ function Advanced({ csrf, api, revision, panel }: Pick<ToolProps, 'csrf' | 'api'
 export function Tool(props: ToolProps) {
   const { panel } = props
   return (
-    <VStack gap={4}>
+    <TestOutcomeProvider><VStack gap={4}>
       <Header {...props} />
       <Setup setup={props.setup} />
-      <p className="note" data-test-result="" role="status" suppressHydrationWarning>{''}</p>
+      <TestResultNote />
       <Tabs label="Tool sections" tabs={props.tabs} />
       {panel.tab === 'instances' ? <Instances {...props} panel={panel.instances} />
         : panel.tab === 'writes' ? <Writes {...props} panel={panel.writes} />
           : panel.tab === 'raw-api' ? <RawApi {...props} panel={panel} />
             : panel.tab === 'advanced' ? <Advanced {...props} panel={panel} />
               : <Access {...props} panel={panel.access} />}
-    </VStack>
+    </VStack></TestOutcomeProvider>
   )
 }

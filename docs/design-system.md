@@ -61,10 +61,13 @@ The instance page (`src/views/instance.tsx`, route `/admin/tools/:tool/instances
 Its header holds the Test connection form and the Enabled switch, and below it come the failure banner, the setup steps, the optional GitHub card, the AWX controller address, the Connection card, the Trusted certificates panel with its inspection dialog, the Danger zone and two notes, in one column.
 The Connection card is `CredentialEditor` with the instance's `configured` state and saved non-secret values, which `credentialEditor()` takes from the instance metadata and only for fields the profile does not mark secret; a secret field is the same empty native textarea as in the Add instance sheet, and the editor empties it, and the pasted or uploaded certificate, when the page is left (`pagehide`) as well as when a sheet closes.
 The Connection card uses the shared `ActionForm` for credential saves.
-The test, inspection and trust controls keep the `data-test-tool`, `data-check-*`, `data-inspect-certificate`, `data-trust-certificate` and `#certificate-inspection` hooks that `confirm.js` uses.
-Before hydration, a result restored after reload supplies the result message, and a direct check can also fill the failure details and the separate `data-check-time-fallback` slot.
-On `astryx-hydrated`, the script applies the latest result, updates the checklist, replaces the status badge with a copy from a hidden `data-outcome` element and sends the check time to React through `artium-check-time`.
-The result elements that receive pre-hydration updates use `suppressHydrationWarning`.
+The Test connection form passes the [`TestOutcomeProvider`](../src/views/test-outcome.tsx) callback to `ActionForm` as `showTest`.
+`submitForm` reads the response with `readTestResponse` and sends the result through that callback.
+On the instance page, the result note displays the outcome message, and any returned health updates the header badge and check time, the failure banner and the Test step of the setup list.
+The certificate panel uses the last TLS decision for offers that depend on test results, preserving that decision for request errors such as invalid CSRF, revision conflicts and rejections that leave cached health intact.
+On the tool page, only the result note reads the outcome.
+Both pages consume their path's `credential-test:` entry from session storage after hydration.
+The inspection dialog keeps the hooks `confirm.js` uses to display the inspected certificate and prepare the trust form.
 The GitHub connection card on this page is the same `GithubConnection` view, above the Connection card.
 The Tools list's Show filter is a row of Astryx link buttons that mark the current view with `aria-current="page"`.
 Tools, People and Audit use the shared React [`FilterForm`](../src/views/filter-form.tsx) for their GET forms.
@@ -121,9 +124,10 @@ The root contains the toasts and both confirmation dialogs.
 It includes the CSRF token, applies conversions from the captured `data-type` controls and sends `expectedRevision` for revision-checked mutations.
 For a credential form, `submitForm` reads any pending PEM selection captured by the submit and builds the request's `value` from the captured values of the profile and TLS controls.
 When the endpoint changes, it omits an untouched connection IP or certificate name.
-After an instance credential save, `submitForm` runs the optional connection test and stores the normalization notices and test result for the existing renderer to display after reload.
+After creating or updating an instance with credentials, `submitForm` runs the optional connection test and stores the save message with any normalization notices and test outcome.
 Both `ActionForm` and `confirm.js` use `artium-confirm` for action confirmation and `artium-reauth-request` for identity confirmation.
-`confirm.js` still submits forms matched by `scriptedFormSelector`, including direct connection tests, GitHub and certificate forms.
+After certificate trust is saved, `submitForm` uses [`retestConnection`](../src/views/retest.ts) to test with `X-Artium-Retest: 1` and stores the outcome for the reloaded instance page.
+`confirm.js` still submits forms matched by `scriptedFormSelector`, which are GitHub connection, certificate inspection and certificate-name changes.
 For a plain form submitted before React can handle it, `confirm.js` captures the submitted values and hands them to `ActionForm` after `astryx-hydrated`, when the dialog listeners are ready.
 `ActionForm` also captures the submitted values before waiting for dialog readiness, and both handlers share a page-wide submit lock.
 The New role and Rename sheets pass no confirmation text, so they submit without a confirmation dialog.

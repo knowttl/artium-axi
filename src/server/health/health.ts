@@ -3,7 +3,7 @@ import type Database from 'better-sqlite3'
 import { healthSchema, toolAllowsWrites } from '../../shared/api.js'
 import { ArtiumError, errors } from '../../shared/errors.js'
 import type { Diagnostic } from '../../shared/errors.js'
-import type { StructuredDiagnostic } from '../../shared/diagnostic.js'
+import { leavesCachedHealth, type StructuredDiagnostic } from '../../shared/diagnostic.js'
 import { diagnosticError, safeDiagnostic, toolFailure } from './diagnostic.js'
 import { preflight } from './preflight.js'
 import { toolEndpoints } from '../tool-endpoints.js'
@@ -290,8 +290,7 @@ export class ToolHealth {
       audit.record({ ...context, event: 'run-terminal', action: await journal?.action(!failure) ?? 'unknown', outcome: failure?.code ?? 'completed', exitCode, durationMs, outputBytes, ...evidence,
         failure: failure ? { diagnostic, secrets } : undefined })
       audit.change({ ...context, event: background ? 'health-check' : 'credential-test', action: background ? healthDefaults.actor : undefined, outcome: failure?.code ?? 'success', ...evidence }, () => {
-        if (!['TOO_MANY_CALLS', 'RUNNER_CLOSED', 'TOKEN_INVALID', 'TOKEN_EXPIRED',
-          'USER_DISABLED', 'ADMIN_REQUIRED', 'REAUTH_REQUIRED'].includes(failure?.code ?? '')
+        if (!leavesCachedHealth(failure?.code)
           && this.isCurrent(tool, reference)
           && (this.generations.get(tool) ?? 0) === generation) {
           db.prepare(`INSERT INTO tool_health (credential_id, tool, credential_revision, checked_at, status, error_code) VALUES (?, ?, ?, ?, ?, ?)

@@ -295,7 +295,7 @@ For a short-lived intermediate anchor, the window warns that it will rotate and 
 Expiry warnings do not block confirmation or change hostname and date verification.
 Confirm that you compared the displayed fingerprint, then choose **Trust this certificate**.
 Initial setup fills the supported shared certificate fields and saves endpoint trust; tools without shared fields show that limitation and retain confirmed endpoint trust.
-The UI automatically tests the connection and shows **Connected** or a failure category with available safe details.
+The UI automatically tests the connection and shows **Connected** or a failure category with available safe details on the reloaded instance page.
 Failures can include the server and upstream HTTP statuses, catalogued error, failed step, recognized tool, transport or Azure provider code, or certificate trust classification.
 Network and unreadable-response failures show a category; invalid JSON and unexpected response formats have separate guidance.
 The automatic retest does not display raw exception messages, response text or tool diagnostic text.
@@ -450,7 +450,6 @@ Check the service endpoint and API compatibility.
 `AUTH_ENDPOINT_NOT_FOUND` returns `TOOL_REJECTED_INPUT` at the configuration stage; check the configured service host and token endpoint.
 Diagnostics are discarded entirely if the exact-value secret scanner finds a credential value or one of its canonical encodings.
 The current credential-test and health-check diagnostic cache is held only in server memory; after a restart, rerun Test connection for current detail or inspect retained failure diagnostics in Audit as described below.
-The browser temporarily holds the save-and-test result in session storage to display it after reloading the current page.
 After upgrading, cached categories removed from the error catalogue are ignored; rerun Test connection for a current result.
 Audit records retain categories, timing, revision, exit status and byte counts, never diagnostic text or output streams.
 Failed tool runs, including credential-test and background health-check runs, separately retain validated structured diagnostics in an administrator-only SQLite table keyed by request ID for 14 days.
