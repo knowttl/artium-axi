@@ -35,7 +35,7 @@ function InspectionBody({ csrf, path, trust, inspection }: InspectionProps & { i
   const leaf = chain[0]!
   const hasCA = rotation && trustMode === 'ca' || anchor.ca && anchor.fingerprint !== leaf.fingerprint
   const trustable = pinRequired || (trustMode ? rotation : verificationError !== null)
-  const defaultMode = pinRequired ? 'pin' : rotation && trustMode ? trustMode : hasCA ? 'ca' : leaf.selfSigned ? 'pin' : ''
+  const defaultMode = pinRequired ? 'pin' : rotation ? trustMode! : hasCA ? 'ca' : leaf.selfSigned ? 'pin' : ''
   const caUnavailable = verificationError !== null && !hasCA && !leaf.selfSigned
   return (
     <VStack gap={3}>
@@ -114,7 +114,7 @@ export function CertificateInspectionDialog({ name, inspection, onClose, ...prop
             <VStack gap={3}>
               <Banner status="warning" icon={<Icon name="alert" />} title="Compare the fingerprint before trusting" role="alert"
                 description="Trust is only as safe as the network path when this certificate was fetched. A certificate presented during interception would be trusted too. Compare the full SHA-256 fingerprint with the one shown by the appliance." />
-              {inspection && <InspectionBody key={inspection.inspectionId} {...props} inspection={inspection} />}
+              {inspection && <InspectionBody {...props} inspection={inspection} />}
             </VStack>
           </LayoutContent>
         }
