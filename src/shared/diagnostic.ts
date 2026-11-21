@@ -86,9 +86,11 @@ export async function readTestResponse(response: Response) {
   if (!response.ok) {
     const submittedCode = result?.error?.code
     const code = typeof submittedCode === 'string' && Object.hasOwn(errors, submittedCode) ? submittedCode as keyof typeof errors : 'INTERNAL_ERROR'
-    const diagnostic = structuredDiagnostic(result?.error?.diagnostic)
     const { message, next } = errors[code]
-    return { error: { code, message, next }, health: { status: 'error', checkedAt: diagnostic?.checkedAt ?? null, errorCode: code, diagnostic } }
+    const error = { code, message, next }
+    if (code === 'CSRF_INVALID') return { error }
+    const diagnostic = structuredDiagnostic(result?.error?.diagnostic)
+    return { error, health: { status: 'error', checkedAt: diagnostic?.checkedAt ?? null, errorCode: code, diagnostic } }
   }
   const health = readSuccessfulTestHealth(result)
   if (!health) throw new Error()

@@ -1,7 +1,16 @@
 import { afterEach, expect, test, vi } from 'vitest'
+import { readTestResponse } from '../src/shared/diagnostic.js'
 import { retestConnection } from '../src/views/retest.js'
 
 afterEach(() => vi.unstubAllGlobals())
+
+test('a stale browser test request gives reload guidance without replacing health', async () => {
+  const response = Response.json({ error: { code: 'CSRF_INVALID', source: 'artium-axi', requestId: 'synthetic-request',
+    message: 'Synthetic request rejection.', next: 'Retry.' } }, { status: 403 })
+  await expect(readTestResponse(response)).resolves.toEqual({ error: {
+    code: 'CSRF_INVALID', message: 'The form token or request origin is invalid.', next: 'Reload the form on this server and submit it again.',
+  } })
+})
 
 const secret = 'CANARY-unlabelled-credential'
 const quotedSecret = '"CANARY several secret words"'

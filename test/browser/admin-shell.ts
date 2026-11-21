@@ -1522,29 +1522,6 @@ test('instance names lab and lab-opener open their own sheets in place', () => {
   `)
 })
 
-test('Add instance restores the default connection test result on the tool page', () => {
-  browser(`
-    await addInstance('vectra-axi', 'save-and-test');
-    await page.eval(async () => {
-      const response = await fetch('/test/trust-ca', { method: 'POST' });
-      if (!response.ok) throw new Error('Could not install the fixture CA');
-    });
-    for (const [name, value] of Object.entries({ kind: 'qux', apiVersion: '2.5', auth: 'token' })) {
-      await page.eval('(() => { const input = document.querySelector(' + JSON.stringify('[data-profile-field="' + name + '"]') + '); input.value = ' + JSON.stringify(JSON.stringify(value)) + '; input.dispatchEvent(new Event("change", { bubbles: true })); })()');
-    }
-    await page.fill('[data-profile-field=origin]', base);
-    await page.fill('[data-profile-field=token]', 'CANARY-add-and-test');
-    check(await page.eval(() => document.querySelector('[data-save-and-test]').checked), 'Test after saving is off by default');
-    await page.click('form[data-save-tool] button');
-    await page.wait('#confirmation[open]');
-    await page.click('#confirmation button[value=confirmed]');
-    await page.wait('tbody a[href="/admin/tools/vectra-axi/instances/save-and-test"]');
-    await page.wait('[data-test-result]:not(:empty)');
-    check(await page.eval(() => location.pathname === '/admin/tools/vectra-axi' &&
-      document.querySelector('[data-test-result]').textContent === 'Saved. Test passed.'), 'The tool page did not restore the successful connection test');
-  `)
-})
-
 test('a typed credential secret reaches only the rejected form submission and is cleared when the Add instance sheet closes', () => {
   browser(`
     await addInstance('falcon-axi');
@@ -2513,7 +2490,8 @@ for (const entry of toolCredentials) test(entry.tool + ' guided credential save 
     await page.click('form[data-save-tool] button');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
     await page.wait('[data-test-result]:not(:empty)');
-    check(await page.eval(() => document.querySelector('[data-test-result]').textContent === 'Saved. Test passed.'), 'Save and test failed');
+    check(await page.eval(() => location.pathname === '/admin/tools/${entry.tool}' &&
+      document.querySelector('[data-test-result]').textContent === 'Saved. Test passed.'), 'The tool page did not restore the successful connection test');
     await openInstance('${entry.tool}');
     check(await page.eval(() => document.querySelector('[data-profile-field="${entry.secret}"]').value === ''), 'Stored secret was displayed');
     await page.click('[data-save-and-test]');
