@@ -21,8 +21,7 @@ const environment: NodeJS.ProcessEnv = { ...process.env, CHROME_DEVTOOLS_AXI_SES
   CHROME_DEVTOOLS_AXI_CHROME_ARGS: '--ignore-certificate-errors --lang=en-US' }
 let server: ChildProcessByStdio<null, Readable, null>
 let fixture: Fixture
-const testWithoutHydration = 'direct credential tests finish when hydration is unavailable'
-const testWithLateHydration = 'latest direct credential result survives late hydration'
+const testWithLateHydration = 'a connection test requested before hydration shows its result once hydration finishes'
 const pickerWithLateHydration = 'operation picker preserves edits across late hydration'
 const trackChangesWithLateHydration = 'role tool grants count a selection edited before late hydration as a change'
 const submitWithLateHydration = 'a server-rendered submit saves its original draft after hydration'
@@ -122,7 +121,7 @@ function browser(script: string) {
 
 beforeEach(async context => {
   server = spawn(process.execPath, ['test/fake-service/browser-auth.mjs'], {
-    env: { ...process.env, ARTIUM_TEST_SKIP_HYDRATION: [testWithoutHydration, testWithLateHydration, pickerWithLateHydration, trackChangesWithLateHydration,
+    env: { ...process.env, ARTIUM_TEST_SKIP_HYDRATION: [testWithLateHydration, pickerWithLateHydration, trackChangesWithLateHydration,
       submitWithLateHydration, submitBeforeDialogs, instanceSheetWithLateHydration, credentialEditorWithLateHydration, connectionDraftWithLateHydration,
       combinedPemWithLateHydration, resizeCadence].includes(context.name) || context.name.endsWith(editedOverrides) ? '1' : '0' },
     stdio: ['ignore', 'pipe', 'inherit'],
@@ -2184,10 +2183,12 @@ test('disabled tool retains cached test outcomes after reloading the instance', 
   `)
 })
 
-for (const name of [testWithoutHydration, testWithLateHydration]) test(name, () => {
+test(testWithLateHydration, () => {
   browser(`
     ${waitForTime}
     await createInstance('vectra-axi', { kind: 'qux', apiVersion: '2.5', origin: base, auth: 'token', token: 'CANARY-cached-test' });
+    await page.click('form[data-test-tool] button');
+    check(await page.eval(() => document.querySelector('[data-test-result]').textContent === '' && document.querySelector('form[data-test-tool] button').disabled), 'The test was not held for hydration');
     await page.eval(() => {
       const original = window.fetch.bind(window);
       window.fetch = async (...args) => {
@@ -2198,47 +2199,65 @@ for (const name of [testWithoutHydration, testWithLateHydration]) test(name, () 
         }
         return response;
       };
+      document.querySelector('details:has([data-tls-file="caBundle"])').open = true;
+      const transfer = new DataTransfer();
+      transfer.items.add(new File(['CANARY-upload'], 'synthetic.pem'));
+      const input = document.querySelector('[data-tls-file="caBundle"]');
+      input.files = transfer.files;
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+      const script = document.createElement('script');
+      script.src = '/admin/assets/hydrate.js?resume';
+      document.head.append(script);
     });
-    await page.click('form[data-test-tool] button');
     await page.wait('[data-test-result]:not(:empty)');
-    const checkResult = async () => check(await page.eval(() =>
+    const iso = await page.eval(() => window.checkIso);
+    await waitForTime('[data-check-time] time', iso);
+    check(await page.eval(() =>
       document.querySelector('[data-test-result]').textContent === 'Test failed.' &&
       !document.querySelector('[data-check-failure]').hidden &&
       document.querySelector('[data-check-error]').textContent === 'UPSTREAM_TLS_FAILED' &&
-      document.querySelector('[data-check-diagnostic]').textContent.includes('TLS')
-    ), 'Direct test result or details were lost');
-    await checkResult();
+      document.querySelector('[data-check-diagnostic]').textContent.includes('TLS') &&
+      document.querySelector('[data-tool-state]').textContent === 'Failing' &&
+      document.querySelector('[data-test-checklist] [data-step-state]').textContent === 'Failed: '
+    ), 'The test result and its details were lost');
     await page.wait('form[data-test-tool] button:not([disabled])');
-    const iso = await page.eval(() => window.checkIso);
     check(await page.eval(() => {
-      const time = document.querySelector('[data-check-time-fallback]:not([hidden]) time');
-      return time?.textContent === window.checkIso && time.dateTime === window.checkIso && time.title === window.checkIso &&
-        document.querySelector('[data-check-time]').hidden;
-    }), 'Fallback did not show the response timestamp');
-    if (${name === testWithLateHydration}) {
-      await page.eval(() => {
-        document.querySelector('details:has([data-tls-file="caBundle"])').open = true;
-        const transfer = new DataTransfer();
-        transfer.items.add(new File(['CANARY-upload'], 'synthetic.pem'));
-        const input = document.querySelector('[data-tls-file="caBundle"]');
-        input.files = transfer.files;
-        input.dispatchEvent(new Event('change', { bubbles: true }));
-        const script = document.createElement('script');
-        script.src = '/admin/assets/hydrate.js?resume';
-        document.head.append(script);
-      });
-      await waitForTime('[data-check-time]:not([hidden]) time', iso);
-      await checkResult();
-      check(await page.eval(() =>
-        document.querySelector('[data-check-time-fallback]').hidden &&
-        document.querySelector('[data-tool-state]').textContent === 'Failing' &&
-        document.querySelector('[data-test-checklist] [data-step-state]').textContent === 'Failed: '
-      ), 'Hydrated result did not replace the fallback and update the checklist');
-      check(await page.eval(() => {
-        const field = document.querySelector('[data-profile-field="caBundle"]');
-        return field.value || new Promise(resolve => field.addEventListener('input', () => resolve(field.value), { once: true }));
-      }) === 'CANARY-upload', 'Hydration discarded the selected TLS PEM');
-    }
+      const field = document.querySelector('[data-profile-field="caBundle"]');
+      return field.value || new Promise(resolve => field.addEventListener('input', () => resolve(field.value), { once: true }));
+    }) === 'CANARY-upload', 'Hydration discarded the selected TLS PEM');
+  `)
+})
+
+test('retesting replaces a failed result with a passing one without reloading', () => {
+  browser(`
+    await createInstance('vectra-axi', { kind: 'qux', apiVersion: '2.5', origin: base, auth: 'token', token: 'CANARY-retest' });
+    check(await page.eval(() => document.querySelector('[data-inspect-certificate]').hidden), 'Certificate inspection was offered before any failure');
+    await page.click('form[data-test-tool] button');
+    await page.wait('[data-check-failure]:not([hidden]) [data-check-error]:not(:empty)');
+    check(await page.eval(() =>
+      document.querySelector('[data-test-result]').textContent === 'Test failed.' &&
+      document.querySelector('[data-tool-state]').textContent === 'Failing' &&
+      document.querySelector('[data-test-checklist]').textContent.includes('Failing: UPSTREAM_TLS_FAILED') &&
+      document.querySelector('[data-test-checklist]').classList.contains('fail') &&
+      document.querySelector('[data-check-summary]').textContent.length > 0 &&
+      document.querySelector('[data-check-time] time') !== null &&
+      !document.querySelector('[data-inspect-certificate]').hidden
+    ), 'The failed result was not rendered');
+    await page.wait('.astryx-toast[data-type=error]');
+    await page.eval(async () => {
+      const response = await fetch('/test/trust-ca', { method: 'POST' });
+      if (!response.ok) throw new Error('Could not install the fixture CA');
+    });
+    await page.click('form[data-test-tool] button');
+    await page.wait('[data-check-failure][hidden]');
+    check(await page.eval(() =>
+      document.querySelector('[data-test-result]').textContent === 'Test passed.' &&
+      document.querySelector('[data-tool-state]').textContent === 'Healthy' &&
+      document.querySelector('[data-test-checklist]').textContent.includes('Passed') &&
+      document.querySelector('[data-test-checklist] [data-step-state]').textContent === 'Done: ' &&
+      document.querySelector('[data-test-checklist]').classList.contains('done') &&
+      document.querySelector('[data-inspect-certificate]').hidden
+    ), 'The retest did not replace the failed result');
   `)
 })
 

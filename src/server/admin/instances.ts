@@ -3,8 +3,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify'
 import type { z } from 'zod'
 import { adminInstanceParamsSchema, adminInstanceRoutes, adminInstanceSchema, adminToolRoutes, adminToolSchema, githubDeviceRoutes } from '../../shared/api.js'
 import { ArtiumError, errors } from '../../shared/errors.js'
-import type { Diagnostic } from '../../shared/errors.js'
-import { structuredDiagnostic } from '../../shared/diagnostic.js'
+import { diagnosticText } from '../../shared/diagnostic.js'
 import type { CredentialProfile } from '../adapters/credential-profile.js'
 import { browserCookie } from '../auth/browser.js'
 import { readBrowserSession, requireBrowserAdmin } from '../auth/sessions.js'
@@ -68,11 +67,6 @@ export async function readInstanceRows(app: FastifyInstance, request: FastifyReq
       href: `/admin/tools/${tool.name}/instances/${instance.name}`, readOnly: tool.readOnly || instance.readOnly,
       status: instance.enabled ? setupStatus(toolSetupState({ enabled: true, configured: instance.configured, health: instance.health })) : describe('health', 'disabled'), checkedAt: instance.health.checkedAt, instance }
   })
-}
-
-function diagnosticText(detail?: Diagnostic): string {
-  const safe = structuredDiagnostic(detail)
-  return safe ? [safe.stage, safe.toolCode, safe.transportCode, safe.providerCode, safe.upstreamStatus, safe.trust].filter(value => value !== undefined).join('\n') : 'Details unavailable.'
 }
 
 function githubConnection(tool: Tool, instance?: Instance): GithubConnectionProps {

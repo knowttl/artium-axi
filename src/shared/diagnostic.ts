@@ -66,6 +66,11 @@ export function structuredDiagnostic(input: unknown): StructuredDiagnostic | und
   }
 }
 
+export function diagnosticText(detail: unknown): string {
+  const safe = structuredDiagnostic(detail)
+  return safe ? [safe.stage, safe.toolCode, safe.transportCode, safe.providerCode, safe.upstreamStatus, safe.trust].filter(value => value !== undefined).join('\n') : 'Details unavailable.'
+}
+
 export async function readTestResponse(response: Response) {
   const result = await response.json()
   if (!response.ok) {

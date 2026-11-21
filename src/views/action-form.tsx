@@ -2,6 +2,7 @@ import { Button } from '@astryxdesign/core/Button'
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { confirmationRouteFor } from '../shared/confirmation-routes.js'
 import { submitForm, type DeferredSubmitEvent } from './submit.js'
+import type { TestOutcome } from './test-outcome.js'
 import { toastEvent, type ToastDetail } from './toasts.js'
 
 export interface Confirmation {
@@ -28,7 +29,7 @@ interface FormMessageState {
 const FormMessageContext = createContext<{ message: FormMessageState | null, area: RefObject<boolean> } | null>(null)
 
 export const scriptedFormSelector = [
-  '[data-connect-github]', '[data-test-tool]',
+  '[data-connect-github]',
   '[data-trust-certificate]', '[data-certificate-name-form]', '[data-inspect-certificate]',
 ].join(',')
 
@@ -65,12 +66,13 @@ export interface ActionFormProps {
   createdToken?: boolean
   bodyFrom?: (fields: FormData) => Record<string, unknown>
   saveTool?: string
+  showTest?: (outcome: TestOutcome) => void
   className?: string
   attributes?: Record<string, string | boolean>
   children: ReactNode
 }
 
-export function ActionForm({ action, method, csrf, confirmation, successUrl, successMessage, trackChanges, claimLink, createdToken, bodyFrom, saveTool, className, attributes, children }: ActionFormProps) {
+export function ActionForm({ action, method, csrf, confirmation, successUrl, successMessage, trackChanges, claimLink, createdToken, bodyFrom, saveTool, showTest, className, attributes, children }: ActionFormProps) {
   const tokens = useContext(ConfirmationTokenContext)
   const form = useRef<HTMLFormElement>(null)
   const [dirty, setDirty] = useState(false)
@@ -97,7 +99,7 @@ export function ActionForm({ action, method, csrf, confirmation, successUrl, suc
         event.stopPropagation()
         const { submitter, astryxDraft } = event.nativeEvent as DeferredSubmitEvent
         void submitForm({ form: event.currentTarget, submitter: submitter as HTMLButtonElement | null, draft: astryxDraft, action, method, confirmation,
-          token: token || undefined, successUrl, successMessage, claimLink, createdToken, bodyFrom, saveTool, report })
+          token: token || undefined, successUrl, successMessage, claimLink, createdToken, bodyFrom, saveTool, showTest, report })
       }}
       onInput={trackChanges ? event => setDirty(differsFromDefaults(event.currentTarget)) : undefined} onReset={trackChanges ? () => setDirty(false) : undefined}>
       <input type="hidden" name="_csrf" value={csrf} />

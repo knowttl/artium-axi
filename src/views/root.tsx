@@ -23,6 +23,7 @@ import { SshCredentials, type SshCredentialsProps } from './ssh-credentials.js'
 import { SshHosts, type SshHostsProps } from './ssh-hosts.js'
 import { Tokens, type TokensProps } from './tokens.js'
 import { Tool, type ToolProps } from './tool.js'
+import { TestOutcomeProvider } from './test-outcome.js'
 import { Toasts } from './toasts.js'
 import { Tools, type ToolsProps } from './tools.js'
 
@@ -40,7 +41,7 @@ export function Root<Name extends ViewName>({ name, props, frame, mode, confirma
     <Theme theme={neutralTheme} mode={mode}>
       <LayerProvider>
         <ConfirmationTokenContext value={confirmations}>
-          <Toasts>{frame ? <><Frame {...frame}><View {...props} /></Frame><Confirmation /><ReauthDialog sso={frame.sso} /></> : <View {...props} />}</Toasts>
+          <Toasts><TestOutcomeProvider>{frame ? <><Frame {...frame}><View {...props} /></Frame><Confirmation /><ReauthDialog sso={frame.sso} /></> : <View {...props} />}</TestOutcomeProvider></Toasts>
         </ConfirmationTokenContext>
       </LayerProvider>
     </Theme>

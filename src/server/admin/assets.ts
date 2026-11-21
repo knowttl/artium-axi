@@ -11,26 +11,6 @@ export const reauthCompleteScript = `window.opener?.postMessage('${reauthComplet
 
 export const adminScript = `
 ${retestScript}
-const savedTest = sessionStorage.getItem('credential-test:' + location.pathname);
-let latestTestResult;
-let testViewHydrated = false;
-document.addEventListener('astryx-hydrated', () => {
-  testViewHydrated = true;
-  if (latestTestResult) renderTestResult(latestTestResult);
-}, { once: true });
-if (savedTest) {
-  sessionStorage.removeItem('credential-test:' + location.pathname);
-  const result = document.querySelector('[data-test-result]');
-  if (result) {
-    const saved = JSON.parse(savedTest);
-    latestTestResult = {
-      message: saved.diagnosticVersion === 1 ? saved.message : 'Details unavailable. Run Test connection again.',
-      health: saved.health
-    };
-    result.textContent = latestTestResult.message;
-  }
-}
-
 // The confirmation dialog in the React tree answers; a request made before hydration waits for it, so nothing is sent unconfirmed.
 function confirmChange(form, fallbackAction) {
   const action = form.dataset.confirmAction || fallbackAction;
@@ -70,55 +50,6 @@ function reauthenticate(csrf) {
     const request = new CustomEvent('${reauthRequestEvent}', { cancelable: true, detail: { csrf, resolve } });
     if (document.dispatchEvent(request)) document.addEventListener('astryx-hydrated', () => document.dispatchEvent(request), { once: true });
   });
-}
-
-function renderTestResult(result) {
-  latestTestResult = result;
-  document.querySelector('[data-test-result]').textContent = result.message;
-  const { health } = result;
-  const step = document.querySelector('[data-test-checklist]');
-  if (!health || !step) return;
-  const errorCode = Object.hasOwn(retestErrors, health.errorCode) ? health.errorCode : null;
-  const detail = structuredDiagnostic(health.diagnostic);
-  document.querySelector('[data-check-failure]').hidden = !errorCode;
-  document.querySelector('[data-check-summary]').textContent = retestErrors[errorCode] || '';
-  document.querySelector('[data-check-error]').textContent = errorCode || '';
-  const inspect = document.querySelector('[data-inspect-certificate]');
-  if (inspect && errorCode === 'UPSTREAM_TLS_FAILED') inspect.hidden = false;
-  document.querySelector('[data-check-diagnostic]').textContent = detail
-    ? [detail.stage, detail.toolCode, detail.transportCode, detail.providerCode, detail.upstreamStatus, detail.trust].filter(value => value !== undefined).join('\\n') : 'Details unavailable.';
-
-  const checkedAt = health.checkedAt === null ? null : new Date(health.checkedAt).toISOString();
-  const checked = document.querySelector('[data-check-time]');
-  const fallback = document.querySelector('[data-check-time-fallback]');
-  if (!testViewHydrated) {
-    checked.hidden = true;
-    fallback.hidden = false;
-    if (checkedAt === null) {
-      fallback.textContent = 'never';
-    } else {
-      const time = document.createElement('time');
-      time.dateTime = time.title = time.textContent = checkedAt;
-      fallback.replaceChildren(time);
-    }
-    return;
-  }
-  fallback.hidden = true;
-  checked.hidden = false;
-  document.dispatchEvent(new CustomEvent('artium-check-time', { detail: checkedAt }));
-
-  const passed = health.status === 'ok';
-  // The server renders both state badges from the status vocabulary; this only swaps them.
-  document.querySelector('[data-tool-state]').replaceChildren(document.querySelector('[data-outcome=' + (passed ? 'ok' : 'error') + ']').firstChild.cloneNode(true));
-  step.classList.remove('todo', 'done', 'fail');
-  step.classList.add(passed ? 'done' : 'fail');
-  step.querySelector('[data-step-state]').textContent = (passed ? 'Done' : 'Failed') + ': ';
-  step.querySelector('b + span').textContent = passed ? 'Passed' : 'Failing: ' + (errorCode || 'error');
-  const mark = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  mark.setAttribute('class', 'i');
-  mark.append(document.createElementNS('http://www.w3.org/2000/svg', 'use'));
-  mark.firstChild.setAttribute('href', passed ? '#i-check' : '#i-x');
-  step.querySelector('.mark').replaceChildren(mark);
 }
 
 function showCertificateInspection(result) {
@@ -289,8 +220,6 @@ document.addEventListener('submit', async event => {
     : form.closest('dialog')?.querySelector('[data-sheet-message]') || null;
   try {
     say(message, '');
-    const testResult = form.dataset.testTool ? document.querySelector('[data-test-result]') : null;
-    if (testResult) testResult.textContent = '';
     const fields = new FormData(form);
     const body = Object.fromEntries(fields);
     const typedName = form.dataset.confirm ? await confirmChange(form, button.textContent.trim()) : null;
@@ -343,12 +272,6 @@ document.addEventListener('submit', async event => {
       const result = current.diagnostic ? renderRetestDiagnostic(current.diagnostic) : 'Connected';
       sessionStorage.setItem('credential-test:' + location.pathname, JSON.stringify({ diagnosticVersion: 1, message: result, health: current.health }));
       location.reload();
-      return;
-    }
-    if (testResult) {
-      const current = await readTestResponse(response);
-      renderTestResult({ message: response.ok ? 'Test passed.' : 'Test failed.', health: current.health });
-      if (current.error) showError(message, current.error);
       return;
     }
     if (!response.ok) {
