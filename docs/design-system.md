@@ -56,8 +56,9 @@ Its props are the start route, the tool revision, the saved origin, the instance
 The form keeps `data-connect-github` and its field names, and posts with the same confirmation and recent-authentication step as before.
 The `data-github-authorization` panel stays hidden and empty until a connection starts; it holds the `data-github-link`, `data-github-code` and `data-github-status` elements and the `data-cancel-github` button.
 After the start route answers, `useGithubDevice` in `src/views/github-device.ts` fills the panel with the user code and verification URL, counts down the code's lifetime, polls the poll route and sends the cancel route; neither value is in the server-rendered markup or hydration data.
-A poll or cancel that answers `REAUTH_REQUIRED` asks for identity confirmation through `artium-reauth-request` and is sent once more.
+A poll or cancel that answers `REAUTH_REQUIRED` asks for identity confirmation through `artium-reauth-request` and retries once if the administrator confirms.
 The form stays locked until the connection connects, is cancelled, expires or stops on an error.
+If the code deadline passes during a poll, the panel waits for that result before reporting the outcome.
 The instance page (`src/views/instance.tsx`, route `/admin/tools/:tool/instances/:name`) is the ninth page on the seam.
 Its header holds the Test connection form and the Enabled switch, and below it come the failure banner, the setup steps, the optional GitHub card, the AWX controller address, the Connection card, the Trusted certificates panel with its inspection dialog, the Danger zone and two notes, in one column.
 The Connection card is `CredentialEditor` with the instance's `configured` state and saved non-secret values, which `credentialEditor()` takes from the instance metadata and only for fields the profile does not mark secret; a secret field is the same empty native textarea as in the Add instance sheet, and the editor empties it, and the pasted or uploaded certificate, when the page is left (`pagehide`) as well as when a sheet closes.
@@ -129,7 +130,7 @@ It includes the CSRF token, applies conversions from the captured `data-type` co
 For a credential form, `submitForm` reads any pending PEM selection captured by the submit and builds the request's `value` from the captured values of the profile and TLS controls.
 When the endpoint changes, it omits an untouched connection IP or certificate name.
 After creating or updating an instance with credentials, `submitForm` runs the optional connection test and stores the save message with any normalization notices and test outcome.
-`ActionForm` uses `artium-confirm` for action confirmation and `artium-reauth-request` for identity confirmation, and so does the GitHub connection's polling.
+`ActionForm` uses `artium-confirm` for action confirmation and `artium-reauth-request` for identity confirmation.
 After certificate trust is saved, `submitForm` uses [`retestConnection`](../src/views/retest.ts) to test with `X-Artium-Retest: 1` and stores the outcome for the reloaded instance page.
 For a form submitted before React can handle it, `confirm.js` captures the submitted values and hands them to `ActionForm` after `astryx-hydrated`, when the dialog listeners are ready.
 `ActionForm` also captures the submitted values before waiting for dialog readiness, and both handlers share a page-wide submit lock.

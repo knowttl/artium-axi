@@ -46,7 +46,7 @@ export function useGithubDevice(action: string, csrf: string) {
     const countdown = () => {
       if (cancelled) return
       const remaining = Math.max(0, Math.ceil((connection.expiresAt - Date.now()) / 1000))
-      setStatus(remaining ? `Waiting for GitHub approval. Code expires in ${remaining} seconds.` : 'Code expired. Start a new connection.')
+      setStatus(remaining ? `Waiting for GitHub approval. Code expires in ${remaining} seconds.` : 'Checking the result from GitHub.')
     }
     setDevice({ connection, status: '', cancellable: true })
     countdown()
