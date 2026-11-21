@@ -110,8 +110,11 @@ Below the Astryx mobile breakpoint a native navigation disclosure remains usable
 The frame retains one banner, one main and one navigation landmark, labelled "Administration" for administrators and "Account" for other people.
 The icon sprite stays outside the React root.
 The root contains the toasts and both confirmation dialogs.
-`ActionForm` submits its plain forms itself through `submitForm` in `src/views/submit.ts`: it shapes the body from the form's `data-type` controls, asks for action confirmation through `artium-confirm` and identity confirmation through `artium-reauth-request`, sends the request with the CSRF token and `expectedRevision`, and reports an error in the sheet's `FormMessage` or in a toast.
-`confirm.js` still submits the forms that `scriptedFormSelector` names (credential, token, invitation, GitHub and certificate forms) through the same two events, and holds any other form until `astryx-hydrated` so `ActionForm` can submit it.
+`ActionForm` submits plain forms through [`submitForm`](../src/views/submit.ts), which shapes the body from `data-type` controls and sends the CSRF token and, for revision-checked mutations, `expectedRevision`.
+Both `ActionForm` and `confirm.js` use `artium-confirm` for action confirmation and `artium-reauth-request` for identity confirmation.
+`confirm.js` still submits forms matched by `scriptedFormSelector`, including credential, token, invitation, GitHub and certificate forms.
+For a plain form submitted before React can handle it, `confirm.js` captures the submitted values and hands them to `ActionForm` after `astryx-hydrated`, when the dialog listeners are ready.
+`ActionForm` also captures the submitted values before waiting for dialog readiness, and both handlers share a page-wide submit lock.
 The New role and Rename sheets pass no confirmation text, so they submit without a confirmation dialog.
 Astryx checkboxes emit inline SVG shapes, so the role and administrator checkboxes stay native.
 `ActionForm` in `src/views/action-form.tsx` owns the `data-api` form attributes (method, consequence, title, action, typed name, success URL and success message) and the submission itself, and `Sheet` builds on it, so a view writes an API form without repeating them.
@@ -245,7 +248,7 @@ Icons are drawn on a 24px grid with a 1.75 stroke in `currentColor`, shown at 16
 | Code and copy | Copy controls use [`useCopy`](../src/views/copy.ts) in the hydrated React view | Idle, copied, or clipboard access unavailable (the source is selected for manual copying) | `role="status"` announces the copy result |
 | Disclosure card | `details.card.disclosure` | closed, open | Native disclosure |
 | Dialog | Astryx `Dialog` in [`Confirmation`](../src/views/confirmation.tsx) and [`ReauthDialog`](../src/views/reauth-dialog.tsx) | confirmation tier 2 or 3, identity confirmation | `showModal`, Esc closes, a backdrop press does not, the action confirmation title names the action, focus returns to the control that submitted |
-| Toasts | `Toasts` in `src/views/toasts.tsx` on the Astryx toast viewport | none, success, error, conflict with **Reload latest** | A success saved by a form shows after the page reloads and is announced politely; an error from a form with no message area of its own is announced assertively and clears on the next submission of a form without its own message area |
+| Toasts | `Toasts` in `src/views/toasts.tsx` on the Astryx toast viewport | none, success, error, conflict with **Reload latest** | A saved success toast appears on the resulting page and is announced politely; an error from a form with no message area of its own is announced assertively and clears on the next submission of a form without its own message area |
 | Steps | `steps()`: `ol.steps`, `.step` | done, fail, to do, current | Ordered list; the state is in visually hidden text |
 | Segmented control and search | `.seg` (links or visually hidden radios), `.search`, `.filters` | current or checked | GET forms; JavaScript may apply them live |
 | Switch | `.switch` on a native checkbox, or `.toggle` button holding a decorative `.switch` | off, on, disabled | `role="switch"`; checkboxes save with their form; the Enabled button submits a confirmed change |
@@ -269,7 +272,7 @@ Once React hydrates, `sheetTrigger` opens an already rendered sheet in place whe
 `SheetFrame` promotes a server-open sheet to a modal without firing a dismissal event, removes its opening query parameters while preserving unrelated parameters, and hides the server-rendered scrim.
 Close, Cancel and Escape dismiss the modal and return focus to the actual in-page launcher or to the associated control for a server-opened sheet.
 For a launcher inside a menu, focus returns to the menu summary.
-`Sheet` wraps `SheetFrame` with an `ActionForm`, and form errors appear inside the open dialog where they can receive focus.
+`Sheet` wraps `SheetFrame` with an `ActionForm` and uses `FormMessage` to show and focus plain-form errors inside the open dialog.
 See [browser administration](admin-guide.md#browser-administration) for confirmation without the page script.
 
 **Destructive placement.**

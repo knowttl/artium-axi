@@ -11,7 +11,6 @@ export interface ToastDetail {
   reload?: boolean
 }
 
-// Shows what the page script reports: a success saved before a reload, and an error from a form with no message area of its own.
 export function Toasts({ children }: { children: ReactNode }) {
   const toast = useToast()
   const dismissError = useRef(() => {})
