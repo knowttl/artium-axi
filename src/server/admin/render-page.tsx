@@ -26,9 +26,10 @@ function respond<Name extends ViewName>(reply: FastifyReply, title: string, name
 export function renderPage<Name extends ViewName>(reply: FastifyReply, title: string, name: Name, props: ViewProps[Name],
   current: BrowserSession, description?: string, actions?: FrameAction[], heading?: string, parent?: { href: string, label: string }, helpTopic = title) {
   const mode = readThemeMode(reply.request)
-  const { crumbs, brand, navigation, account, controls, topbarEnd, overlays } = adminChrome({ title, heading, parent, description, content: '', help: pageHelp(helpTopic, current.source),
-    path: reply.request.url.split('?')[0]!, viewer: browserViewer(reply, current), themeSwitch: '' })
-  const frame = { title: heading ?? title, description, actions, crumbs, brand: { ...brand, href: current.administrator ? brand.href : '/account' }, navigation: current.administrator ? navigation : [], account, controls: controls + themeSwitch(reply, mode), topbarEnd }
+  const viewer = browserViewer(reply, current)
+  const { crumbs, brand, navigation, account, topbarEnd, overlays } = adminChrome({ title, heading, parent, description, content: '', help: pageHelp(helpTopic, current.source),
+    path: reply.request.url.split('?')[0]!, viewer, themeSwitch: '' })
+  const frame = { title: heading ?? title, description, actions, crumbs, brand: { ...brand, href: current.administrator ? brand.href : '/account' }, navigation: current.administrator ? navigation : [], account, reauth: { until: viewer.reauthUntil, renderedAt: Date.now(), sso: viewer.sso }, controls: themeSwitch(reply, mode), topbarEnd }
   return respond(reply, title, name, props, frame, overlays, current)
 }
 

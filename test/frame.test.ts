@@ -5,9 +5,10 @@ import { Theme } from '@astryxdesign/core/theme'
 import { neutralTheme } from '@astryxdesign/theme-neutral/built'
 import { parseFragment, type DefaultTreeAdapterMap } from 'parse5'
 import { Frame, type FrameAction } from '../src/views/frame.js'
+import type { ReauthState } from '../src/views/reauth.js'
 
-function render(options: { description?: string, actions?: FrameAction[] } = {}) {
-  const frame = createElement(Frame, { title: 'Synthetic title', ...options, crumbs: [{ label: 'Access', href: '/admin/users' }, { label: 'Synthetic title' }],
+function render(options: { description?: string, actions?: FrameAction[], reauth?: ReauthState } = {}) {
+  const frame = createElement(Frame, { title: 'Synthetic title', reauth: { until: 0, renderedAt: 0, sso: false }, ...options, crumbs: [{ label: 'Access', href: '/admin/users' }, { label: 'Synthetic title' }],
     brand: { name: 'Synthetic brand', href: '/synthetic-home' }, account: '<button>Synthetic account</button>', controls: '<span>Synthetic controls</span>', topbarEnd: '<span>Synthetic header end</span>', children: 'Synthetic content',
     navigation: [{ links: [{ href: '/synthetic-top', label: 'Synthetic top', icon: 'home', current: false }] },
       { title: 'Synthetic section', links: [{ href: '/synthetic-one', label: 'Synthetic one', icon: 'users', current: false }, { href: '/synthetic-two', label: 'Synthetic two', icon: 'list', current: true }] }] })
@@ -45,7 +46,19 @@ test.each([['header end', 'frame-controls-header', 'banner'], ['narrow-screen me
   const elements = nodes(parseFragment(render()))
   const ancestor = elements.find(element => attribute(element, 'role') === ancestorMarker || attribute(element, 'class')?.split(' ').includes(ancestorMarker))!
   const controls = nodes(ancestor).filter(element => attribute(element, 'class')?.split(' ').includes(controlsClass))
-  expect(controls.map(text)).toEqual(['Synthetic controls'])
+  expect(controls.map(text)).toEqual(['Changes lockedSynthetic controls'])
+})
+
+test.each([
+  ['unlocked', { until: 14 * 60_000, renderedAt: 0, sso: false }, 'on', '#i-unlock', 'Changes unlocked · 14 min', 'local'],
+  ['rounds a partial minute up', { until: 60_001, renderedAt: 0, sso: true }, 'on', '#i-unlock', 'Changes unlocked · 2 min', 'sso'],
+  ['locked at the end of the window', { until: 60_000, renderedAt: 60_000, sso: false }, 'off', '#i-lock', 'Changes locked', 'local'],
+  ['locked when never confirmed', { until: 0, renderedAt: 60_000, sso: true }, 'off', '#i-lock', 'Changes locked', 'sso'],
+])('the confirmation pill is %s in both header placements', (_name, reauth, state, icon, words, method) => {
+  const pills = nodes(parseFragment(render({ reauth }))).filter(element => attribute(element, 'data-reauth-until') !== undefined)
+  expect(pills.map(pill => [attribute(pill, 'class'), attribute(pill, 'data-reauth-until'), attribute(pill, 'data-reauth-method'),
+    nodes(pill).find(element => element.tagName === 'use')!.attrs.find(item => item.name === 'href')?.value, text(pill)]))
+    .toEqual(Array(2).fill([`unlock ${state}`, String(reauth.until), method, icon, words]))
 })
 
 const regions = { 'side navigation': 'astryx-app-shell-sidenav', 'narrow-screen menu': 'frame-mobile-menu' }

@@ -590,6 +590,9 @@ test('ordinary users can create temporary tokens after recent authentication exp
   await expireConfirmation()
   browser(`
     await page.open(base + '/account');
+    await page.wait('html[data-astryx-theme]');
+    check(await page.eval(() => [...document.querySelectorAll('[data-reauth-text]')].every(pill => /^Changes unlocked · 1[0-5] min$/.test(pill.textContent))), 'The pill should start with the expired window');
+    await page.eval(() => { window.sameDocument = true; });
     await page.fill('form[data-create-token] [name=label]', 'Synthetic token');
     await page.click('[data-token-tool="falcon-axi"]');
     await page.click('[data-token-command="falcon-axi"][value="detection list"]');
@@ -598,6 +601,8 @@ test('ordinary users can create temporary tokens after recent authentication exp
     await page.fill('#reauth-dialog [name=password]', 'CANARY-local-password');
     await page.click('#reauth-dialog button:not([type=button])');
     await page.wait('#created-token[open]');
+    await page.eval(() => new Promise(resolve => { const poll = () => [...document.querySelectorAll('[data-reauth-text]')].every(pill => /· (29|30) min$/.test(pill.textContent)) ? resolve() : setTimeout(poll, 50); poll(); }));
+    check(await page.eval(() => window.sameDocument === true), 'Confirmation reloaded the page instead of refreshing the pill');
     check(await page.eval(() => document.querySelector('[data-created-token]').value.startsWith('artd_')), 'Token was not shown');
     await page.click('[data-close-created-token]');
     await page.wait('form[data-create-token]');

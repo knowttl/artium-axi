@@ -227,7 +227,7 @@ export function registerBrowser(app: FastifyInstance, db: Database.Database, aud
       if (query.data.complete) {
         if (!recentBrowserAuth(current)) throw new ArtiumError('REAUTH_REQUIRED')
         return renderAuthPage(reply, { title: 'Identity confirmed', mark: signedOut, blocks: [
-          { kind: 'text', marker: 'data-sso-reauth-complete', parts: ['Confirmation complete. You can close this window and return to your pending action.'] },
+          { kind: 'text', notifiesOpener: true, parts: ['Confirmation complete. You can close this window and return to your pending action.'] },
           { kind: 'buttons', buttons: [{ label: 'Continue to Artium', tone: 'secondary', href: home(current) }] }] }, current)
       }
       return renderAuthPage(reply, { title: 'Confirm identity', mark: { icon: 'lock', tone: 'neutral' },
