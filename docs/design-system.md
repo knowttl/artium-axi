@@ -67,7 +67,8 @@ Tools, People and Audit use the shared React [`FilterForm`](../src/views/filter-
 See [Browser administration](admin-guide.md#browser-administration) for submission and fallback behavior.
 Invitation creation, resend and linking an existing user use the shared React `ActionForm` with `claimLink`.
 After a successful submission, `submitForm` closes the sheet and emits the absolute claim URL with the `artium-claim-link` event.
-The React `ClaimLinkDialog` (`#invitation-link`, `src/views/claim-link.tsx`) shows the link once, selected and focused, then reloads the page when it closes.
+The React [`ClaimLinkDialog`](../src/views/claim-link.tsx) focuses and selects the URL field when it opens.
+See [Sign-in settings](admin-guide.md#sign-in-settings) for copying and dismissing the link.
 The provider choice stays a native `select` inside an Astryx `Field`, and the lifetime in days is sent as a number.
 The Roles list opens its New role sheet from `?sheet=new-role`, and the earlier `?dialog=new-role` link redirects there.
 The role detail page opens its Rename role sheet from `?sheet=rename-role`.

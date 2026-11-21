@@ -368,7 +368,9 @@ Deleting a rule or changing its provider, claim name, claim value or target role
 Choose **New invitation** on Invitations, or **Invite with SSO** on People, to prepare an invitation with an Entra ID or OpenID Connect provider, display name, exact expected `preferred_username` (the Entra ID sign-in name or the OpenID Connect username), direct roles and an expiry of 1 to 30 days (default 7).
 To prepare a link for an existing enabled local account, open that user's detail page and choose **Link to SSO**.
 Preparing a link preserves the account, password, sessions and grants; nothing changes until claim.
-Creation and **Resend invitation** display a bearer link once; use **Copy** or copy the field manually before closing the dialog, then send it securely yourself.
+Creating an invitation, resending one or preparing a link for an existing account displays the new bearer link once.
+Use **Copy** or copy the field manually, then send the link securely yourself.
+Choose **Done** or press **Escape** to close the dialog and reload the same page with the updated invitation details.
 Artium does not send email and stores only the link token's hash.
 Invitations display their status and recorded expiry, including after claim or revocation.
 Resend replaces the old link and starts a new expiry period, including for expired invitations.
