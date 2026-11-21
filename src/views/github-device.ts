@@ -23,7 +23,7 @@ export function useGithubDevice(action: string, csrf: string) {
       const request = () => fetch(`${action}/${step}`, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({ connectionId: connection.connectionId, _csrf: csrf }) })
       let response = await request()
-      if (response.status === 401 && (await response.clone().json() as { error?: { code?: string } }).error?.code === 'REAUTH_REQUIRED') {
+      if (!response.redirected && response.status === 401 && (await response.clone().json() as { error?: { code?: string } }).error?.code === 'REAUTH_REQUIRED') {
         if (await requestReauth(csrf)) response = await request()
       }
       return response
@@ -35,7 +35,11 @@ export function useGithubDevice(action: string, csrf: string) {
       if (cancelled) return
       cancelled = true
       cancellation = send('cancel')
-        .then(response => setStatus(response.ok ? 'Connection cancelled. The saved credential is unchanged.' : cancelUnconfirmed))
+        .then(async response => {
+          const acknowledged = !response.redirected && response.ok &&
+            (await response.json() as z.infer<typeof githubDeviceRoutes.cancel.response>).status === 'cancelled'
+          setStatus(acknowledged ? 'Connection cancelled. The saved credential is unchanged.' : cancelUnconfirmed)
+        })
         .catch(() => setStatus(cancelUnconfirmed))
       release?.()
     }
@@ -49,9 +53,11 @@ export function useGithubDevice(action: string, csrf: string) {
     const timer = setInterval(countdown, 1000)
     try {
       let interval = connection.interval
-      while (Date.now() < connection.expiresAt) {
+      while (true) {
+        const remaining = connection.expiresAt - Date.now()
+        if (remaining <= 0) break
         await new Promise<void>(resolve => {
-          const wait = setTimeout(resolve, interval * 1000)
+          const wait = setTimeout(resolve, Math.min(interval * 1000, remaining))
           release = () => { clearTimeout(wait); resolve() }
         })
         release = undefined
