@@ -13,6 +13,7 @@ import { Overview, type OverviewProps } from './overview.js'
 import { People, type PeopleProps } from './people.js'
 import { Person, type PersonProps } from './person.js'
 import { Provider, type ProviderProps } from './provider.js'
+import { ReauthDialog } from './reauth-dialog.js'
 import { Role, type RoleProps } from './role.js'
 import { Roles, type RolesProps } from './roles.js'
 import { SignIn, type SignInProps } from './sign-in.js'
@@ -39,7 +40,7 @@ export function Root<Name extends ViewName>({ name, props, frame, mode, confirma
     <Theme theme={neutralTheme} mode={mode}>
       <LayerProvider>
         <ConfirmationTokenContext value={confirmations}>
-          <Toasts>{frame ? <><Frame {...frame}><View {...props} /></Frame><Confirmation /></> : <View {...props} />}</Toasts>
+          <Toasts>{frame ? <><Frame {...frame}><View {...props} /></Frame><Confirmation /><ReauthDialog sso={frame.sso} /></> : <View {...props} />}</Toasts>
         </ConfirmationTokenContext>
       </LayerProvider>
     </Theme>

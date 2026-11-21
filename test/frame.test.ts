@@ -8,7 +8,7 @@ import { Frame, type FrameAction } from '../src/views/frame.js'
 import type { ReauthState } from '../src/views/reauth.js'
 
 function render(options: { description?: string, actions?: FrameAction[], reauth?: ReauthState } = {}) {
-  const frame = createElement(Frame, { title: 'Synthetic title', reauth: { remainingMs: 0 }, ...options, crumbs: [{ label: 'Access', href: '/admin/users' }, { label: 'Synthetic title' }],
+  const frame = createElement(Frame, { title: 'Synthetic title', reauth: { remainingMs: 0 }, sso: false, ...options, crumbs: [{ label: 'Access', href: '/admin/users' }, { label: 'Synthetic title' }],
     brand: { name: 'Synthetic brand', href: '/synthetic-home' }, account: '<button>Synthetic account</button>', controls: '<span>Synthetic controls</span>', topbarEnd: '<span>Synthetic header end</span>', children: 'Synthetic content',
     navigation: [{ links: [{ href: '/synthetic-top', label: 'Synthetic top', icon: 'home', current: false }] },
       { title: 'Synthetic section', links: [{ href: '/synthetic-one', label: 'Synthetic one', icon: 'users', current: false }, { href: '/synthetic-two', label: 'Synthetic two', icon: 'list', current: true }] }] })

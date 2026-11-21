@@ -54,8 +54,6 @@ svg.i { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none;
 
 /* Buttons */
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: var(--ctl-h); padding: 0 12px; border: 1px solid var(--transparent); border-radius: var(--r-sm); font: inherit; font-size: var(--fs-sm); font-weight: 500; white-space: nowrap; text-decoration: none; cursor: pointer; }
-.btn-primary { background: var(--primary); color: var(--primary-fg); }
-.btn-primary:hover { background: var(--primary-hover); }
 .btn-secondary { background: var(--bg); color: var(--text); border-color: var(--border-strong); }
 .btn-secondary:hover { background: var(--bg-hover); }
 .btn-ghost { background: var(--transparent); color: var(--text-muted); }
@@ -355,9 +353,6 @@ dialog.modal { width: 460px; padding: 0; }
 dialog.modal[open]:not(:modal) { position: fixed; inset: 0; z-index: 70; margin: auto; height: fit-content; }
 .modal-foot, .dialog-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
 .modal-foot { margin: 0; padding: 14px 22px 18px; }
-.modal-error { margin: 0 22px; color: var(--err); font-size: var(--fs-sm); }
-.modal-body .modal-error { margin: 0 0 12px; color: var(--err); }
-.modal-error:empty { display: none; }
 #certificate-inspection, [data-trusted-certificates] { overflow-wrap: anywhere; }
 #certificate-inspection [data-use-certificate-name] { white-space: normal; height: auto; min-height: var(--ctl-h); text-align: left; }
 

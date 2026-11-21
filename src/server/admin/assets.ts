@@ -1,10 +1,10 @@
 import { components } from './design/components.js'
 import { tokens } from './design/tokens.js'
+import { reauthCompleteMessage, reauthRequestEvent } from '../../views/reauth.js'
 import { retestScript } from './retest.js'
 
 export const adminStyle = tokens + components
 
-const reauthCompleteMessage = 'artium-reauth-complete'
 export const reauthCompleteScript = `window.opener?.postMessage('${reauthCompleteMessage}', location.origin);`
 
 export const adminScript = `
@@ -146,92 +146,11 @@ function showError(target, error) {
   say(target, error.message + ' ' + error.next + ' (' + error.code + ')', error.code === 'REVISION_CONFLICT');
 }
 
-function announceReauth(remainingMs) {
-  const sample = { remainingMs, wallTime: Date.now(), monotonicTime: performance.now() };
-  hydrated.then(() => document.dispatchEvent(new CustomEvent('artium-reauth', { detail: sample })));
-}
-
+// The identity confirmation dialog in the React tree answers; a request made before hydration waits for it, so nothing is sent unconfirmed.
 function reauthenticate(csrf) {
-  const dialog = document.getElementById('reauth-dialog');
-  const form = dialog.querySelector('form');
-  const password = form.elements.password;
-  const button = form.querySelector('button:not([type=button])');
-  const error = form.querySelector('[data-reauth-error]');
-  dialog.returnValue = '';
-  error.textContent = '';
   return new Promise(resolve => {
-    let closed = false;
-    const controller = new AbortController();
-    let popup;
-    let popupClosed;
-    const completed = async event => {
-      if (event.origin !== location.origin || event.source !== popup || event.data !== '${reauthCompleteMessage}' || closed) return;
-      try {
-        const response = await fetch('/reauth?status=1', { headers: { Accept: 'application/json' }, signal: controller.signal });
-        if (!response.ok || response.redirected) throw new Error();
-        const status = await response.json();
-        if (status.sessionId !== document.body.dataset.sessionId || !(status.remainingMs > 0)) throw new Error();
-        if (closed) return;
-        announceReauth(status.remainingMs);
-        dialog.close('confirmed');
-      } catch { if (!closed) error.textContent = 'Identity confirmation did not complete for this session. Try again or cancel to keep your draft.'; }
-    };
-    window.addEventListener('message', completed);
-    const submit = async event => {
-      event.preventDefault();
-      if (button.disabled) return;
-      button.disabled = true;
-      error.textContent = '';
-      if (!password) {
-        popup = window.open('/reauth', 'artium-reauth', 'popup,width=600,height=760');
-        if (!popup) {
-          error.textContent = 'Allow a popup for artium, then try again. Your draft stays here.';
-          button.disabled = false;
-          return;
-        }
-        popupClosed = setInterval(() => {
-          if (popup.closed) {
-            clearInterval(popupClosed);
-            button.disabled = false;
-            error.textContent = 'Confirmation window closed. Try again or cancel to keep your draft.';
-          }
-        }, 500);
-        return;
-      }
-      try {
-        const response = await fetch('/v1/auth/reauth', { method: 'POST',
-          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-          body: JSON.stringify({ _csrf: csrf, password: password.value }), signal: controller.signal });
-        if (closed) return;
-        password.value = '';
-        if (!dialog.open) return;
-        if (response.redirected) { location.assign(response.url); dialog.close('cancel'); return; }
-        if (!response.ok) {
-          showError(error, (await response.json()).error);
-          password.focus();
-          return;
-        }
-        announceReauth(Number(response.headers.get('x-artium-reauth-remaining-ms')));
-        dialog.close('confirmed');
-      } catch { if (!closed) error.textContent = 'Password confirmation could not complete. Try again or cancel to keep your draft.'; }
-      finally { if (!closed) button.disabled = false; }
-    };
-    form.addEventListener('submit', submit);
-    dialog.addEventListener('close', () => {
-      closed = true;
-      controller.abort();
-      clearInterval(popupClosed);
-      popup?.close();
-      window.removeEventListener('message', completed);
-      button.disabled = false;
-      form.removeEventListener('submit', submit);
-      form.reset();
-      resolve(dialog.returnValue === 'confirmed');
-    }, { once: true });
-    dialog.querySelector('[data-reauth-cancel]').onclick = () => dialog.close('cancel');
-    dialog.showModal();
-    if (form.elements.password) form.elements.password.focus();
-    else button.focus();
+    const request = new CustomEvent('${reauthRequestEvent}', { cancelable: true, detail: { csrf, resolve } });
+    if (document.dispatchEvent(request)) document.addEventListener('astryx-hydrated', () => document.dispatchEvent(request), { once: true });
   });
 }
 

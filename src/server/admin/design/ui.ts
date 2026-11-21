@@ -113,11 +113,6 @@ function learn(title: string, help: string): string {
   return `<details class="page-help learn"><summary class="btn btn-ghost btn-sm" aria-label="Learn">${icon('book')}<span class="label">Learn</span></summary><div class="learn-panel"><h2>Help with ${escape(title.toLowerCase())}</h2>${help}</div></details>`
 }
 
-function dialogs(viewer: Viewer): string {
-  if (viewer.mustChange) return ''
-  return `<dialog id="reauth-dialog" class="modal" aria-labelledby="reauth-title"><div class="modal-body"><h2 id="reauth-title"><span class="ico-circle">${icon('lock')}</span>${viewer.sso ? 'Confirm your identity' : 'Confirm it’s you'}</h2><p>Sensitive changes need a confirmation every 15 minutes. ${viewer.sso ? 'Confirm with your provider in a new window.' : 'Enter your password.'} Cancel keeps your draft.</p></div><form>${viewer.sso ? '' : '<div class="modal-body"><div class="field"><label for="reauth-password">Password</label><input id="reauth-password" name="password" type="password" autocomplete="current-password" required></div></div>'}<p class="modal-error" data-reauth-error role="alert"></p><div class="modal-foot"><button class="btn btn-ghost" type="button" data-reauth-cancel>Cancel</button><button class="btn btn-primary">Confirm and continue</button></div></form></dialog>`
-}
-
 export const authOverlays = sprite
 
 export interface AdminChrome extends Pick<FrameProps, 'crumbs' | 'brand' | 'navigation' | 'account' | 'topbarEnd'> {
@@ -142,6 +137,6 @@ export function adminChrome(page: Page): AdminChrome {
     navigation: sections,
     account,
     topbarEnd: learn(page.title, page.help),
-    overlays: dialogs(viewer) + sprite,
+    overlays: sprite,
   }
 }
