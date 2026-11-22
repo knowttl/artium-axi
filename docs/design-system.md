@@ -45,7 +45,7 @@ The Astryx stylesheets define the `--color-*`, `--font-weight-*`, `--spacing-*`,
 
 **Policy.**
 Where an Astryx token resolves to the value a rule used before, the rule uses the Astryx token.
-The extraction reviews checked this with computed styles, the frame, forms, tables and dialogs reviews at the default and 20px root font sizes (see the parity archives below).
+The extraction reviews checked this with computed styles, the frame, forms, tables and dialogs reviews at the default and 20px root font sizes (see [Parity archives](#parity-archives)).
 The credential editor is the exception to matching the old value.
 Its native `.input` and `.select` controls under `[data-credential-field]` or `[data-certificate]` inside the Astryx root use Astryx's surface colour, text colour and element radius to match the surrounding Astryx fields.
 Their border colour still uses `--field-border` from `tokens.css`.
@@ -96,7 +96,8 @@ The `light-dark()` values in `tokens.css` and in the Astryx theme resolve from t
 **Motion and icons.**
 Background, colour and border-colour transitions on links, buttons, summaries and `.btn` last 120ms, as do the switch thumb and the operation group icon.
 With reduced motion enabled, the `!important` reset in `base.css` disables these transitions, including the operation group icon transition declared later in `forms.css`.
-Icons are `svg.i`, shown at 16px with a 1.75 stroke in `currentColor`.
+`base.css` gives `svg.i` icons a default size of 16px by 16px and a stroke width of 1.75 in `currentColor`.
+Component styles can override those defaults, as `forms.css` does for filter chips and `cards.css` does for provider and tool setup step markers.
 
 ## Layout breakpoints
 
@@ -114,22 +115,14 @@ The hand-written stylesheets switch layouts at these widths:
 ## Parity archives
 
 Each extraction compared the new stylesheet with the one it replaced.
-Five archives under `docs/` keep the evidence: `frame-css-parity.zip`, `forms-css-parity.zip`, `tables-css-parity.zip`, `cards-css-parity.zip` and `dialogs-css-parity.zip`.
-Each holds a `README.txt`, a `before/` folder and an `after/` folder with one PNG per capture.
-The README records the baseline and candidate revisions, the stylesheet SHA-256 checksums, the capture method and coverage, and the computed style checks.
+These historical captures were taken when pages loaded `/admin/assets/style.css`.
+Open each archive's `README.txt` for the revisions, stylesheet checksums, capture coverage and comparison results alongside the before and after screenshots.
 
-| Archive | Pairs | Baseline revision |
-| --- | --- | --- |
-| `frame-css-parity.zip` | 96 | `64bba2600f9f421d22d67cc445e9cc05582d897d` |
-| `forms-css-parity.zip` | 100 | `e8ea8b5aa7ad05924025f1e85b0ced0960facc6d` |
-| `tables-css-parity.zip` | 106 | `e769a8670036ace6dfa66fb0973a0ad0ac2bff38` |
-| `cards-css-parity.zip` | 142 | `d61c6f773abf3b612c8d7ae11548677a2cee8a74` |
-| `dialogs-css-parity.zip` | 80 | `cd1e23edd58669fe899482b1139845de6f1ef16f` |
-
-Each baseline is the revision just before the extraction.
-The captures are historical records of those revisions.
-They were taken when the hand-written styles were served from `/admin/assets/style.css`, a route that no longer exists, so the archives are read, not re-run.
-Each README holds its comparison results; the tables README records three Account pairs that differ only in a synthetic port number.
+- [Frame CSS parity archive](frame-css-parity.zip)
+- [Forms CSS parity archive](forms-css-parity.zip)
+- [Tables CSS parity archive](tables-css-parity.zip)
+- [Cards CSS parity archive](cards-css-parity.zip)
+- [Dialogs CSS parity archive](dialogs-css-parity.zip)
 
 ## Open follow-up
 
