@@ -30,7 +30,6 @@ The retired `/admin/assets/style.css` route answers 404.
 The same script builds the React and Astryx browser bundle, and writes both with the font files to `src/server/admin/client/`, which git ignores.
 `registerAdminClientAssets()` in `src/server/admin/client-assets.ts` reads those files when it registers and serves them from `/admin/assets/`, so the server needs the built `client/` directory and none of the stylesheets in `design/`.
 `scripts/build.mjs` and the Dockerfile copy `src/server/admin/client` into the built output.
-All pages load the stylesheet; render-seam pages also load `hydrate.js`.
 
 The Astryx files put every rule in the cascade layers `reset`, `astryx-base` and `astryx-theme`.
 The hand-written files declare no layer, so their normal author declarations outrank normal author declarations in the Astryx layers.
@@ -56,13 +55,13 @@ That includes these values:
 - The popover shadow, because Astryx uses different offsets and opacity.
 - Font sizes, corner radii, nonzero spacing, layout dimensions, z-index values and breakpoints.
 
-These come from Astryx:
+The hand-written stylesheets reference or override these Astryx tokens:
 
 | Stylesheet | Astryx tokens it uses |
 | --- | --- |
 | `tokens.css`, `base.css` | None. |
 | `frame.css` | `--font-weight-bold`, `--font-weight-medium`, `--font-weight-semibold`, `--border-width` and `--spacing-0`. |
-| `forms.css` | `--font-weight-normal`, `--font-weight-medium`, `--font-weight-semibold`, `--border-width`, `--spacing-0`, `--focus-outline-width` and `--size-element-sm` (the height of small buttons and filter chips, and the width of small icon buttons). Also `--radius-element`, `--color-background-surface` and `--color-text-primary` for native controls inside the credential editor's Astryx fields. |
+| `forms.css` | `--font-weight-normal`, `--font-weight-medium`, `--font-weight-semibold`, `--border-width`, `--spacing-0`, `--focus-outline-width` and `--size-element-sm` (the height of small buttons and filter chips, and the width of small icon buttons). Also `--radius-element`, `--color-background-surface` and `--color-text-primary` for native controls inside the credential editor's Astryx fields. Overrides `--color-border-emphasized` with `--field-border` on `.astryx-text-input`. |
 | `tables.css` | `--font-weight-normal`, `--font-weight-medium`, `--font-weight-semibold`, `--border-width`, `--spacing-0` and `--focus-outline-width`. |
 | `cards.css` | `--font-weight-bold`, `--font-weight-medium`, `--font-weight-semibold`, `--border-width` and `--spacing-0`. |
 | `dialogs.css` | `--font-weight-semibold`, `--border-width` and `--spacing-0`. |
@@ -322,12 +321,12 @@ The Sessions table sits in a `session-list` container and turns into stacked car
 
 ## Constraints
 
-- Pages are server-rendered HTML: `renderPage()` and `renderAuthPage()` render the render-seam views, and `browserDocument()` in `src/server/auth/browser.ts` writes the document around them, with the link to `/admin/assets/astryx.css`.
-- The content security policy allows only same-origin scripts, styles and fonts, plus the response's own nonce for one `<style>` element, so there are no CDNs, inline scripts or `style` attributes.
+- `browserDocument()` in `src/server/auth/browser.ts` wraps the server-rendered views and links the [stylesheet bundle](#stylesheet-bundle).
+- The content security policy allows same-origin scripts, styles and fonts and authorizes inline `<style>` elements with the response's nonce.
   Each browser response gets a fresh unpredictable nonce, available to handlers as `reply.styleNonce`.
   The policy never includes `unsafe-inline` or a `style-src-attr` allowance.
 - `hoistInlineStyles()` in `src/server/admin/inline-styles.ts` can move supported `style` attributes into a nonce'd element and throws on declarations it cannot prove safe.
-  Both render-seam entry points call it on every rendered view, and it returns no style element when there are no declarations.
+  Both render-seam entry points call it on every rendered view. It emits one `<style>` element when there are declarations to hoist.
 - The one function-bearing value it accepts beyond the layout functions is `repeat(auto-fit, minmax(220px, 1fr))` on `--x-gridTemplateColumns`, the template emitted by the Overview's Astryx `Grid`.
 - Figtree (SIL Open Font License) is self-hosted: the build copies four weights from `@fontsource/figtree` to `/admin/assets/fonts/` and adds the `@font-face` rules to `astryx.css`, which the Astryx neutral `Figtree` font-family tokens already name.
 - Reading and navigating work without JavaScript; disclosures use native `<details>`.
