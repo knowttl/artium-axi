@@ -36,7 +36,6 @@ afterAll(async () => {
 const assets = [
   ['/admin/assets/hydrate.js', 'application/javascript'],
   ['/admin/assets/astryx.css', 'text/css'],
-  ['/admin/assets/style.css', 'text/css'],
   ['/admin/assets/reauth-complete.js', 'application/javascript'],
 ]
 
@@ -90,6 +89,8 @@ test('the build entry point works in a path containing spaces', () => {
     mkdirSync(join(root, 'src'))
     copyFileSync('scripts/build-admin-client.mjs', join(root, 'scripts/build-admin-client.mjs'))
     symlinkSync(join(process.cwd(), 'node_modules'), join(root, 'node_modules'), 'dir')
+    mkdirSync(join(root, 'src/server/admin'), { recursive: true })
+    symlinkSync(join(process.cwd(), 'src/server/admin/design'), join(root, 'src/server/admin/design'), 'dir')
     symlinkSync(join(process.cwd(), 'src/client'), join(root, 'src/client'), 'dir')
     symlinkSync(join(process.cwd(), 'src/shared'), join(root, 'src/shared'), 'dir')
     symlinkSync(join(process.cwd(), 'src/views'), join(root, 'src/views'), 'dir')

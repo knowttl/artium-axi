@@ -789,11 +789,6 @@ test('the real server process exits at startup with a development setting', asyn
   const { build } = await import('esbuild')
   const entry = join(directory, 'server.mjs')
   symlinkSync(join(process.cwd(), 'node_modules'), join(directory, 'node_modules'), 'dir')
-  cpSync('src/server/admin/design/frame.css', join(directory, 'design', 'frame.css'))
-  cpSync('src/server/admin/design/forms.css', join(directory, 'design', 'forms.css'))
-  cpSync('src/server/admin/design/tables.css', join(directory, 'design', 'tables.css'))
-  cpSync('src/server/admin/design/cards.css', join(directory, 'design', 'cards.css'))
-  cpSync('src/server/admin/design/dialogs.css', join(directory, 'design', 'dialogs.css'))
   await build({ entryPoints: ['src/server/main.ts'], outfile: entry, bundle: true, platform: 'node', format: 'esm', packages: 'external' })
   const result = spawnSync(process.execPath, ['--input-type=module', '-e', `import(${JSON.stringify(entry)})`], {
     cwd: process.cwd(), env: { ...process.env, ...environment, ARTIUM_AXI_DEV: '0' }, encoding: 'utf8', timeout: 60_000,
@@ -848,11 +843,6 @@ test('the real server remains available after startup encounters a damaged nativ
   symlinkSync(join(process.cwd(), 'node_modules'), join(directory, 'node_modules'), 'dir')
   cpSync('src/server/store/migrations', join(directory, 'migrations'), { recursive: true })
   cpSync('src/server/admin/client', join(directory, 'client'), { recursive: true })
-  cpSync('src/server/admin/design/frame.css', join(directory, 'design', 'frame.css'))
-  cpSync('src/server/admin/design/forms.css', join(directory, 'design', 'forms.css'))
-  cpSync('src/server/admin/design/tables.css', join(directory, 'design', 'tables.css'))
-  cpSync('src/server/admin/design/cards.css', join(directory, 'design', 'cards.css'))
-  cpSync('src/server/admin/design/dialogs.css', join(directory, 'design', 'dialogs.css'))
   await build({ stdin: { contents: `
     import { Server } from 'node:net';
     import { serverDefaults } from './src/server/config.ts';

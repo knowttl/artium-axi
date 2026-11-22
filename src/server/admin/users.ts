@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs'
 import type Database from 'better-sqlite3'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import { z } from 'zod'
@@ -9,21 +8,13 @@ import { readBrowserSession, requireBrowserAdmin } from '../auth/sessions.js'
 import { registerAdminClientAssets } from './client-assets.js'
 import { adminRead, lastChange } from './forms.js'
 import { sessionsProps } from './session-card.js'
-import { components } from './design/components.js'
 import { describe, statusWord, toolProducts } from './design/status.js'
-import { tokens } from './design/tokens.js'
-import { initials } from './design/ui.js'
+import { initials } from './chrome.js'
 import { renderPage } from './render-page.js'
 import type { PersonProps } from '../../views/person.js'
 import type { Status } from '../../views/status.js'
 
 type Role = { id: string, name: string, tools: z.infer<typeof toolSchema>[] }
-
-const frame = readFileSync(new URL('./design/frame.css', import.meta.url), 'utf8')
-const forms = readFileSync(new URL('./design/forms.css', import.meta.url), 'utf8')
-const tables = readFileSync(new URL('./design/tables.css', import.meta.url), 'utf8')
-const cards = readFileSync(new URL('./design/cards.css', import.meta.url), 'utf8')
-const dialogs = readFileSync(new URL('./design/dialogs.css', import.meta.url), 'utf8')
 
 export const roleTools = (role: Role) => role.tools.map(tool => toolProducts[tool].name).join(', ') || 'No tools yet'
 
@@ -40,7 +31,6 @@ const roleLink = (user: { roleGrants: { roleId: string, origin: string }[] }, id
 const signInState = (user: { source: string, breakGlass: boolean }) => user.source === 'sso' ? 'sso' : user.breakGlass ? 'break-glass' : 'password'
 
 export function registerUsersPage(app: FastifyInstance, db: Database.Database): void {
-  app.get('/admin/assets/style.css', async (_request, reply) => reply.type('text/css').send(tokens + components + frame + forms + tables + cards + dialogs))
   registerAdminClientAssets(app)
 
   async function allRoles(request: FastifyRequest) {

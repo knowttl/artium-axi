@@ -10,7 +10,7 @@ import { readBrowserSession, requireBrowserAdmin } from '../auth/sessions.js'
 import { hashToken } from '../auth/tokens.js'
 import { adminRead } from './forms.js'
 import { describe } from './design/status.js'
-import { initials } from './design/ui.js'
+import { initials } from './chrome.js'
 import { renderPage } from './render-page.js'
 import { roleTools } from './users.js'
 

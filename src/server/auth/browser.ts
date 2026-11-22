@@ -14,7 +14,7 @@ import { browserIdentity, browserReauthRemainingMs, createBrowserSession, readBr
 import { escape } from '../admin/escape.js'
 import { readThemeMode, registerThemeRoute } from '../admin/theme-mode.js'
 import { renderAuthPage, renderPage } from '../admin/render-page.js'
-import type { Viewer } from '../admin/design/ui.js'
+import type { Viewer } from '../admin/chrome.js'
 import type { AuthBlock, AuthButton, AuthField } from '../../views/auth.js'
 import { reauthCompleteMessage } from '../../views/reauth.js'
 import { authDefaults } from '../config.js'
@@ -45,7 +45,7 @@ export function browserViewer(reply: FastifyReply, current: BrowserSession): Vie
 
 export function browserDocument(reply: FastifyReply, title: string, body: string, current?: BrowserSession, head = '') {
   const mode = readThemeMode(reply.request)
-  return reply.type('text/html; charset=utf-8').send(`<!doctype html><html lang="en"${mode === 'system' ? '' : ` data-theme="${mode}"`}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escape(title)} - artium-axi</title><link rel="stylesheet" href="/admin/assets/style.css"><link rel="stylesheet" href="/admin/assets/astryx.css">${head}</head><body${current ? ` class="signed-in" data-session-id="${escape(current.id)}"` : ''}>${body}</body></html>`)
+  return reply.type('text/html; charset=utf-8').send(`<!doctype html><html lang="en"${mode === 'system' ? '' : ` data-theme="${mode}"`}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escape(title)} - artium-axi</title><link rel="stylesheet" href="/admin/assets/astryx.css">${head}</head><body${current ? ` class="signed-in" data-session-id="${escape(current.id)}"` : ''}>${body}</body></html>`)
 }
 
 export function registerBrowser(app: FastifyInstance, db: Database.Database, audit: Audit, attempts: AuthAttempts,

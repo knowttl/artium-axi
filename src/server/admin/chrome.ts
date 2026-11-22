@@ -1,5 +1,5 @@
-import type { FrameProps, NavigationLink, NavigationSection } from '../../../views/frame.js'
-import type { IconName } from '../../../views/icon.js'
+import type { FrameProps, NavigationLink, NavigationSection } from '../../views/frame.js'
+import type { IconName } from '../../views/icon.js'
 
 export interface PageHeader {
   // A detail page names its record in the h1 and crumbs while `title` keeps naming the screen.

@@ -22,11 +22,6 @@ if (reusable) {
     if (result.error || result.status !== 0) throw new Error(result.error?.message ?? `${script} failed`)
     if (script.endsWith('/tsc')) cpSync('src/server/store/migrations', 'dist/src/server/store/migrations', { recursive: true })
     if (script.endsWith('/tsc')) cpSync('src/server/admin/client', 'dist/src/server/admin/client', { recursive: true })
-    if (script.endsWith('/tsc')) cpSync('src/server/admin/design/frame.css', 'dist/src/server/admin/design/frame.css')
-    if (script.endsWith('/tsc')) cpSync('src/server/admin/design/forms.css', 'dist/src/server/admin/design/forms.css')
-    if (script.endsWith('/tsc')) cpSync('src/server/admin/design/tables.css', 'dist/src/server/admin/design/tables.css')
-    if (script.endsWith('/tsc')) cpSync('src/server/admin/design/cards.css', 'dist/src/server/admin/design/cards.css')
-    if (script.endsWith('/tsc')) cpSync('src/server/admin/design/dialogs.css', 'dist/src/server/admin/design/dialogs.css')
     if (script.endsWith('/tsc')) cpSync('test/fake-service', 'dist/test/fake-service', { recursive: true, filter: path => !path.endsWith('.ts') })
   }
   if (JSON.stringify(buildInputs()) !== JSON.stringify(inputs)) throw new Error('Build inputs changed during compilation')

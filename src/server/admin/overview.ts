@@ -6,7 +6,7 @@ import { browserCookie } from '../auth/browser.js'
 import { readBrowserSession, requireBrowserAdmin } from '../auth/sessions.js'
 import { credentialCertificates } from '../store/trusted-certificates.js'
 import { describe, toolProducts, toolState, toolWrites } from './design/status.js'
-import { initials } from './design/ui.js'
+import { initials } from './chrome.js'
 import { adminRead } from './forms.js'
 import { renderPage } from './render-page.js'
 
