@@ -207,11 +207,12 @@ function isPageEval(callee: ts.Expression): boolean {
   return isProperty(callee, 'eval') && rootName(callee) === 'page'
 }
 
-function runnerWaitsFor(callback: ts.Node | undefined): boolean {
+function runnerWaitsFor(callback: ts.Node | undefined, browser: boolean): boolean {
   if (!inlineCallback(callback)) return false
   let argument = enclosingParens(callback)
   const member = argument.parent
   if (ts.isPropertyAccessExpression(member) && member.expression === argument && member.name.text === 'toString') {
+    if (!browser) return false
     const serialized = member.parent
     if (!ts.isCallExpression(serialized) || serialized.expression !== member || serialized.arguments.length) return false
     argument = enclosingParens(serialized)
@@ -225,7 +226,7 @@ function runnerWaitsFor(callback: ts.Node | undefined): boolean {
   const name = rootName(callee)
   if (name && ['test', 'it', 'before', 'after', 'beforeAll', 'beforeEach', 'afterAll', 'afterEach'].includes(name)) return true
   if (!ts.isPropertyAccessExpression(callee)) return false
-  return isPageEval(callee) ||
+  return (browser && isPageEval(callee)) ||
     (name === 'context' && ['before', 'after', 'beforeEach', 'afterEach'].includes(callee.name.text))
 }
 
@@ -310,9 +311,10 @@ function constInitializer(identifier: ts.Identifier): ts.Expression | undefined 
 type Callback = ts.ArrowFunction | ts.FunctionExpression
 
 function inspect(source: ts.SourceFile, report: (file: ts.SourceFile, start: number, end: number, at: number, message: string) => void,
-  inspectBrowserScripts = false, evaluateSource = false) {
+  context: 'vitest' | 'browser-file' | 'browser-script' | 'page-eval') {
+  const browser = context !== 'vitest'
   const first = source.statements[0]
-  const evaluated = evaluateSource && first && ts.isExpressionStatement(first) ? unwrap(first.expression) : undefined
+  const evaluated = context === 'page-eval' && first && ts.isExpressionStatement(first) ? unwrap(first.expression) : undefined
   const evaluatedCallback = evaluated && ts.isCallExpression(evaluated) ? unwrap(evaluated.expression) : evaluated
   const promiseTimers = new Set<string>()
   const timerModules = new Set<string>()
@@ -356,7 +358,7 @@ function inspect(source: ts.SourceFile, report: (file: ts.SourceFile, start: num
       const definition = template.getSourceFile()
       const at = template.getStart(definition)
       inspect(ts.createSourceFile('browser-script.js', template.text, ts.ScriptTarget.Latest, true),
-        (_, _first, _end, _at, message) => report(definition, at, template.end, at, message))
+        (_, _first, _end, _at, message) => report(definition, at, template.end, at, message), 'browser-script')
       return
     }
     if (!ts.isNoSubstitutionTemplateLiteral(template) && !ts.isTemplateExpression(template)) return
@@ -379,7 +381,7 @@ function inspect(source: ts.SourceFile, report: (file: ts.SourceFile, start: num
       }
     }
     inspect(ts.createSourceFile('browser-script.js', text, ts.ScriptTarget.Latest, true),
-      (_, first, end, at, message) => report(definition, first + start, end + start, at + start, message))
+      (_, first, end, at, message) => report(definition, first + start, end + start, at + start, message), 'browser-script')
   }
 
   const inspectQuotedEval = (argument: ts.Expression) => {
@@ -404,12 +406,12 @@ function inspect(source: ts.SourceFile, report: (file: ts.SourceFile, start: num
       for (const literal of literals) {
         if (literal.start < end && first < literal.end) mark(literal.node, message)
       }
-    }, false, true)
+    }, 'page-eval')
   }
 
   const mark = (node: ts.Node, message: string, at = node.getStart(source)) => report(source, node.getStart(source), node.end, at, message)
   const awaitsCallback = (callback: ts.Node | undefined) =>
-    callback !== undefined && (callback === evaluatedCallback || runnerWaitsFor(callback))
+    callback !== undefined && (callback === evaluatedCallback || runnerWaitsFor(callback, browser))
   const visitCallback = (callback: Callback, fakeTimeout: boolean): boolean => {
     const after = visit(callback.body, fakeTimeout)
     return ts.isBlock(callback.body) ? after : clockChange(callback.body) ?? after
@@ -423,8 +425,8 @@ function inspect(source: ts.SourceFile, report: (file: ts.SourceFile, start: num
       const callee = node.expression
       const name = ts.isPropertyAccessExpression(callee) ? callee.name.text : ts.isIdentifier(callee) ? callee.text : ''
       if (name === 'waitForTimeout') mark(node, fixedSleep)
-      if (isPageEval(callee) && node.arguments[0]) inspectQuotedEval(node.arguments[0])
-      if (inspectBrowserScripts && ts.isIdentifier(callee)) {
+      if (browser && isPageEval(callee) && node.arguments[0]) inspectQuotedEval(node.arguments[0])
+      if (context === 'browser-file' && ts.isIdentifier(callee)) {
         const [first, second] = node.arguments
         const command = first && ts.isArrayLiteralExpression(first) ? first.elements[0] : undefined
         const script = name === 'browser' ? first : name === 'chrome' && command && ts.isStringLiteral(command) && command.text === 'run' ? second : undefined
@@ -551,7 +553,7 @@ for (const file of new Set([...added.keys(), ...browserSources.keys()])) {
     if (added.get(definition.fileName)?.some(({ start, end }) => start <= lineOf(last) && end >= lineOf(first))) {
       failures.add(`${definition.fileName}:${lineOf(at)}: ${message}`)
     }
-  }, isBrowserFile(file))
+  }, isBrowserFile(file) ? 'browser-file' : 'vitest')
 }
 
 const report = [...failures].sort().join('\n')

@@ -156,6 +156,9 @@ test.each<{ name: string, path: string, text: string, report: string | string[],
   { name: 'a timer returned by page.eval', path: 'test/browser/example.ts',
     text: 'browser(`\n  await page.eval(() => new Promise(done => setTimeout(done, 50)))\n`)\n',
     report: `test/browser/example.ts:2: ${fixedSleep}` },
+  { name: 'a timer returned by page.eval in a browser source file', path: 'test/browser/example.mjs',
+    text: 'await page.eval(() => new Promise(done => setTimeout(done, 50)))\n',
+    report: `test/browser/example.mjs:1: ${fixedSleep}` },
   { name: 'a window timer returned from a quoted page.eval callback', path: 'test/browser/example.ts',
     text: "browser(`\n  await page.eval('() => new Promise(done => window.setTimeout(done, 50))')\n`)\n",
     report: `test/browser/example.ts:2: ${fixedSleep}` },
@@ -238,6 +241,11 @@ test.each([
     text: 'const assertCount = expect(run).toHaveBeenCalledTimes\n' },
   { name: 'an ordinary output length assertion', path: 'src/server/example.test.ts',
     text: 'expect(records).toHaveLength(1)\n' },
+  { name: 'page.eval calls in an ordinary Vitest file', path: 'src/server/example.test.ts',
+    text: `await page.eval(() => new Promise(done => setTimeout(done, 50)))
+await page.eval('() => (' + (() => new Promise(done => setTimeout(done, 50))).toString() + ')()')
+await page.eval('() => new Promise(done => setTimeout(done, 50))')
+` },
   { name: 'code outside test files', path: 'src/server/helper.ts', text: 'await new Promise(resolve => setTimeout(resolve, 50))\n' },
 ])('accepts $name', ({ path, text }) => {
   write(path, text)
