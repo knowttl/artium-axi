@@ -55,7 +55,7 @@ The dialog and auth styles keep their legacy surface, text, border and status co
 The unused `.modal-foot` and `.dialog-actions` rules stay in `components.ts`.
 The extracted rules in `dialogs.css` keep their relative order, including the narrow-screen sheet width.
 The [dialogs CSS parity archive](dialogs-css-parity.zip) includes before-and-after screenshots of signed-out and signed-in auth pages, side sheets and dialogs with their populated and error states.
-The candidate checksum records the stylesheet captured before the unused certificate panel and sheet header button selectors were removed.
+The archive lists separate candidate checksums for the original captures and the supplemental comparisons of the pre-hydration sheet, certificate name-change button and SSO sign-out checkbox.
 See its `README.txt` for the stylesheet checksums, capture method, screenshot comparison results and computed style checks at the default and 20px root font sizes.
 
 ## Render seam
