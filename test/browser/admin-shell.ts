@@ -3713,6 +3713,11 @@ test('the add-user sheet opened from its query view becomes a modal that survive
     await page.open(base + '/admin/users?sheet=add-user');
     await page.wait('html[data-astryx-theme]');
     await page.wait('#sheet-add-user:modal');
+    check(await page.eval(() => {
+      const sheet = document.querySelector('#sheet-add-user');
+      const bounds = sheet.getBoundingClientRect();
+      return Math.abs(bounds.right - document.documentElement.clientWidth) < 1 && bounds.top === 0;
+    }), 'Add user did not open as a right-aligned side sheet');
     check(await page.eval(() => !new URL(location.href).searchParams.has('sheet')), 'Add user query stayed in the address');
     check(await page.eval(() => getComputedStyle(document.querySelector('#sheet-add-user [name=username]')).fontFamily
       !== getComputedStyle(document.querySelector('#sheet-add-user [name=displayName]')).fontFamily), 'Username does not use the monospaced font');

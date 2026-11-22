@@ -1,0 +1,49 @@
+:root {
+  --transparent: transparent;
+  --bg: light-dark(#ffffff, #09090b);
+  --bg-subtle: light-dark(#fafafa, #0f0f11);
+  --bg-muted: light-dark(#f4f4f5, #18181b);
+  --bg-hover: light-dark(#f4f4f5, #18181b);
+  --bg-active: light-dark(#e4e4e7, #27272a);
+  --border: light-dark(#e4e4e7, #27272a);
+  --border-strong: light-dark(#d4d4d8, #3f3f46);
+  --control: light-dark(#8e8e97, #66666f);
+  --field-border: light-dark(#8e8e97, #77777f);
+  --text: light-dark(#09090b, #fafafa);
+  --text-muted: light-dark(#52525b, #a1a1aa);
+  --text-faint: light-dark(#6b6b74, #8b8b94);
+  --primary: light-dark(#18181b, #fafafa);
+  --primary-hover: light-dark(#27272a, #e4e4e7);
+  --primary-fg: light-dark(#fafafa, #09090b);
+  --danger-solid: light-dark(#b91c1c, #dc2626);
+  --danger-fg: #ffffff;
+  --focus: light-dark(#2563eb, #60a5fa);
+  --ok: light-dark(#15803d, #4ade80);
+  --ok-soft: light-dark(#f0fdf4, #052e16);
+  --ok-border: light-dark(#bbf7d0, #14532d);
+  --warn: light-dark(#b45309, #fbbf24);
+  --warn-soft: light-dark(#fffbeb, #2a1a04);
+  --warn-border: light-dark(#fde68a, #713f12);
+  --err: light-dark(#b91c1c, #f87171);
+  --err-soft: light-dark(#fef2f2, #2a0a0a);
+  --err-border: light-dark(#fecaca, #7f1d1d);
+  --info: light-dark(#1d4ed8, #60a5fa);
+  --info-soft: light-dark(#eff6ff, #0b1a33);
+  --info-border: light-dark(#bfdbfe, #1e3a8a);
+  --shadow-pop: 0 1px 2px light-dark(rgb(0 0 0 / 4%), rgb(0 0 0 / 40%)),
+    0 8px 24px light-dark(rgb(0 0 0 / 8%), rgb(0 0 0 / 50%));
+  --shadow-sm: 0 1px 2px light-dark(rgb(0 0 0 / 8%), rgb(0 0 0 / 40%));
+  --overlay: light-dark(rgb(9 9 11 / 40%), rgb(0 0 0 / 60%));
+  --code-bg: light-dark(#fafafa, #0f0f11);
+
+  --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace;
+  --fs-xs: 12px; --fs-sm: 13px; --fs-base: 14px; --fs-md: 16px; --fs-lg: 20px; --fs-xl: 24px;
+  --r-sm: 6px; --r-md: 8px; --r-lg: 12px; --r-full: 999px;
+  --ctl-h: 34px; --ctl-h-sm: 28px;
+  --side-w: 232px; --content-max: 1180px; --content-narrow: 880px; --aside-w: 320px; --topbar-h: 48px;
+  --gutter: 32px;
+}
+@media (max-width: 760px) {
+  :root { --gutter: 16px; }
+}

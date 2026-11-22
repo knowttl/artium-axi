@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type Database from 'better-sqlite3'
@@ -7,7 +7,6 @@ import { parse, type DefaultTreeAdapterMap } from 'parse5'
 import postcss, { type AnyNode } from 'postcss'
 import { afterAll, beforeAll, expect, test } from 'vitest'
 import { createApp } from '../src/server/app.js'
-import { tokens } from '../src/server/admin/design/tokens.js'
 import { Audit } from '../src/server/audit/audit.js'
 import { browserCookie } from '../src/server/auth/browser.js'
 import { createBrowserSession } from '../src/server/auth/sessions.js'
@@ -20,7 +19,6 @@ import { SshHosts } from '../src/server/store/ssh-hosts.js'
 import { FakeCredentialStore } from './fixtures/credential-store.js'
 import { seedToolUser } from './fixtures/tokens.js'
 
-// Rules from docs/design-system.md: colours live only in tokens, pages never style themselves, icons are inline SVGs rendered by the Icon component.
 function hasColourLiteral(value: string) {
   let found = false
   cssTree.walk(cssTree.parse(value, { context: 'value', parseCustomProperty: true }), function (node) {
@@ -49,8 +47,8 @@ function colourDeclarations(css: string) {
   return declarations
 }
 
-function assertTokenColours(css: string) {
-  expect(colourDeclarations(css)).toEqual(colourDeclarations(tokens))
+function assertNoColourLiterals(css: string) {
+  expect(colourDeclarations(css)).toEqual([])
 }
 
 function assertPresentationColours(page: DefaultTreeAdapterMap['element'][]) {
@@ -147,10 +145,12 @@ afterAll(async () => {
   rmSync(directory, { recursive: true, force: true })
 })
 
-test('the served stylesheet defines colours only through the token contract', async () => {
-  const response = await app.inject({ url: '/admin/assets/style.css' })
-  expect(response.statusCode).toBe(200)
-  assertTokenColours(response.body)
+test.each(['base', 'frame', 'forms', 'tables', 'cards', 'dialogs'])('the %s stylesheet takes its colours from tokens.css', name => {
+  assertNoColourLiterals(readFileSync(`src/server/admin/design/${name}.css`, 'utf8'))
+})
+
+test('the retired style.css route is gone', async () => {
+  expect((await app.inject({ url: '/admin/assets/style.css' })).statusCode).toBe(404)
 })
 
 const literalColours = [
@@ -161,7 +161,7 @@ const literalColours = [
 ]
 
 test.each(literalColours)('R4: the stylesheet guard rejects a component colour literal: %s', colour => {
-  expect(() => assertTokenColours(tokens + `.content { color: ${colour}; }`)).toThrow()
+  expect(() => assertNoColourLiterals(`.content { color: ${colour}; }`)).toThrow()
 })
 
 test.each(literalColours)('R4: the presentation guard rejects a colour literal: %s', colour => {
@@ -175,7 +175,7 @@ test.each([
   '.content { color: var(--text, red); }',
   '@media (prefers-color-scheme: dark) { .content { background: linear-gradient(red, blue); } }',
 ])('R4: the stylesheet guard rejects nested and shorthand colours: %s', rule => {
-  expect(() => assertTokenColours(tokens + rule)).toThrow()
+  expect(() => assertNoColourLiterals(rule)).toThrow()
 })
 
 test.each(['fill', 'stroke', 'color', 'stop-color', 'flood-color', 'lighting-color', 'bgcolor', 'bordercolor', 'text', 'link', 'alink', 'vlink'])(
@@ -186,7 +186,7 @@ test.each(['fill', 'stroke', 'color', 'stop-color', 'flood-color', 'lighting-col
 
 test.each(['currentColor', 'none', 'inherit', 'var(--text)', 'url(#i-red)'])(
   'the colour guards allow a reference or non-colour value: %s', value => {
-    expect(() => assertTokenColours(tokens + `.content { fill: ${value}; }`)).not.toThrow()
+    expect(() => assertNoColourLiterals(`.content { fill: ${value}; }`)).not.toThrow()
     expect(() => assertPresentationColours(elements(parse(`<svg fill="${value}"></svg>`)))).not.toThrow()
   },
 )
@@ -213,6 +213,14 @@ test.each([
   assertPresentationColours(page)
   assertSameOriginResources(page)
   assertNonceStyles(page, response.headers['content-security-policy'] as string)
+  const documentUrl = new URL(url, 'https://artium.example')
+  const stylesheetPaths = page.filter(element => element.tagName === 'link' && element.attrs.some(attribute =>
+    attribute.name === 'rel' && attribute.value.toLowerCase().split(/\s+/).includes('stylesheet'))).flatMap(link => {
+    const href = link.attrs.find(attribute => attribute.name === 'href')?.value
+    return href ? [new URL(href, documentUrl).pathname] : []
+  })
+  expect(stylesheetPaths).toContain('/admin/assets/astryx.css')
+  expect(stylesheetPaths).not.toContain('/admin/assets/style.css')
   for (const element of page) {
     expect(element.attrs.filter(attribute => attribute.name === 'style')).toEqual([])
     if (element.tagName !== 'svg') continue
@@ -276,8 +284,8 @@ test.each(['<link rel="stylesheet" href="https://fonts.example/a.css">', '<scrip
     expect(() => assertSameOriginResources(elements(parse(markup)))).toThrow()
   })
 
-test.each(['/admin/assets/style.css', '/admin/assets/astryx.css'])('%s loads only same-origin resources', async url => {
-  assertSameOriginStylesheet((await app.inject({ url })).body)
+test('the Astryx stylesheet loads only same-origin resources', async () => {
+  assertSameOriginStylesheet((await app.inject({ url: '/admin/assets/astryx.css' })).body)
 })
 
 test('the admin navigation marks the section of the current page', async () => {

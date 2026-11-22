@@ -5,7 +5,7 @@ import { ArtiumError } from '../../shared/errors.js'
 import { browserCookie } from '../auth/browser.js'
 import { readBrowserSession, requireBrowserAdmin } from '../auth/sessions.js'
 import { describe, rawApiModeWords, toolProducts, toolState } from './design/status.js'
-import { initials } from './design/ui.js'
+import { initials } from './chrome.js'
 import { adminRead, lastChange } from './forms.js'
 import { renderPage } from './render-page.js'
 
