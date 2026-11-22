@@ -6,9 +6,7 @@ import ts from 'typescript'
 const root = process.cwd()
 const fixedSleep = 'fixed sleep: wait for the observable outcome instead'
 const callCount = 'call-count assertion: assert the outcome, not how often a collaborator was called'
-const countMatchers = new Set(['toHaveBeenCalledTimes', 'toBeCalledTimes', 'toHaveBeenCalledOnce', 'toHaveBeenCalledExactlyOnceWith'])
-const chaiCountMethods = new Set(['callCount', 'calledOnceWith'])
-const chaiCountProperties = new Set(['calledOnce', 'calledTwice', 'calledThrice'])
+const countMatchers = new Set(['toHaveBeenCalledTimes', 'toBeCalledTimes', 'toHaveBeenCalledOnce'])
 const failures: string[] = []
 
 function git(args: string[]) {
@@ -63,7 +61,7 @@ function timeoutClock(call: ts.CallExpression): boolean | undefined {
   if (expression.name.text !== 'useFakeTimers') return
   if (!options) return true
   if (!ts.isObjectLiteralExpression(options) || !options.properties.every(ts.isPropertyAssignment)) return false
-  const toFake = options.properties.find(property =>
+  const toFake = options.properties.find((property): property is ts.PropertyAssignment => ts.isPropertyAssignment(property) &&
     (ts.isIdentifier(property.name) || ts.isStringLiteral(property.name)) && property.name.text === 'toFake')
   if (!toFake) return true
   return ts.isArrayLiteralExpression(toFake.initializer) &&
@@ -233,12 +231,7 @@ function inspect(source: ts.SourceFile, report: (start: number, end: number, at:
     if (ts.isPropertyAccessExpression(node)) {
       const { text: name } = node.name
       const call = ts.isCallExpression(node.parent) && node.parent.expression === node ? node.parent : undefined
-      const isChai = (chaiCountMethods.has(name) || chaiCountProperties.has(name)) && rootName(node.expression) === 'expect'
-      const assertion = isChai && chaiCountProperties.has(name) ? node :
-        call && (isChai || countMatchers.has(name) || countsMockCalls(node)) ? call : undefined
-      if (assertion) {
-        mark(assertion, callCount, node.name.getStart(source))
-      }
+      if (call && (countMatchers.has(name) || countsMockCalls(node))) mark(call, callCount, node.name.getStart(source))
     }
     let waited: ts.Expression | undefined
     if (ts.isAwaitExpression(node)) {
