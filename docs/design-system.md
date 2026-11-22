@@ -9,11 +9,11 @@ This document describes the current screens and their design rules.
 | File | Owns |
 | --- | --- |
 | [tokens.ts](../src/server/admin/design/tokens.ts) | Legacy colour values and shared typography, radius, shadow, control-size and layout tokens, including light and dark palettes. |
-| [components.ts](../src/server/admin/design/components.ts) | Remaining component classes and geometry: the global base styles, side sheet and dialog styles including the `.message` form error box, overflow and inline menus, signed-out auth screens, fallback controls and base elements outside the Astryx root, the `.btn-ghost.danger` and `.astryx-button.revoke` variants, and selectors that no rendered markup matches. |
+| [components.ts](../src/server/admin/design/components.ts) | Global base styles, modal sheet and dialog styles including the `.message` form error box, overflow and inline menus, signed-out auth screens, fallback controls and base elements outside the Astryx root, the `.btn-ghost.danger` and `.astryx-button.revoke` variants, and residual legacy selectors. |
 | [frame.css](../src/server/admin/design/frame.css) | Hand-written styles for the top bar, breadcrumbs, side navigation footer, mobile navigation drawer, account menu, Learn panel and recent-authentication pill. Also owns the brand mark shared with sign-in and the popover styles, including button overrides shared with page action menus. Uses Astryx font weights, border width and zero spacing. |
 | [forms.css](../src/server/admin/design/forms.css) | Hand-written styles for shared `.btn` controls, text fields, selects, checkboxes, option cards and tiles, switches, segmented controls, filter chips, the credential editor and the operation picker. Also owns base form and fieldset styles in `.content` and dialogs, and the shared Astryx TextInput border override used by sign-in. Uses Astryx font weights, border width, zero spacing, focus outline width and the small element size. |
 | [tables.css](../src/server/admin/design/tables.css) | Hand-written styles for table wrappers and the people, roles, tools, instances, invitations, providers, rules, tokens, audit, SSH event and session tables, including their stacked narrow layouts and the base table styles for content outside the Astryx root. Uses Astryx font weights, border width, focus outline width and zero spacing. |
-| [cards.css](../src/server/admin/design/cards.css) | Hand-written styles for notes, hints and text utilities, cards and their body, foot and note parts, list rows, avatars, tool icons, status dots, page grids, the docked record sheet, key-value lists, code and copy blocks, vertical steps, setup steps, disclosure cards and the tool grid. Uses Astryx font weights, border width and zero spacing. |
+| [cards.css](../src/server/admin/design/cards.css) | Hand-written styles for notes, hints and text utilities, card parts, list rows, avatars, tool icons, status dots, page grids, docked record sheets and shared sheet header and body layout, key-value lists, code and copy blocks, vertical and setup steps, disclosures including `.all-fields` summaries, and the tool grid. Also owns the Advanced tool tab's JSON validation note colors within the Astryx root. Uses Astryx font weights, border width and zero spacing. |
 | `src/server/admin/design/ui.ts` | Builds the typed breadcrumb, brand, navigation, account menu and help panel data for the frame. |
 | `src/views/frame.tsx` | Renders the frame, including its account menu and Learn disclosure. |
 | `src/views/theme-switch.tsx` | Renders the theme switch shared by the frame and auth views. |
@@ -34,7 +34,7 @@ The archive's `README.txt` records the stylesheet checksums, screenshot comparis
 The form controls keep their legacy surface, text, border and status colors for the same reason.
 They keep legacy font sizes, corner radii, nonzero spacing and layout dimensions across browser font sizes.
 Small buttons and filter chips use the Astryx small element size for height, and small icon buttons also use it for width.
-The `.input.mono` rule sets its own font size, so a monospace field keeps its size whichever of `forms.css` and the `.mono` utility in `cards.css` is served later.
+The `.input.mono` rule in `forms.css` sets the font size with higher specificity than the `.mono` utility in the later `cards.css`.
 Astryx puts the `.mono` class on the TextInput wrapper, so `forms.css` applies the monospace font to the nested input.
 The [forms CSS parity archive](forms-css-parity.zip) includes before-and-after screenshots from successive extraction revisions, including rendered sign-in and filled monospace fields.
 See its `README.txt` for the stylesheet checksums, capture coverage by revision and computed style checks.
@@ -47,10 +47,8 @@ See the archive's `README.txt` for the stylesheet checksums, exact capture cover
 
 The card and layout styles keep their legacy surface, text, border and status colors, font sizes, corner radii, nonzero spacing, layout dimensions and viewport breakpoints.
 The extracted rules in `cards.css` preserve the cascade, including the narrow-screen and 1080px layout rules.
-Selectors that no markup in `src/views` can match stay in `components.ts` with the dialog, auth, menu and base element rules.
-The [cards CSS parity archive](cards-css-parity.zip) compares the final stylesheet with the baseline for valid and invalid JSON feedback on the Advanced tool tab.
-It also preserves earlier comparisons of Person, Role, Account, tool and instance pages, audit and SSH disclosures, provider and invitation pages, and other card and layout states.
-See the archive's `README.txt` for the stylesheet checksums, exact capture coverage, screenshot comparison results and computed style checks.
+The [cards CSS parity archive](cards-css-parity.zip) includes comparisons with the baseline across several stylesheet revisions.
+See its `README.txt` for capture coverage by revision, stylesheet checksums, screenshot comparison results and computed style checks.
 
 ## Render seam
 
