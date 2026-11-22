@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import type Database from 'better-sqlite3'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import { z } from 'zod'
@@ -18,6 +19,8 @@ import type { Status } from '../../views/status.js'
 
 type Role = { id: string, name: string, tools: z.infer<typeof toolSchema>[] }
 
+const frame = readFileSync(new URL('./design/frame.css', import.meta.url), 'utf8')
+
 export const roleTools = (role: Role) => role.tools.map(tool => toolProducts[tool].name).join(', ') || 'No tools yet'
 
 // A role chip naming where the person's grant comes from: Direct, SSO rule, or both.
@@ -33,7 +36,7 @@ const roleLink = (user: { roleGrants: { roleId: string, origin: string }[] }, id
 const signInState = (user: { source: string, breakGlass: boolean }) => user.source === 'sso' ? 'sso' : user.breakGlass ? 'break-glass' : 'password'
 
 export function registerUsersPage(app: FastifyInstance, db: Database.Database): void {
-  app.get('/admin/assets/style.css', async (_request, reply) => reply.type('text/css').send(tokens + components))
+  app.get('/admin/assets/style.css', async (_request, reply) => reply.type('text/css').send(tokens + components + frame))
   registerAdminClientAssets(app)
 
   async function allRoles(request: FastifyRequest) {

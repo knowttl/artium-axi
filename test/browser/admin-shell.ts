@@ -507,15 +507,15 @@ test('audit list and detail show the local date and time', async () => {
   } finally { socket.close() }
 })
 
-test('the overview keeps landmarks and a reachable theme switch at both widths', () => {
+test('the overview keeps landmarks and reachable controls across the drawer breakpoint', () => {
   try {
-    for (const width of [1280, 390, 320]) {
-      const choice = width === 390 ? 'light' : 'dark'
+    for (const [width, choice] of [[1280, 'dark'], [768, 'light'], [767, 'dark'], [390, 'light'], [320, 'dark']] as const) {
       const region = width < 768 ? '.frame-controls-drawer' : '.frame-controls-header'
       chrome(['resize', String(width), '900'])
       browser(`
         await page.open(base + '/admin');
         await page.wait('html[data-astryx-theme]');
+        check(await page.eval(() => document.querySelector('[data-testid=mobile-nav-toggle]')?.checkVisibility() === ${width < 768}), 'Unexpected mobile navigation toggle visibility at ${width}px');
         const landmarks = () => {
           const visible = element => element.getClientRects().length > 0 && getComputedStyle(element).visibility !== 'hidden';
           const banners = [...document.querySelectorAll('[role=banner], body > header')].filter(visible);
