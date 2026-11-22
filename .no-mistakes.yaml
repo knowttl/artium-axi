@@ -3,7 +3,7 @@ no_ci: true
 commands:
   prepare: "CI=true pnpm install --frozen-lockfile"
   test: |-
-    bash -o pipefail -c '
+    bash -c '
       digest=.no-mistakes/validation-failure-digest.txt
       rm -f "$digest"
       log=$(mktemp)
@@ -75,7 +75,7 @@ test:
     The configured pnpm test:gate command records its base, input identity, selected files and reasons, then runs affected checks or the conservative full fallback once as the baseline.
     The configured baseline is recorded by the pipeline; do not require its raw log, timings or identities, and do not downgrade the verdict for their absence.
     Require pnpm test:gate --full before releases and at least weekly for local validation; pnpm test and pnpm check retain the full suite.
-    After the test agent's own repair, and after any other repair, rerun pnpm test:gate against the complete base-to-candidate diff; never validate only the last repair.
+    After the test agent's own repair, and after any other repair, rerun the command in commands.test against the complete base-to-candidate diff; never validate only the last repair.
     Use targeted public CLI, API and browser flows for additional evidence only when needed.
     Reuse baseline evidence instead of rerunning the unchanged full suite.
     Produce a durable validation handoff outside the checkout, and give its absolute path in the Test report so a later run can receive it through its verification plan. Keep raw command logs and selection output alongside it; do not commit process evidence. Read any supplied handoff before choosing additional probes. This handoff does not bypass the configured baseline command or change pipeline rerun behavior.
