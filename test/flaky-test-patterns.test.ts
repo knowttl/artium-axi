@@ -34,6 +34,8 @@ beforeEach(() => {
   write('src/server/example.test.ts', 'export {}\n')
   write('src/server/legacy.test.ts', legacy)
   write('src/server/helper.ts', legacy)
+  write('test/browser/example.ts', "import { fragment as script } from './fragment.mjs'\nbrowser(`${script}`)\n")
+  write('test/browser/fragment.mjs', 'export const fragment = `\n  await page.open(base)\n`\n')
   git('init', '--quiet')
   git('config', 'core.quotePath', 'true')
   git('add', '.')
@@ -77,6 +79,9 @@ test.each([
   { name: 'a timeout after restoring real timers', path: 'src/server/example.test.ts',
     text: 'vi.useFakeTimers()\nvi.useRealTimers()\nawait new Promise(done => setTimeout(done, 50))\n',
     report: `src/server/example.test.ts:3: ${fixedSleep}` },
+  { name: 'a test registered before the module restores real timers', path: 'src/server/example.test.ts',
+    text: "vi.useFakeTimers()\ntest('real', () => new Promise(done => setTimeout(done, 50)))\nvi.useRealTimers()\n",
+    report: `src/server/example.test.ts:2: ${fixedSleep}` },
   { name: 'a timeout after restoring a setup hook clock', path: 'src/server/example.test.ts',
     text: "beforeEach(() => vi.useFakeTimers())\ntest('restored', async () => {\n  vi.useRealTimers()\n  await new Promise(done => setTimeout(done, 50))\n})\n",
     report: `src/server/example.test.ts:4: ${fixedSleep}` },
@@ -97,6 +102,12 @@ test.each([
   { name: 'a fixed wait passed through a browser script builder', path: 'test/browser/example.ts',
     text: 'const compose = (script: string) => `await page.open(base); ${script}`\nbrowser(compose(`\n  await new Promise(done => setTimeout(done, 50))\n`))\n',
     report: `test/browser/example.ts:3: ${fixedSleep}` },
+  { name: 'fixed waits on both sides of a browser script concatenation', path: 'test/browser/example.ts',
+    text: 'const compose = (script: string) => `await page.open(base); ${script}`\nchrome(["run"], compose(`\n  await new Promise(done => setTimeout(done, 50))\n`) + `\n  await new Promise(done => setTimeout(done, 60))\n`)\n',
+    report: [`test/browser/example.ts:3: ${fixedSleep}`, `test/browser/example.ts:5: ${fixedSleep}`] },
+  { name: 'a changed browser fragment with an unchanged importing caller', path: 'test/browser/fragment.mjs',
+    text: 'export const fragment = `\n  await new Promise(done => setTimeout(done, 50))\n`\n',
+    report: `test/browser/fragment.mjs:2: ${fixedSleep}` },
   { name: 'a timer returned by page.eval', path: 'test/browser/example.ts',
     text: 'browser(`\n  await page.eval(() => new Promise(done => setTimeout(done, 50)))\n`)\n',
     report: `test/browser/example.ts:2: ${fixedSleep}` },
@@ -120,7 +131,7 @@ test.each([
   if (noPrefix) git('config', 'diff.noprefix', 'true')
   const result = lint()
   expect(result.status).toBe(1)
-  expect(result.stderr).toContain(report)
+  for (const diagnostic of [report].flat()) expect(result.stderr).toContain(diagnostic)
   if (absent) expect(result.stderr).not.toContain(absent)
 })
 
@@ -130,6 +141,10 @@ test.each([
     text: "test('advance time', async () => {\n  vi.useFakeTimers()\n  await new Promise(done => setTimeout(done, 50))\n})\n" },
   { name: 'a promise wait with setTimeout explicitly faked', path: 'src/server/example.test.ts',
     text: "vi.useFakeTimers({ toFake: ['setTimeout'] })\nawait new Promise(done => setTimeout(done, 50))\n" },
+  { name: 'a test registered before the module enables virtual time', path: 'src/server/example.test.ts',
+    text: "test('advance', async () => {\n  void vi.advanceTimersByTimeAsync(50)\n  await new Promise(done => setTimeout(done, 50))\n})\nvi.useFakeTimers()\n" },
+  { name: 'a returned virtual wait under beforeAll in a nested suite', path: 'src/server/example.test.ts',
+    text: "beforeAll(() => vi.useFakeTimers())\ndescribe('nested', () => {\n  test('advance', () => {\n    void vi.advanceTimersByTimeAsync(50)\n    return new Promise(done => setTimeout(done, 50))\n  })\n})\n" },
   { name: 'a virtual wait under an enclosing setup hook', path: 'src/server/example.test.ts',
     text: "beforeEach(() => vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] }))\ndescribe('suite', () => {\n  test('advance time', async () => {\n    const tick = vi.advanceTimersByTimeAsync(50)\n    await new Promise(done => setTimeout(done, 50))\n    await tick\n  })\n})\n" },
   { name: 'a local fake clock with an empty timer list', path: 'src/server/example.test.ts',

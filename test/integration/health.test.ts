@@ -56,6 +56,10 @@ function failHealthProcess(text: string) {
     spawnProcess(fakeTool.executable, [...fakeTool.args, 'failure', text], options))
 }
 
+function healthOutputText(output: unknown) {
+  return JSON.stringify(output instanceof Error ? { ...output, message: output.message } : output)
+}
+
 function scriptPreflight(tlsError?: string) {
   vi.mocked(connectTcp).mockImplementationOnce(() => {
     const socket = new Socket()
@@ -573,7 +577,8 @@ describe.each(['synthetic-development-user', healthDefaults.actor])('destination
       if (actor !== healthDefaults.actor) scriptPreflight()
       failHealthProcess(text)
       health = new ToolHealth(db, new Audit(db), runner, [vectra], store)
-      await expect(health.check('vectra-axi', actor, 'native-transport', null)).rejects.toMatchObject({
+      const error = await health.check('vectra-axi', actor, 'native-transport', null).catch((error: unknown) => error)
+      expect(error).toMatchObject({
         code: 'UPSTREAM_NETWORK_FAILED', diagnostic: { stage: 'TCP', toolCode: 'TRANSPORT_FAILED',
           message: 'Details unavailable.', checkedAt: expect.any(Number), credentialRevision: 1 },
       })
@@ -587,10 +592,11 @@ describe.each(['synthetic-development-user', healthDefaults.actor])('destination
       } else {
         expect(health.diagnostic('vectra-axi', 1, cached.checked_at)).toMatchObject({ transportCode: cause })
       }
-      expect(JSON.stringify(health.diagnostic('vectra-axi', 1, cached.checked_at))).not.toContain('CANARY-VECTRA-TOKEN')
       const audit = JSON.stringify(db.prepare('SELECT * FROM audit').all())
       expect(audit).not.toContain(cause)
-      expect(audit).not.toContain('CANARY-VECTRA-TOKEN')
+      for (const output of [healthOutputText(error), JSON.stringify(health.diagnostic('vectra-axi', 1, cached.checked_at)), audit]) {
+        expect(output).not.toMatch(/appliance\.test|CANARY-VECTRA-TOKEN/)
+      }
     })
 
   test.each([
@@ -614,15 +620,16 @@ describe.each(['synthetic-development-user', healthDefaults.actor])('destination
     const text = `code: ${toolCode}\nmessage: ${message}`
     if (actor !== healthDefaults.actor) scriptPreflight()
     failHealthProcess(text)
-    await expect(health.check(tool, actor, 'destination-test', null)).rejects.toMatchObject({
+    const error = await health.check(tool, actor, 'destination-test', null).catch((error: unknown) => error)
+    expect(error).toMatchObject({
       code, diagnostic: { stage, toolCode, message: 'Details unavailable.', checkedAt: expect.any(Number), credentialRevision: 1 },
     })
     const cached = db.prepare('SELECT checked_at FROM tool_health WHERE tool = ?').get(tool) as { checked_at: number }
-    expect(JSON.stringify(health.diagnostic(tool, 1, cached.checked_at))).not.toContain(host)
-    const audit = JSON.stringify(db.prepare('SELECT * FROM audit').all())
-    expect(audit).not.toContain(host)
-    expect(audit).not.toContain('CANARY-')
-    expect(JSON.stringify(health.diagnostic(tool, 1, cached.checked_at))).not.toContain('CANARY-')
+    for (const output of [error, health.diagnostic(tool, 1, cached.checked_at), db.prepare('SELECT * FROM audit').all()]) {
+      const outputText = healthOutputText(output)
+      expect(outputText).not.toContain(host)
+      expect(outputText).not.toContain('CANARY-')
+    }
   })
 })
 
@@ -633,9 +640,11 @@ test.each(['UPSTREAM_NETWORK_FAILED', 'UPSTREAM_TLS_FAILED'] as const)('omits th
   health = new ToolHealth(db, new Audit(db), runner,
     [createAzAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'))], store)
   scriptPreflight(code === 'UPSTREAM_TLS_FAILED' ? 'CERT_HAS_EXPIRED' : 'ECONNRESET')
-  await expect(health.check('az-axi', 'synthetic-development-user', 'specific-host', null)).rejects.toMatchObject({
+  const error = await health.check('az-axi', 'synthetic-development-user', 'specific-host', null).catch((error: unknown) => error)
+  expect(error).toMatchObject({
     code, diagnostic: { stage: 'TLS', message: 'Details unavailable.', checkedAt: expect.any(Number), credentialRevision: 1 },
   })
+  expect(healthOutputText(error)).not.toMatch(/login\.microsoftonline\.com|CANARY-AZURE-SECRET/)
 })
 
 test.each([
@@ -664,9 +673,11 @@ test.each([
   health = new ToolHealth(db, new Audit(db), runner, [createLdapAdapter(new EmbeddedSecretSource(store))], store)
   scriptPreflight()
   failHealthProcess(`code: ${toolCode}\nmessage: ${message}`)
-  await expect(health.check('ldap-axi', 'synthetic-development-user', 'ldap-scan', null)).rejects.toMatchObject({
+  const error = await health.check('ldap-axi', 'synthetic-development-user', 'ldap-scan', null).catch((error: unknown) => error)
+  expect(error).toMatchObject({
     code, diagnostic: undefined,
   })
+  expect(healthOutputText(error)).not.toContain('directory.test')
   const cached = db.prepare("SELECT checked_at FROM tool_health WHERE tool = 'ldap-axi'").get() as { checked_at: number }
   expect(health.diagnostic('ldap-axi', 1, cached.checked_at)).toBeUndefined()
   expect(db.prepare("SELECT exit_code FROM audit WHERE request_id = 'ldap-scan' AND event = 'run-terminal'").get()).toEqual({ exit_code: 1 })

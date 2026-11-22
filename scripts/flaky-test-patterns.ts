@@ -1,13 +1,13 @@
 import { spawnSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { existsSync, readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import ts from 'typescript'
 
 const root = process.cwd()
 const fixedSleep = 'fixed sleep: wait for the observable outcome instead'
 const callCount = 'call-count assertion: assert the outcome, not how often a collaborator was called'
 const countMatchers = new Set(['toHaveBeenCalledTimes', 'toBeCalledTimes', 'toHaveBeenCalledOnce'])
-const failures: string[] = []
+const failures = new Set<string>()
 
 function git(args: string[]) {
   const result = spawnSync('git', ['-C', root, ...args], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
@@ -51,6 +51,18 @@ for (let index = 0; index < tracked.length - 1;) {
 }
 for (const file of untracked.split('\0').filter(isTestFile)) {
   added.set(file, wholeFile)
+}
+
+const browserSources = new Map<string, ts.SourceFile>()
+if ([...added.keys()].some(isBrowserFile)) {
+  const files = git(['ls-files', '--cached', '--others', '--exclude-standard', '-z', '--', 'test/browser'])
+  for (const file of new Set(files.split('\0').filter(isBrowserFile))) {
+    if (existsSync(join(root, file))) browserSources.set(file, readSource(file))
+  }
+}
+
+function readSource(file: string) {
+  return ts.createSourceFile(file, readFileSync(join(root, file), 'utf8'), ts.ScriptTarget.Latest, true)
 }
 
 function timeoutClock(call: ts.CallExpression): boolean | undefined {
@@ -142,20 +154,40 @@ function countsMockCalls(matcher: ts.PropertyAccessExpression): boolean {
     ts.isPropertyAccessExpression(calls.expression) && calls.expression.name.text === 'mock'
 }
 
+function variableBinding(statements: ts.NodeArray<ts.Statement>, name: string, exported = false) {
+  for (const statement of statements) {
+    if (!ts.isVariableStatement(statement) ||
+        (exported && !statement.modifiers?.some(modifier => modifier.kind === ts.SyntaxKind.ExportKeyword))) continue
+    const binding = statement.declarationList.declarations.find(declaration =>
+      ts.isIdentifier(declaration.name) && declaration.name.text === name)
+    if (binding) return binding
+  }
+}
+
 function constInitializer(identifier: ts.Identifier): ts.Expression | undefined {
   for (let scope = identifier.parent; scope; scope = scope.parent) {
     if (ts.isFunctionLike(scope) && scope.parameters.some(({ name }) => ts.isIdentifier(name) && name.text === identifier.text)) return
     if (!ts.isBlock(scope) && !ts.isSourceFile(scope)) continue
+    const binding = variableBinding(scope.statements, identifier.text)
+    if (binding) return binding.parent.flags & ts.NodeFlags.Const ? binding.initializer : undefined
+    if (!ts.isSourceFile(scope)) continue
     for (const statement of scope.statements) {
-      if (!ts.isVariableStatement(statement)) continue
-      const list = statement.declarationList
-      const binding = list.declarations.find(({ name }) => ts.isIdentifier(name) && name.text === identifier.text)
-      if (binding) return list.flags & ts.NodeFlags.Const ? binding.initializer : undefined
+      if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier) ||
+          !statement.moduleSpecifier.text.startsWith('./')) continue
+      const bindings = statement.importClause?.namedBindings
+      if (!bindings || !ts.isNamedImports(bindings)) continue
+      const imported = bindings.elements.find(({ name }) => name.text === identifier.text)
+      if (!imported) continue
+      const module = browserSources.get(join(dirname(scope.fileName), statement.moduleSpecifier.text))
+      const declaration = module && variableBinding(module.statements, (imported.propertyName ?? imported.name).text, true)
+      if (declaration && declaration.parent.flags & ts.NodeFlags.Const) return declaration.initializer
     }
   }
 }
 
-function inspect(source: ts.SourceFile, report: (start: number, end: number, at: number, message: string) => void,
+type Callback = ts.ArrowFunction | ts.FunctionExpression
+
+function inspect(source: ts.SourceFile, report: (file: ts.SourceFile, start: number, end: number, at: number, message: string) => void,
   inspectBrowserScripts = false) {
   const promiseTimers = new Set<string>()
   const timerModules = new Set<string>()
@@ -177,6 +209,11 @@ function inspect(source: ts.SourceFile, report: (start: number, end: number, at:
     const expression = unwrap(value)
     if (visitedScripts.has(expression)) return
     visitedScripts.add(expression)
+    if (ts.isBinaryExpression(expression) && expression.operatorToken.kind === ts.SyntaxKind.PlusToken) {
+      inspectScript(expression.left)
+      inspectScript(expression.right)
+      return
+    }
     if (ts.isIdentifier(expression)) {
       const initializer = constInitializer(expression)
       if (initializer) inspectScript(initializer)
@@ -186,8 +223,9 @@ function inspect(source: ts.SourceFile, report: (start: number, end: number, at:
       ? constInitializer(expression.expression) : undefined
     const template = inlineCallback(builder) && !ts.isBlock(builder.body) ? unwrap(builder.body) : expression
     if (!ts.isNoSubstitutionTemplateLiteral(template) && !ts.isTemplateExpression(template)) return
-    const start = template.getStart(source) + 1
-    let text = source.text.slice(start, template.end - 1)
+    const definition = template.getSourceFile()
+    const start = template.getStart(definition) + 1
+    let text = definition.text.slice(start, template.end - 1)
     if (ts.isTemplateExpression(template)) {
       let from = template.head.end - 2
       for (const span of template.templateSpans) {
@@ -198,17 +236,17 @@ function inspect(source: ts.SourceFile, report: (start: number, end: number, at:
         } else {
           inspectScript(fragment)
         }
-        const to = span.literal.getStart(source) + 1
-        text = text.slice(0, from - start) + '0' + source.text.slice(from + 1, to).replace(/[^\r\n]/g, ' ') + text.slice(to - start)
+        const to = span.literal.getStart(definition) + 1
+        text = text.slice(0, from - start) + '0' + definition.text.slice(from + 1, to).replace(/[^\r\n]/g, ' ') + text.slice(to - start)
         from = span.literal.end - 2
       }
     }
     inspect(ts.createSourceFile('browser-script.js', text, ts.ScriptTarget.Latest, true),
-      (first, end, at, message) => report(first + start, end + start, at + start, message))
+      (_, first, end, at, message) => report(definition, first + start, end + start, at + start, message))
   }
 
-  const mark = (node: ts.Node, message: string, at = node.getStart(source)) => report(node.getStart(source), node.end, at, message)
-  const visitCallback = (callback: ts.ArrowFunction | ts.FunctionExpression, fakeTimeout: boolean): boolean => {
+  const mark = (node: ts.Node, message: string, at = node.getStart(source)) => report(source, node.getStart(source), node.end, at, message)
+  const visitCallback = (callback: Callback, fakeTimeout: boolean): boolean => {
     const after = visit(callback.body, fakeTimeout)
     return (ts.isCallExpression(callback.body) ? timeoutClock(callback.body) : undefined) ?? after
   }
@@ -259,45 +297,56 @@ function inspect(source: ts.SourceFile, report: (start: number, end: number, at:
     return change ?? (separateExecution ? fakeTimeout : stillFake)
   }
 
-  const visitSuite = (statements: ts.NodeArray<ts.Statement>, inheritedClock: boolean): void => {
-    const registrations = new Map<ts.Statement, { name: string, callback: ts.ArrowFunction | ts.FunctionExpression }>()
-    let testClock = inheritedClock
+  type RunSuite = (clock: boolean, setup: Callback[]) => void
+  const collectSuite = (statements: ts.NodeArray<ts.Statement>, clock: boolean): { clock: boolean, run: RunSuite } => {
+    const beforeAll: Callback[] = []
+    const beforeEach: Callback[] = []
+    const entries: RunSuite[] = []
+    const applyHooks = (clock: boolean, hooks: Callback[]) => hooks.reduce((active, hook) => visitCallback(hook, active), clock)
     for (const statement of statements) {
-      if (!ts.isExpressionStatement(statement) || !ts.isCallExpression(statement.expression)) continue
-      const { expression, arguments: args } = statement.expression
-      const name = rootName(expression)
-      const callback = args.find(inlineCallback)
-      if (!name || !callback || !['beforeEach', 'test', 'it', 'describe', 'suite'].includes(name)) continue
-      registrations.set(statement, { name, callback })
-      if (name === 'beforeEach') testClock = visitCallback(callback, testClock)
-    }
-    let fakeTimeout = false
-    for (const statement of statements) {
-      const registration = registrations.get(statement)
-      if (!registration) {
-        fakeTimeout = visit(statement, fakeTimeout)
-        continue
+      const call = ts.isExpressionStatement(statement) && ts.isCallExpression(statement.expression) ? statement.expression : undefined
+      const name = call && rootName(call.expression)
+      const callback = call?.arguments.find(inlineCallback)
+      if (callback) {
+        if (name === 'beforeAll' || name === 'beforeEach') {
+          (name === 'beforeAll' ? beforeAll : beforeEach).push(callback)
+          continue
+        }
+        if (name === 'test' || name === 'it') {
+          entries.push((clock, setup) => visitCallback(callback, applyHooks(clock, setup)))
+          continue
+        }
+        if (name === 'describe' || name === 'suite') {
+          if (ts.isBlock(callback.body)) {
+            const inner = collectSuite(callback.body.statements, clock)
+            clock = inner.clock
+            entries.push(inner.run)
+          } else {
+            clock = visitCallback(callback, clock)
+          }
+          continue
+        }
       }
-      const { name, callback } = registration
-      if (name === 'beforeEach') continue
-      if ((name === 'describe' || name === 'suite') && ts.isBlock(callback.body)) visitSuite(callback.body.statements, testClock)
-      else visitCallback(callback, testClock)
+      clock = visit(statement, clock)
     }
+    return { clock, run(active, inheritedSetup) {
+      const suiteClock = applyHooks(active, beforeAll)
+      const setup = [...inheritedSetup, ...beforeEach]
+      for (const entry of entries) entry(suiteClock, setup)
+    } }
   }
-  visitSuite(source.statements, false)
+  const suite = collectSuite(source.statements, false)
+  suite.run(suite.clock, [])
 }
 
-for (const [file, ranges] of [...added].sort(([a], [b]) => a.localeCompare(b))) {
-  const source = ts.createSourceFile(file, readFileSync(join(root, file), 'utf8'), ts.ScriptTarget.Latest, true)
-  const lineOf = (position: number) => source.getLineAndCharacterOfPosition(position).line + 1
-  const reported = new Set<string>()
-  inspect(source, (first, last, at, message) => {
-    if (ranges.some(({ start, end }) => start <= lineOf(last) && end >= lineOf(first))) {
-      reported.add(`${file}:${lineOf(at)}: ${message}`)
+for (const file of new Set([...added.keys(), ...browserSources.keys()])) {
+  inspect(browserSources.get(file) ?? readSource(file), (definition, first, last, at, message) => {
+    const lineOf = (position: number) => definition.getLineAndCharacterOfPosition(position).line + 1
+    if (added.get(definition.fileName)?.some(({ start, end }) => start <= lineOf(last) && end >= lineOf(first))) {
+      failures.add(`${definition.fileName}:${lineOf(at)}: ${message}`)
     }
   }, isBrowserFile(file))
-  failures.push(...reported)
 }
 
-if (failures.length) throw new Error(failures.join('\n'))
+if (failures.size) throw new Error([...failures].sort().join('\n'))
 console.log('Flaky-test patterns: changed tests wait for outcomes and assert behaviour, not call counts')

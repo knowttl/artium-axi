@@ -36,10 +36,10 @@ pnpm test:gate
 
 `pnpm lint` also runs `scripts/flaky-test-patterns.ts` on lines added or changed since the unique merge base with `origin/main` in `*.test.ts` and the browser runner's `test/browser/*.ts` and `test/browser/*.mjs` files.
 It checks the full file when a rename brings it into test scope.
-It checks TypeScript or JavaScript code and browser script templates, including named fragments, for `waitForTimeout`, promise waits resolved by a real `setTimeout`, and call-count assertions, including length checks on mock call lists.
+It checks TypeScript or JavaScript code and browser script templates, including concatenated templates and imported fragments, for `waitForTimeout`, promise waits resolved by a real `setTimeout`, and call-count assertions, including length checks on mock call lists.
 An assertion that checks a single call together with its arguments, such as `toHaveBeenCalledExactlyOnceWith`, is allowed.
 The check covers timer promises awaited directly or returned directly by a test, hook, or `page.eval` callback.
-The checker recognizes fake `setTimeout` when an enclosing `beforeEach` hook or the current execution scope enables it and it remains active at the wait.
+The checker recognizes fake `setTimeout` enabled during test registration, in an enclosing `beforeAll` or `beforeEach` hook, or in the current callback, provided it remains active at the wait.
 An event-driven promise may use a timer to reject when the event misses its deadline.
 Wait for the observable outcome and assert behaviour instead.
 
