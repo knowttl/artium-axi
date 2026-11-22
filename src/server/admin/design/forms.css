@@ -1,0 +1,750 @@
+.link {
+  padding: var(--spacing-0);
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: var(--ctl-h);
+  padding: var(--spacing-0) 12px;
+  border: var(--border-width) solid var(--transparent);
+  border-radius: var(--r-sm);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.btn-secondary {
+  background: var(--bg);
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+.btn-secondary:hover {
+  background: var(--bg-hover);
+}
+
+.btn-ghost {
+  background: var(--transparent);
+  color: var(--text-muted);
+}
+
+.btn-ghost:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.btn-sm {
+  height: var(--size-element-sm);
+  padding: var(--spacing-0) 10px;
+  font-size: var(--fs-xs);
+}
+
+.btn-icon {
+  width: var(--ctl-h);
+  padding: var(--spacing-0);
+}
+
+.btn-icon.btn-sm {
+  width: var(--size-element-sm);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.seg input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.seg label {
+  margin: var(--spacing-0);
+  padding: 3px 10px;
+  border-radius: 5px;
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  font-weight: var(--font-weight-normal);
+  cursor: pointer;
+}
+
+.seg input:checked + label {
+  background: var(--bg);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.seg input:focus-visible + label {
+  outline: var(--focus-outline-width) solid var(--focus);
+  outline-offset: 1px;
+}
+
+.host-command {
+  display: none;
+}
+
+.hosts:has(#host-claude:checked) .host-command.claude, .hosts:has(#host-codex:checked) .host-command.codex, .hosts:has(#host-opencode:checked) .host-command.opencode, .hosts:has(#host-pi:checked) .host-command.pi {
+  display: block;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: var(--spacing-0) var(--spacing-0) 14px;
+}
+
+:where(.content, .auth-card, dialog) .field :where(input, select, textarea) {
+  margin-top: var(--spacing-0);
+}
+
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+:where(.content, dialog, [data-astryx-root]) .option {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: var(--spacing-0);
+  padding: 12px;
+  border: var(--border-width) solid var(--border-strong);
+  border-radius: var(--r-md);
+  font-weight: var(--font-weight-normal);
+  cursor: pointer;
+}
+
+.option:has(input:checked) {
+  border-color: var(--text);
+  background: var(--bg-subtle);
+}
+
+.option input {
+  margin-top: 3px;
+}
+
+.option strong {
+  display: block;
+  font-weight: var(--font-weight-medium);
+}
+
+.option span {
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+
+.check {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: var(--fs-sm);
+}
+
+.check input {
+  margin: 3px var(--spacing-0) var(--spacing-0);
+  accent-color: var(--primary);
+  width: 15px;
+  height: 15px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.input, .select {
+  display: block;
+  width: 100%;
+  max-width: none;
+  height: var(--ctl-h);
+  margin: var(--spacing-0);
+  padding: var(--spacing-0) 10px;
+  border: var(--border-width) solid var(--control);
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-sm);
+}
+
+.input.mono {
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+}
+
+textarea.input {
+  height: auto;
+  min-height: 96px;
+  padding: 8px 10px;
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.input[aria-invalid="true"] {
+  border-color: var(--err);
+}
+
+.input:disabled {
+  background: var(--bg-muted);
+  color: var(--text-faint);
+  cursor: not-allowed;
+}
+
+.check {
+  margin: var(--spacing-0);
+  font-weight: var(--font-weight-normal);
+}
+
+.check strong {
+  display: block;
+  font-weight: var(--font-weight-medium);
+}
+
+.check > span > span {
+  display: block;
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+}
+
+.check input {
+  flex: none;
+}
+
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: var(--spacing-0);
+  padding: var(--spacing-0);
+  border: 0;
+}
+
+.options legend {
+  margin-bottom: 10px;
+  padding: var(--spacing-0);
+  font-size: var(--fs-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.copy-group .copyfield {
+  gap: 6px;
+}
+
+.copyfield .input {
+  flex: 1 1 0;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  background: var(--bg-subtle);
+}
+
+.copyfield .astryx-button {
+  flex: none;
+}
+
+.astryx-text-input {
+  --color-border-emphasized: var(--field-border);
+}
+
+.astryx-text-input.mono input {
+  font-family: var(--mono);
+}
+
+:where(.content, dialog) :where(form) {
+  margin: 12px var(--spacing-0);
+}
+
+:where(.content, .auth-card, dialog) :where(input[type=checkbox], input[type=radio]) {
+  accent-color: var(--primary);
+  width: 15px;
+  height: 15px;
+  vertical-align: -2px;
+  margin: var(--spacing-0) 6px var(--spacing-0) var(--spacing-0);
+}
+
+:where(.content, .auth-card, dialog) :where(input[type=file]) {
+  display: block;
+  margin-top: 6px;
+  font-size: var(--fs-sm);
+}
+
+:where(.content, dialog) :where(fieldset) {
+  margin: 12px var(--spacing-0);
+  padding: 8px 14px;
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--r-md);
+}
+
+:where(.content, dialog) :where(legend) {
+  padding: var(--spacing-0) 4px;
+  font-size: var(--fs-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+:where(.content, dialog) :where(fieldset:not([data-hydration-gate]) label) {
+  font-weight: var(--font-weight-normal);
+  margin: 6px var(--spacing-0);
+}
+
+:where(.content, dialog) :where(form p, fieldset p, label small) {
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+}
+
+:where(.content, dialog) :where([role=alert]) {
+  color: var(--err);
+}
+
+.btn[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: default;
+  pointer-events: none;
+}
+
+.tiles {
+  margin: var(--spacing-0);
+  padding: var(--spacing-0);
+  border: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.tile {
+  margin: var(--spacing-0);
+  display: grid;
+  grid-template-columns: 16px 28px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--r-md);
+  cursor: pointer;
+  font-weight: var(--font-weight-normal);
+}
+
+.tile:hover {
+  background: var(--bg-subtle);
+}
+
+.tile:has(input:checked) {
+  border-color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--text);
+}
+
+.tile input {
+  margin: var(--spacing-0);
+  accent-color: var(--primary);
+}
+
+.tile-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tile-text strong {
+  font-size: var(--fs-sm);
+  font-weight: var(--font-weight-semibold);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tile-text .status {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  white-space: normal;
+}
+
+.tile-text .hint {
+  color: var(--text-faint);
+}
+
+.filters {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.seg {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--r-sm);
+  background: var(--bg-muted);
+  font-size: var(--fs-xs);
+}
+
+.filter {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--size-element-sm);
+  padding: var(--spacing-0) 10px;
+  border: var(--border-width) dashed var(--control);
+  border-radius: var(--r-full);
+  background: var(--bg);
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.filter:hover {
+  background: var(--bg-hover);
+}
+
+.filter.set {
+  border-style: solid;
+  color: var(--text);
+}
+
+.filter.set > span {
+  color: var(--text-muted);
+}
+
+.filter strong {
+  font-weight: var(--font-weight-medium);
+}
+
+.filter svg {
+  width: 12px;
+  height: 12px;
+  vertical-align: 0;
+}
+
+.filter select {
+  appearance: none;
+  field-sizing: content;
+  display: inline;
+  width: auto;
+  max-width: 180px;
+  height: auto;
+  margin: var(--spacing-0);
+  padding: var(--spacing-0);
+  border: 0;
+  background: var(--transparent);
+  color: inherit;
+  font: inherit;
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+
+.filter:not(.set) select {
+  font-weight: var(--font-weight-normal);
+}
+
+.filter a {
+  display: inline-flex;
+  color: var(--text-muted);
+}
+
+.filter:focus-within {
+  outline: var(--focus-outline-width) solid var(--focus);
+  outline-offset: 1px;
+}
+
+.copyfield {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+fieldset[data-hydration-gate] {
+  display: contents;
+}
+
+.seg label {
+  margin: var(--spacing-0);
+  padding: 3px 10px;
+  border-radius: var(--r-sm);
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  font-weight: var(--font-weight-normal);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.seg [aria-current="page"], .seg label:has(input:checked) {
+  background: var(--bg);
+  color: var(--text);
+  font-weight: var(--font-weight-medium);
+  box-shadow: 0 0 0 1px var(--border);
+}
+
+.seg label:has(input:focus-visible) {
+  outline: var(--focus-outline-width) solid var(--focus);
+  outline-offset: 1px;
+}
+
+[data-credential-editor] {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px 20px;
+}
+
+[data-credential-editor] > * {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+[data-credential-editor] > [data-credential-field]:not(:has(textarea)) {
+  grid-column: auto;
+}
+
+[data-credential-editor] > [data-credential-field^="thumbprint"]:not(:has(textarea)) {
+  grid-column: 1 / -1;
+}
+
+[data-credential-editor] [data-certificate], [data-credential-editor] fieldset {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+
+[data-credential-editor] fieldset {
+  min-width: 0;
+}
+
+:where(.content, dialog) [data-credential-editor] fieldset {
+  margin: var(--spacing-0);
+}
+
+:where(.content, dialog) [data-credential-editor] fieldset details {
+  margin: var(--spacing-0);
+}
+
+[data-credential-editor] fieldset p, [data-credential-editor] fieldset pre {
+  margin: var(--spacing-0);
+}
+
+[data-credential-editor] fieldset details > :not(summary) {
+  margin-top: 12px;
+}
+
+[data-astryx-root] :where([data-credential-field], [data-certificate]) :where(.input, .select) {
+  border-color: var(--field-border);
+  border-radius: var(--radius-element);
+  background: var(--color-background-surface);
+  color: var(--color-text-primary);
+}
+
+.switch {
+  position: relative;
+  width: 32px;
+  height: 18px;
+  flex: none;
+  display: inline-block;
+  margin: var(--spacing-0);
+  border-radius: var(--r-full);
+  background: var(--control);
+  appearance: none;
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+.switch::before {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: var(--r-full);
+  background: var(--bg);
+  transition: left 120ms;
+}
+
+.switch.on, input.switch:checked {
+  background: var(--primary);
+}
+
+.switch.on::before, input.switch:checked::before {
+  left: 16px;
+  background: var(--primary-fg);
+}
+
+input.switch:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+:where(.content, [data-astryx-root]) input.switch[type=checkbox] {
+  width: 32px;
+  height: 18px;
+  margin: 2px var(--spacing-0) var(--spacing-0);
+}
+
+.switch-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin: var(--spacing-0);
+  font-weight: var(--font-weight-normal);
+}
+
+:where(.content, [data-astryx-root]) label.switch-row {
+  margin: var(--spacing-0);
+}
+
+.switch-row b {
+  display: block;
+  font-weight: var(--font-weight-medium);
+}
+
+.switch-row span {
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+
+.switch-row + .switch-row {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: var(--border-width) solid var(--border);
+}
+
+:where(.content, [data-astryx-root]) .toggle {
+  display: inline-flex;
+  align-items: center;
+  height: auto;
+  padding: 4px 6px;
+  border: 0;
+  background: var(--transparent);
+  color: var(--text);
+  font: inherit;
+  gap: 8px;
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+
+.ops {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+:where(.content, [data-astryx-root]) .ops-group {
+  margin: var(--spacing-0);
+  padding: var(--spacing-0);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--r-md);
+}
+
+.ops-group > summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px 12px;
+  list-style: none;
+  font-size: var(--fs-sm);
+  font-weight: var(--font-weight-normal);
+}
+
+.ops-group > summary::-webkit-details-marker {
+  display: none;
+}
+
+.ops-group > summary > svg.i {
+  color: var(--text-faint);
+  transition: transform 120ms;
+}
+
+.ops-group[open] > summary > svg.i {
+  transform: rotate(90deg);
+}
+
+.ops-group > summary b {
+  font-weight: var(--font-weight-medium);
+}
+
+.ops-group > summary .muted {
+  font-size: var(--fs-xs);
+}
+
+.ops-group > summary .end {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+}
+
+.ops-body {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 20px;
+  padding: 8px 12px 12px 36px;
+  border-top: var(--border-width) solid var(--border);
+}
+
+.ops-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-left: -11px;
+}
+
+:where(.content, [data-astryx-root]) label.op {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  min-width: 0;
+  margin: var(--spacing-0);
+  font-size: var(--fs-sm);
+  font-weight: var(--font-weight-normal);
+}
+
+:where(.content, [data-astryx-root]) label.op input {
+  margin: var(--spacing-0);
+}
+
+.op span {
+  overflow-wrap: anywhere;
+}
+
+.op code {
+  color: var(--text-faint);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 760px) {
+  .tiles {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ops-body, [data-credential-editor] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ops-body {
+    padding-left: 12px;
+  }
+}

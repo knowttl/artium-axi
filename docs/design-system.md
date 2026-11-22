@@ -11,14 +11,15 @@ This document describes the current screens and their design rules.
 | [tokens.ts](../src/server/admin/design/tokens.ts) | Legacy colour values and shared typography, radius, shadow, control-size and layout tokens, including light and dark palettes. |
 | `src/server/admin/design/components.ts` | Component classes and geometry using the shared tokens, plus base element styles for content that has no component yet. |
 | [frame.css](../src/server/admin/design/frame.css) | Hand-written styles for the top bar, breadcrumbs, side navigation footer, mobile navigation drawer, account menu, Learn panel and recent-authentication pill. Also owns the brand mark shared with sign-in and the popover styles shared with page action menus. Uses Astryx font weights, border width and zero spacing. |
+| [forms.css](../src/server/admin/design/forms.css) | Hand-written styles for buttons, text fields, selects, checkboxes, option cards and tiles, switches, segmented controls, filter chips, the credential editor and the operation picker, and the base styles for form elements in page content, dialogs and sign-in cards. Uses Astryx font weights, border width, zero spacing, focus outline width and the small element size. |
 | `src/server/admin/design/ui.ts` | Builds the typed breadcrumb, brand, navigation, account menu and help panel data for the frame. |
 | `src/views/frame.tsx` | Renders the frame, including its account menu and Learn disclosure. |
 | `src/views/theme-switch.tsx` | Renders the theme switch shared by the frame and auth views. |
 | `src/views/icon.tsx` | Owns the shared inline icon catalog and markup. |
 | `src/server/admin/design/status.ts` | The status vocabulary: one word and tone per state, the badge and status-dot helpers, and the product display name and mark of each tool. |
 
-The tokens, components and `frame.css` in `src/server/admin/design` are concatenated, in that order, and served from `/admin/assets/style.css`.
-The [asset route](../src/server/admin/users.ts) reads `design/frame.css` relative to its module at load time, so builds and server bundles must include the stylesheet at that relative path.
+The tokens, components, `frame.css` and `forms.css` in `src/server/admin/design` are concatenated, in that order, and served from `/admin/assets/style.css`.
+The [asset route](../src/server/admin/users.ts) reads `design/frame.css` and `design/forms.css` relative to its module at load time, so builds and server bundles must include both stylesheets at those relative paths.
 The build also produces a React and Astryx browser bundle and the Astryx neutral stylesheet, served at `/admin/assets/hydrate.js` and `/admin/assets/astryx.css`.
 All pages load the stylesheet; render-seam pages also load the browser bundle.
 
@@ -27,6 +28,13 @@ It keeps the legacy popover shadow because Astryx uses different offsets and opa
 Font sizes, corner radii, nonzero spacing and layout dimensions retain their baseline values across browser font sizes.
 The [frame CSS parity archive](frame-css-parity.zip) contains 96 historical before-and-after screenshot pairs for base revision `64bba2600f9f421d22d67cc445e9cc05582d897d` and the stylesheet served by revision `7c94db0113048f39c255f689710b64841c3214de`.
 The archive's `README.txt` records the stylesheet checksums, screenshot comparison at the default root font size and computed token checks at the default and 20px root font sizes.
+
+The form controls keep their legacy surface, text, border and status colors for the same reason.
+They keep font sizes, corner radii, nonzero spacing and layout dimensions at their baseline values across browser font sizes, except the small control height, which matches the Astryx small element size at every root font size.
+Because `forms.css` is served after the `.mono` utility in `components.ts`, the `.input.mono` rule sets its own font size so the monospace size is unchanged.
+The [forms CSS parity archive](forms-css-parity.zip) contains 95 before-and-after screenshot pairs at the default root font size for base revision `e8ea8b5aa7ad05924025f1e85b0ced0960facc6d`.
+Its `README.txt` records the stylesheet checksums and the computed style comparison, which covers 190 page, theme, width and root font size cases at both root font sizes, with synthetic markup for every form control class in content, dialog, sign-in card and Astryx root contexts.
+Rules for markup that no view renders any more, such as the legacy form element styles outside the Astryx root, stay in `components.ts`.
 
 ## Render seam
 
