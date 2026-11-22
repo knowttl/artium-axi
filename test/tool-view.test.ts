@@ -345,10 +345,15 @@ test('a policy whose ceilings are not saved offers no grant, and the page says w
   expect(find(everyone, element => attribute(element, 'id') === 'sheet-grants-sessions-add')).toEqual([])
 })
 
+const certificateGroups = (form: Element) => nodes(form).filter(element => element.tagName === 'fieldset'
+  && element.childNodes.some(child => 'tagName' in child && child.tagName === 'legend' && text(child) === 'Certificate verification'))
+
+const verificationForm = (tool: ToolName, metadata: Record<string, unknown> = {}) =>
+  addForm(renderInstances({ addInstance: addInstance({ editor: { ...editor, tls: tlsSection(tool, metadata) } }) }))
+
 const verification = (tool: ToolName, metadata: Record<string, unknown> = {}) => {
-  const html = renderInstances({ addInstance: addInstance({ editor: { ...editor, tls: tlsSection(tool, metadata) } }) })
-  const [fieldset] = find(html, element => element.tagName === 'fieldset')
-  return { html, fieldset: fieldset!, fields: nodes(fieldset!).filter(element => attribute(element, 'data-profile-field') !== undefined) }
+  const [fieldset] = certificateGroups(verificationForm(tool, metadata))
+  return { fieldset: fieldset!, fields: nodes(fieldset!).filter(element => attribute(element, 'data-profile-field') !== undefined) }
 }
 
 test.each([
@@ -365,7 +370,6 @@ test.each([
   expect(fields.filter(field => attribute(field, 'data-profile-clearable') !== undefined).map(field => attribute(field, 'data-profile-field'))).toEqual(clearable)
   expect(nodes(fieldset).filter(element => attribute(element, 'data-tls-file') !== undefined).map(input => [attribute(input, 'type'), attribute(input, 'accept'), attribute(input, 'data-tls-file')]))
     .toEqual(uploads.map(name => ['file', '.pem', name]))
-  expect(nodes(fieldset).filter(element => element.tagName === 'legend').map(text)).toEqual(['Certificate verification'])
 })
 
 test.each(['unifi-axi', 'proxmox-axi', 'technitium-axi', 'ldap-axi', 'vectra-axi', 'kubernetes-axi'] as const)('%s keeps a pasted certificate in a native, uncontrolled field that holds no value', tool => {
@@ -408,7 +412,11 @@ test('Kubernetes requires a trusted certificate until one is saved and opens its
   expect(nodes(saved.fieldset).filter(element => element.tagName === 'details' && attribute(element, 'open') !== undefined)).toEqual([])
 })
 
-test('a tool without certificate settings offers no certificate verification', () => {
-  expect(find(renderInstances({ addInstance: addInstance({ editor: { ...editor, tls: null } }) }), element => element.tagName === 'fieldset')).toEqual([])
-  expect(tlsSection('ssh-axi', {})).toBeNull()
+test('the SSH TLS configuration offers no certificate verification controls', () => {
+  const form = verificationForm('ssh-axi')
+  expect(certificateGroups(form)).toEqual([])
+  expect(nodes(form).filter(element =>
+    ['data-tls-input', 'data-tls-file', 'data-tls-remove'].some(name => attribute(element, name) !== undefined)
+    || element.tagName === 'input' && attribute(element, 'type') === 'file' && attribute(element, 'accept') === '.pem'
+      && attribute(element, 'name') !== 'pem.certificatePem')).toEqual([])
 })

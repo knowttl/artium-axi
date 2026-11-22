@@ -30,7 +30,7 @@ The tool page frame holds the setup steps, the Enabled switch (a native `button`
 The Write permissions, Raw API and Advanced tabs are Astryx views.
 The operation picker in `src/views/tool-writes.tsx` derives filtered rows and selection counts for both server rendering and the interactive view.
 The search and view inputs belong to the `ops-filter` GET form through the `form` attribute, and the operation checkboxes belong to the write permissions form.
-On hydration, the picker reads the current search, view, checkbox and native `details` states from the same document before taking control.
+The write permissions fieldset keeps the search, view and operation controls disabled until React hydrates, while the native `details` groups can be opened or closed during page load.
 The Instances tab (`src/views/tool-instances.tsx`) is an Astryx table with the Test, Edit, Enable or Disable, and Delete actions, and the Edit sheet on the shared `Sheet`; the actions menu stays a native `details` with the `more-menu` class, and the page's `Card` allows overflow so the menu is not clipped.
 The table sits in an `instances-list` container: a table from 900 px of container width, with the instance name and description wrapping in their column, and stacked cards below it, so every action stays inside the card.
 Its row props carry the displayed instance details and status, action paths, identity and revision, but no credential values or raw metadata.
@@ -47,7 +47,7 @@ The editor marks required fields, hides and disables forbidden fields, and makes
 It renders the initial field state from the server-provided values and reads the current form values during hydration.
 The Certificate verification fieldset (`CertificateVerification` in `src/views/certificate-verification.tsx`) is React inside `CredentialEditor`, built from the `TlsSection` that `tlsSection()` in `src/server/admin/tls-fields.ts` derives once from the tool's TLS settings and the saved metadata.
 Its text, upload, select and removal controls are native and uncontrolled inside Astryx `Field`.
-Each PEM picker reads its selected file into the corresponding textarea, including files selected before hydration.
+Once React hydrates, each PEM picker reads its selected file into the corresponding textarea.
 The picker clears its selection after copying the PEM, leaving the textarea available for edits.
 The pasted trusted certificate and each file upload are emptied when the sheet closes, like the secrets.
 The hostname choice defaults to hostname verification, or to keeping the saved setting when a fingerprint is stored, followed by Yes and No; removal checkboxes start unchecked.
@@ -80,7 +80,8 @@ See the [certificate trust runbook](runbook.md#trusting-one-tool-from-the-admini
 The GitHub connection card on this page is the same `GithubConnection` view, above the Connection card.
 The Tools list's Show filter is a row of Astryx link buttons that mark the current view with `aria-current="page"`.
 Tools, People and Audit use the shared React [`FilterForm`](../src/views/filter-form.tsx) for their GET forms.
-See [Browser administration](admin-guide.md#browser-administration) for submission and fallback behavior.
+Links for preset views remain available during page load.
+See [Browser administration](admin-guide.md#browser-administration) for filter availability and submission behavior.
 Invitation creation, resend and linking an existing user use the shared React `ActionForm` with `claimLink`.
 After a successful submission, `submitForm` closes the sheet and emits the absolute claim URL with the `artium-claim-link` event.
 The React [`ClaimLinkDialog`](../src/views/claim-link.tsx) focuses and selects the URL field when it opens.
@@ -137,10 +138,13 @@ After creating or updating an instance with credentials, `submitForm` runs the o
 `ActionForm` uses `artium-confirm` for action confirmation and `artium-reauth-request` for identity confirmation.
 After certificate trust is saved, `submitForm` tests with `X-Artium-Retest: 1` and stores the outcome for the reloaded instance page.
 Once React handles a submit, `submitForm` holds a page-wide submit lock and captures the submitted values before waiting for `astryx-hydrated`, when the dialog listeners are ready.
-Before the hydration bundle executes, forms submit natively.
+Wrap migrated administration form controls, including submit buttons, in the shared [`HydrationGate`](../src/views/hydrated.tsx).
+It renders a disabled `fieldset` (`data-hydration-gate`, shown as `display: contents`) until React hydrates.
+`ActionForm` and `Sheet` apply the gate for API submissions, and `FilterForm` applies it for list filters.
+For a custom form such as the provider-kind chooser, place the gate inside the form around its controls.
+`ActionForm` leaves the fieldset enabled for routes with a `native` entry in `src/shared/confirmation-routes.ts`, so those forms can post to the server confirmation page without JavaScript.
 See [browser administration](admin-guide.md#browser-administration) for the actions that support server confirmation.
 The New role and Rename sheets pass no confirmation text, so they submit without a confirmation dialog.
-Their name fields read the current input value during hydration so text entered while the bundle is loading is preserved.
 Astryx checkboxes emit inline SVG shapes, so the role and administrator checkboxes stay native.
 `ActionForm` in `src/views/action-form.tsx` owns the `data-api` form attributes (method, consequence, title, action, typed name, success URL and success message) and the submission itself, and `Sheet` builds on it, so a view writes an API form without repeating them.
 The person detail page's "More actions" overflow menu keeps a native `details` disclosure, because Astryx dropdown components need runtime inline styles (see issue 462), and builds its items from Astryx `Button` and `ActionForm`.
@@ -297,7 +301,7 @@ Create and edit flows that need several fields open in a side sheet.
 Astryx `Drawer` and `Dialog` render closed until hydration, so the server view uses the native dialog.
 Close and Cancel link back to the page without JavaScript.
 Once React hydrates, `sheetTrigger` opens an already rendered sheet in place when available.
-`SheetFrame` promotes a server-open sheet to a modal without firing a dismissal event, removes its opening query parameters while preserving unrelated parameters, and hides the server-rendered scrim.
+After hydration, `SheetFrame` promotes a server-open sheet to a modal without firing a dismissal event, removes its opening query parameters while preserving unrelated parameters, and hides the server-rendered scrim.
 Close, Cancel and Escape dismiss the modal and return focus to the actual in-page launcher or to the associated control for a server-opened sheet.
 For a launcher inside a menu, focus returns to the menu summary.
 `Sheet` wraps `SheetFrame` with an `ActionForm` and uses `FormMessage` to show and focus plain-form errors inside the open dialog.
@@ -335,7 +339,7 @@ For the optional provider sign-out choice, see [browser administration](admin-gu
 Error pages say what happened and what to do, show the code and a copyable request ID, and offer the viewer's home page.
 
 **Dialog views without JavaScript.**
-See [sheet behavior](#patterns) for the server-rendered add and edit views and confirmation fallback.
+See [sheet behavior](#patterns) for server-rendered add and edit views and [browser administration](admin-guide.md#browser-administration) for actions with a server confirmation page.
 
 ## Navigation
 

@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState
 import { confirmationRouteFor } from '../shared/confirmation-routes.js'
 import type { CertificateInspection } from './certificate-inspection.js'
 import type { GithubDeviceStart } from './github-device.js'
+import { HydrationGate } from './hydrated.js'
 import { submitForm, type Report } from './submit.js'
 import type { TestOutcome } from './test-outcome.js'
 import { toastEvent, type ToastDetail } from './toasts.js'
@@ -121,7 +122,9 @@ export function ActionForm({ action, method, csrf, confirmation, successUrl, suc
           <input type="hidden" name="_confirmText" value={confirmation.consequence} />
         </>
       )}
-      <FormMessageContext value={{ message, area }}><FormDirtyContext value={dirty}>{children}</FormDirtyContext></FormMessageContext>
+      <HydrationGate allowBeforeHydration={Boolean(route?.native)}>
+        <FormMessageContext value={{ message, area }}><FormDirtyContext value={dirty}>{children}</FormDirtyContext></FormMessageContext>
+      </HydrationGate>
     </form>
   )
 }

@@ -371,7 +371,7 @@ dialog h2 { margin: 0 0 6px; font-size: var(--fs-md); font-weight: 600; }
 :where(.content, .auth-card, dialog) :where(button:disabled):where(:not([data-astryx-root] *)) { opacity: 0.5; cursor: wait; }
 :where(.content, dialog) :where(fieldset) { margin: 12px 0; padding: 8px 14px; border: 1px solid var(--border); border-radius: var(--r-md); }
 :where(.content, dialog) :where(legend) { padding: 0 4px; font-size: var(--fs-sm); font-weight: 600; }
-:where(.content, dialog) :where(fieldset label) { font-weight: 400; margin: 6px 0; }
+:where(.content, dialog) :where(fieldset:not([data-hydration-gate]) label) { font-weight: 400; margin: 6px 0; }
 :where(.content, dialog) :where(details) { margin: 12px 0; padding-top: 10px; border-top: 1px solid var(--border); }
 :where(.content, dialog, .auth-help) :where(summary) { cursor: pointer; font-size: var(--fs-sm); font-weight: 500; }
 :where(.content, dialog) :where(pre:empty) { display: none; }
@@ -503,6 +503,7 @@ dialog h2 { margin: 0 0 6px; font-size: var(--fs-md); font-weight: 600; }
 
 /* Card parts */
 form.card, .card-foot form, .card-head form { margin: 0; }
+fieldset[data-hydration-gate] { display: contents; }
 
 /* Table */
 .tool-ico.lg { width: 44px; height: 44px; border-radius: 10px; font-size: 15px; }

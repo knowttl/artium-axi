@@ -1,9 +1,9 @@
 import { Button } from '@astryxdesign/core/Button'
-import { useLayoutEffect, useState, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
+import { HydrationGate, useHydrated } from './hydrated.js'
 
 export function FilterForm({ action, apply, trailing, children }: { action: string, apply?: 'always' | 'until-hydrated', trailing?: ReactNode, children: ReactNode }) {
-  const [hydrated, setHydrated] = useState(false)
-  useLayoutEffect(() => setHydrated(true), [])
+  const hydrated = useHydrated()
   return (
     <form className="filters" method="get" action={action}
       onChange={event => { if (event.target instanceof HTMLSelectElement) event.currentTarget.requestSubmit() }}
@@ -13,9 +13,11 @@ export function FilterForm({ action, apply, trailing, children }: { action: stri
         for (const [name, value] of new FormData(event.currentTarget)) if (value !== '') query.set(name, String(value))
         location.assign(`${event.currentTarget.action}?${query}`)
       }}>
-      {children}
-      {apply && <Button type="submit" label="Apply" variant="secondary" size="sm" {...{ hidden: apply === 'until-hydrated' && hydrated }} />}
-      {trailing}
+      <HydrationGate>
+        {children}
+        {apply && <Button type="submit" label="Apply" variant="secondary" size="sm" {...{ hidden: apply === 'until-hydrated' && hydrated }} />}
+        {trailing}
+      </HydrationGate>
     </form>
   )
 }

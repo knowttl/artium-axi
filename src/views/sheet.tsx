@@ -3,6 +3,7 @@ import { IconButton } from '@astryxdesign/core/IconButton'
 import { Heading, Text } from '@astryxdesign/core/Text'
 import { createContext, useContext, useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 import { ActionForm, FormMessage } from './action-form.js'
+import { useHydrated } from './hydrated.js'
 import { Icon } from './icon.js'
 
 const SheetClose = createContext<{ closeHref: string, close: () => void } | null>(null)
@@ -61,14 +62,15 @@ export function SheetFrame({ name, open, query = sheetQuery, returnFocusId, clos
   const id = `sheet-${name}`
   const dialog = useRef<HTMLDialogElement>(null)
   const [modal, setModal] = useState(false)
+  const hydrated = useHydrated()
   useEffect(() => {
-    if (!open) return
+    if (!open || !hydrated) return
     const url = new URL(location.href)
     for (const parameter of query) url.searchParams.delete(parameter)
     history.replaceState(null, '', url)
     showSheet(dialog.current!)
     setModal(true)
-  }, [open, query])
+  }, [open, query, hydrated])
   const close = () => dialog.current!.close()
   const returnFocus = () => {
     const element = dialog.current!
