@@ -593,11 +593,11 @@
   background: var(--bg-subtle);
 }
 
-:where(.card, [data-astryx-root]) .note[data-valid="true"] {
+:where([data-astryx-root]) .note[data-valid="true"] {
   color: var(--ok);
 }
 
-:where(.card, [data-astryx-root]) .note[data-valid="false"] {
+:where([data-astryx-root]) .note[data-valid="false"] {
   color: var(--err);
 }
 

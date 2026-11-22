@@ -48,8 +48,8 @@ See the archive's `README.txt` for the stylesheet checksums, exact capture cover
 The card and layout styles keep their legacy surface, text, border and status colors, font sizes, corner radii, nonzero spacing, layout dimensions and viewport breakpoints.
 The extracted rules in `cards.css` preserve the cascade, including the narrow-screen and 1080px layout rules.
 Selectors that no markup in `src/views` can match stay in `components.ts` with the dialog, auth, menu and base element rules.
-The [cards CSS parity archive](cards-css-parity.zip) compares the final stylesheet with the baseline on Person, Role, Account, tool and instance pages, the audit and SSH disclosures, and the provider and invitation pages.
-The archive also preserves historical comparisons of other pages and states.
+The [cards CSS parity archive](cards-css-parity.zip) compares the final stylesheet with the baseline for valid and invalid JSON feedback on the Advanced tool tab.
+It also preserves earlier comparisons of Person, Role, Account, tool and instance pages, audit and SSH disclosures, provider and invitation pages, and other card and layout states.
 See the archive's `README.txt` for the stylesheet checksums, exact capture coverage, screenshot comparison results and computed style checks.
 
 ## Render seam
