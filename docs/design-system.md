@@ -80,8 +80,8 @@ See the [certificate trust runbook](runbook.md#trusting-one-tool-from-the-admini
 The GitHub connection card on this page is the same `GithubConnection` view, above the Connection card.
 The Tools list's Show filter is a row of Astryx link buttons that mark the current view with `aria-current="page"`.
 Tools, People and Audit use the shared React [`FilterForm`](../src/views/filter-form.tsx) for their GET forms.
-Filter inputs and Apply are disabled until React hydrates, and links for preset views remain available during page load.
-See [Browser administration](admin-guide.md#browser-administration) for filter submission behavior.
+Links for preset views remain available during page load.
+See [Browser administration](admin-guide.md#browser-administration) for filter availability and submission behavior.
 Invitation creation, resend and linking an existing user use the shared React `ActionForm` with `claimLink`.
 After a successful submission, `submitForm` closes the sheet and emits the absolute claim URL with the `artium-claim-link` event.
 The React [`ClaimLinkDialog`](../src/views/claim-link.tsx) focuses and selects the URL field when it opens.
@@ -95,7 +95,6 @@ The Sign-in & SSO list (`SignIn` in `src/views/sign-in.tsx`, route `/admin/setti
 The list shows the sign-in mode, break-glass readiness and pending invitations as three summary cards, then a Providers panel with each provider's kind, issuer, status and a link to its page; it also opens the Add provider sheets from `?add=choose` (a GET chooser), `?add=entra` and `?add=oidc` (the create form on the shared `Sheet` and `ActionForm`, with its tier 2 confirmation).
 Only the requested sheet is rendered, so provider forms never share field IDs on the page.
 The chooser carries the empty-state launcher's focus destination into either provider form.
-Its radio buttons and Continue button become available after React hydrates.
 The who-matches page is read-only and shows the people whose last recorded sign-in claims match a role rule.
 Their props are provider names, kinds, issuers, a `configured` flag, counts and people an administrator already sees, and carry no credential value.
 The provider page (`Provider` in `src/views/provider.tsx`, route `/admin/settings/sign-in/:id`) is the twelfth page on the seam, with a Setup, Credential, Role rules and Settings tab.
@@ -139,12 +138,13 @@ After creating or updating an instance with credentials, `submitForm` runs the o
 `ActionForm` uses `artium-confirm` for action confirmation and `artium-reauth-request` for identity confirmation.
 After certificate trust is saved, `submitForm` tests with `X-Artium-Retest: 1` and stores the outcome for the reloaded instance page.
 Once React handles a submit, `submitForm` holds a page-wide submit lock and captures the submitted values before waiting for `astryx-hydrated`, when the dialog listeners are ready.
-Wrap migrated administration form controls in the shared `HydrationGate`, which renders a disabled `fieldset` (`data-hydration-gate`, shown as `display: contents`) until React hydrates.
-A form whose confirmation route has a native confirmation page (the `native` entry in `src/shared/confirmation-routes.ts`) stays enabled and posts natively to that page, so it also works without JavaScript.
-Use `ActionForm` or `Sheet` for API submissions and `FilterForm` for list filters, which all apply the shared gate.
+Wrap migrated administration form controls, including submit buttons, in the shared [`HydrationGate`](../src/views/hydrated.tsx).
+It renders a disabled `fieldset` (`data-hydration-gate`, shown as `display: contents`) until React hydrates.
+`ActionForm` and `Sheet` apply the gate for API submissions, and `FilterForm` applies it for list filters.
+For a custom form such as the provider-kind chooser, place the gate inside the form around its controls.
+`ActionForm` leaves the fieldset enabled for routes with a `native` entry in `src/shared/confirmation-routes.ts`, so those forms can post to the server confirmation page without JavaScript.
 See [browser administration](admin-guide.md#browser-administration) for the actions that support server confirmation.
 The New role and Rename sheets pass no confirmation text, so they submit without a confirmation dialog.
-Their name fields and submit buttons become available after React hydrates.
 Astryx checkboxes emit inline SVG shapes, so the role and administrator checkboxes stay native.
 `ActionForm` in `src/views/action-form.tsx` owns the `data-api` form attributes (method, consequence, title, action, typed name, success URL and success message) and the submission itself, and `Sheet` builds on it, so a view writes an API form without repeating them.
 The person detail page's "More actions" overflow menu keeps a native `details` disclosure, because Astryx dropdown components need runtime inline styles (see issue 462), and builds its items from Astryx `Button` and `ActionForm`.
@@ -301,7 +301,7 @@ Create and edit flows that need several fields open in a side sheet.
 Astryx `Drawer` and `Dialog` render closed until hydration, so the server view uses the native dialog.
 Close and Cancel link back to the page without JavaScript.
 Once React hydrates, `sheetTrigger` opens an already rendered sheet in place when available.
-`SheetFrame` promotes a server-open sheet to a modal without firing a dismissal event, removes its opening query parameters while preserving unrelated parameters, and hides the server-rendered scrim.
+After hydration, `SheetFrame` promotes a server-open sheet to a modal without firing a dismissal event, removes its opening query parameters while preserving unrelated parameters, and hides the server-rendered scrim.
 Close, Cancel and Escape dismiss the modal and return focus to the actual in-page launcher or to the associated control for a server-opened sheet.
 For a launcher inside a menu, focus returns to the menu summary.
 `Sheet` wraps `SheetFrame` with an `ActionForm` and uses `FormMessage` to show and focus plain-form errors inside the open dialog.
@@ -339,7 +339,7 @@ For the optional provider sign-out choice, see [browser administration](admin-gu
 Error pages say what happened and what to do, show the code and a copyable request ID, and offer the viewer's home page.
 
 **Dialog views without JavaScript.**
-See [sheet behavior](#patterns) for the server-rendered add and edit views and confirmation fallback.
+See [sheet behavior](#patterns) for server-rendered add and edit views and [browser administration](admin-guide.md#browser-administration) for actions with a server confirmation page.
 
 ## Navigation
 

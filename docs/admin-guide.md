@@ -125,11 +125,11 @@ Administration pages share a left sidebar grouped into Access, Tools and Securit
 | `/admin/settings/sign-in/:id/matches/:ruleId` | Who matches a role rule, from saved sign-in claims. |
 | `/device` | Approve or deny a CLI sign-in or identity confirmation code. |
 
-People, Audit and Tools filter inputs become available once the interactive controls load.
-Once the controls load, changing a dropdown applies the current filters automatically.
-Only Audit's **Custom** range keeps **Apply** visible after loading so you can submit the UTC date fields.
+The filter fields on People, Audit and Tools require JavaScript.
+Changing a dropdown applies the current filters automatically once the fields are enabled.
+For Audit's **Custom** range, use **Apply** to submit the UTC date fields.
 On Tools, press Enter in **Filter tools** to search within the current **Show** view.
-After the interactive controls load, filter submissions omit empty fields from the URL.
+Filter submissions omit empty fields from the URL.
 
 Tool State reflects cached instance health even while the tool is disabled; Enabled is shown separately, with its switch on the tool detail page.
 See the [health aggregation rules](runbook.md#backup-restore-and-upgrade-rollback).
@@ -192,7 +192,7 @@ Register the artium `/login` URL as an allowed post-logout return URI in the pro
 Confirmation dialogs are titled with the action and explain its consequence before the change; removing an SSO role rule also requires typing its claim value.
 While the page is loading or when JavaScript is disabled, session and token revocations, user unlock and adding an SSO role rule use a server confirmation page.
 After a successful server-confirmed action, the browser returns to Account or Administration; revoking the current session signs you out.
-Wait for the page to finish loading before submitting other actions so the browser can use the interactive forms.
+Other React administration forms keep their fields and submit buttons disabled until the forms become interactive.
 If you see **Page script required**, the server made no change.
 With JavaScript enabled, reload the page, wait for it to finish loading and submit again.
 The server checks each typed name against the target and binds the confirmation to that name.
@@ -321,7 +321,8 @@ For a new installation, follow [Graph credential setup](tool-credentials.md#micr
 
 ### Sign-in settings
 
-Open **Sign-in & SSO** at `/admin/settings/sign-in`, choose **Add provider** and pick **Microsoft Entra ID** to add a single-tenant provider using its name and directory tenant UUID.
+Open **Sign-in & SSO** at `/admin/settings/sign-in` and choose **Add provider**.
+Once the chooser is enabled, pick **Microsoft Entra ID** and select **Continue** to add a single-tenant provider using its name and directory tenant UUID.
 Open the provider's **Credential** tab to save its application client UUID and credential.
 Certificate authentication is preferred: paste or upload one PEM containing the certificate and matching unencrypted private key; Artium calculates the SHA-256 fingerprint.
 The application's public certificate registration is an owner setup step; saving here does not contact the provider.
