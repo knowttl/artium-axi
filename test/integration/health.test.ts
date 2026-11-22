@@ -3,7 +3,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
-import { connect as connectTls } from 'node:tls'
+import { connect as connectTcp, Socket } from 'node:net'
+import { connect as connectTls, TLSSocket } from 'node:tls'
 import type Database from 'better-sqlite3'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { createApp } from '../../src/server/app.js'
@@ -35,8 +36,6 @@ vi.mock('node:child_process', async importOriginal => {
   return { ...original, spawn: vi.fn<typeof original.spawn>(() => { throw new Error('Unexpected health process') }) }
 })
 
-vi.setConfig({ testTimeout: 120_000, hookTimeout: 120_000 })
-
 const { spawn: spawnProcess } = await vi.importActual<typeof import('node:child_process')>('node:child_process')
 
 function controlledHealthProcess(output = { stdout: 'synthetic', stderr: '', exitCode: 0 }) {
@@ -55,6 +54,21 @@ function controlledHealthProcess(output = { stdout: 'synthetic', stderr: '', exi
 function failHealthProcess(text: string) {
   vi.mocked(spawn).mockImplementationOnce((_executable, _args, options) =>
     spawnProcess(fakeTool.executable, [...fakeTool.args, 'failure', text], options))
+}
+
+function scriptPreflight(tlsError?: string) {
+  vi.mocked(connectTcp).mockImplementationOnce(() => {
+    const socket = new Socket()
+    queueMicrotask(() => socket.emit('connect'))
+    return socket
+  })
+  vi.mocked(connectTls).mockImplementationOnce(() => {
+    if (tlsError) return failedTlsSocket(tlsError)
+    const socket = new TLSSocket(new Socket())
+    socket.authorized = true
+    queueMicrotask(() => socket.emit('secureConnect'))
+    return socket
+  })
 }
 
 let directory: string
@@ -84,6 +98,8 @@ beforeEach(async () => {
     resolver: new SharedIdentityResolver(store, db), environment: {} })
 })
 afterEach(async () => {
+  vi.mocked(connectTcp).mockReset()
+  vi.mocked(connectTls).mockReset()
   await app.close()
   await health.stop()
   db.close()
@@ -554,6 +570,7 @@ describe.each(['synthetic-development-user', healthDefaults.actor])('destination
       db.exec("UPDATE tools SET enabled = 1 WHERE name = 'vectra-axi'")
       const vectra = createVectraAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'))
       const text = `code: TRANSPORT_FAILED\nmessage: Request to https://appliance.test could not complete\nhint: ${cause}`
+      if (actor !== healthDefaults.actor) scriptPreflight()
       failHealthProcess(text)
       health = new ToolHealth(db, new Audit(db), runner, [vectra], store)
       await expect(health.check('vectra-axi', actor, 'native-transport', null)).rejects.toMatchObject({
@@ -595,6 +612,7 @@ describe.each(['synthetic-development-user', healthDefaults.actor])('destination
     db.prepare('UPDATE tools SET enabled = 1 WHERE name = ?').run(tool)
     health = new ToolHealth(db, new Audit(db), runner, [create()], store)
     const text = `code: ${toolCode}\nmessage: ${message}`
+    if (actor !== healthDefaults.actor) scriptPreflight()
     failHealthProcess(text)
     await expect(health.check(tool, actor, 'destination-test', null)).rejects.toMatchObject({
       code, diagnostic: { stage, message: 'Details unavailable.', checkedAt: expect.any(Number), credentialRevision: 1 },
@@ -614,7 +632,7 @@ test.each(['UPSTREAM_NETWORK_FAILED', 'UPSTREAM_TLS_FAILED'] as const)('omits th
   0, 'synthetic-development-user', Date.now())
   health = new ToolHealth(db, new Audit(db), runner,
     [createAzAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'))], store)
-  vi.mocked(connectTls).mockImplementationOnce(() => failedTlsSocket(code === 'UPSTREAM_TLS_FAILED' ? 'CERT_HAS_EXPIRED' : 'ECONNRESET'))
+  scriptPreflight(code === 'UPSTREAM_TLS_FAILED' ? 'CERT_HAS_EXPIRED' : 'ECONNRESET')
   await expect(health.check('az-axi', 'synthetic-development-user', 'specific-host', null)).rejects.toMatchObject({
     code, diagnostic: { stage: 'TLS', message: 'Details unavailable.', checkedAt: expect.any(Number), credentialRevision: 1 },
   })
@@ -644,6 +662,7 @@ test.each([
   store.replaceCredential('ldap-axi', { url: 'ldaps://directory.test:636', auth: 'simple', bindDn: 'cn=synthetic',
     bindPassword: 'directory.test' }, 0, 'synthetic-development-user', Date.now())
   health = new ToolHealth(db, new Audit(db), runner, [createLdapAdapter(new EmbeddedSecretSource(store))], store)
+  scriptPreflight()
   vi.spyOn(runner, 'run').mockResolvedValue({ ...result, stdout: '',
     stderr: `code: ${toolCode}\nmessage: ${message}`, exitCode: 1 })
   await expect(health.check('ldap-axi', 'synthetic-development-user', 'ldap-scan', null)).rejects.toMatchObject({

@@ -902,4 +902,4 @@ test('the real server remains available after startup encounters a damaged nativ
   expect(stderr).not.toContain('CANARY-partial')
   expect(records.filter(record => record.event === 'retention').map(record => record.code))
     .toEqual(Array(7).fill('AUDIT_UNAVAILABLE'))
-}, 120_000)
+}, 10_000)
