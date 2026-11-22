@@ -663,8 +663,7 @@ test.each([
     bindPassword: 'directory.test' }, 0, 'synthetic-development-user', Date.now())
   health = new ToolHealth(db, new Audit(db), runner, [createLdapAdapter(new EmbeddedSecretSource(store))], store)
   scriptPreflight()
-  vi.spyOn(runner, 'run').mockResolvedValue({ ...result, stdout: '',
-    stderr: `code: ${toolCode}\nmessage: ${message}`, exitCode: 1 })
+  failHealthProcess(`code: ${toolCode}\nmessage: ${message}`)
   await expect(health.check('ldap-axi', 'synthetic-development-user', 'ldap-scan', null)).rejects.toMatchObject({
     code, diagnostic: undefined,
   })

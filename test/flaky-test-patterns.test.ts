@@ -60,6 +60,11 @@ test.each([
     text: 'export {}\nawait new Promise(done => { const finish = () => done(); setTimeout(finish, 50) })\n', report: `src/server/example.test.ts:2: ${fixedSleep}` },
   { name: 'an aliased promise timer', path: 'src/server/example.test.ts',
     text: "import { setTimeout as delay } from 'node:timers/promises'\nawait delay(50)\n", report: `src/server/example.test.ts:2: ${fixedSleep}` },
+  { name: 'a timer promise returned by an expression-bodied test', path: 'src/server/example.test.ts',
+    text: "test('waits', () => new Promise(done => setTimeout(done, 50)))\n", report: `src/server/example.test.ts:1: ${fixedSleep}` },
+  { name: 'a promise timer returned explicitly by a test', path: 'src/server/example.test.ts',
+    text: "import { setTimeout as delay } from 'node:timers/promises'\ntest('waits', () => {\n  return delay(50)\n})\n",
+    report: `src/server/example.test.ts:3: ${fixedSleep}` },
   { name: 'a namespaced promise timer', path: 'test/browser/example.mjs',
     text: "import * as timers from 'node:timers/promises'\nawait timers.setTimeout(50)\n", report: `test/browser/example.mjs:2: ${fixedSleep}` },
   { name: 'a timeout under an interval-only fake clock', path: 'src/server/example.test.ts',
@@ -108,6 +113,10 @@ test.each([
     text: "vi.useFakeTimers({ toFake: ['setTimeout'] })\nawait new Promise(done => setTimeout(done, 50))\n" },
   { name: 'a virtual wait under an enclosing setup hook', path: 'src/server/example.test.ts',
     text: "beforeEach(() => vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] }))\ndescribe('suite', () => {\n  test('advance time', async () => {\n    const tick = vi.advanceTimersByTimeAsync(50)\n    await new Promise(done => setTimeout(done, 50))\n    await tick\n  })\n})\n" },
+  { name: 'a local fake clock with an empty timer list', path: 'src/server/example.test.ts',
+    text: 'vi.useFakeTimers({ toFake: [] })\nvoid vi.advanceTimersByTimeAsync(50)\nawait new Promise(done => setTimeout(done, 50))\n' },
+  { name: 'a returned timer under a fake setup clock with an empty list', path: 'src/server/example.test.ts',
+    text: "beforeEach(() => vi.useFakeTimers({ toFake: [] }))\ntest('advance time', () => {\n  void vi.advanceTimersByTimeAsync(50)\n  return new Promise(done => setTimeout(done, 50))\n})\n" },
   { name: 'an event wait with a failure deadline', path: 'src/server/example.test.ts',
     text: "await new Promise((resolve, reject) => {\n  const deadline = setTimeout(() => reject(new Error('not ready')), 500)\n  child.once('spawn', () => { clearTimeout(deadline); resolve() })\n})\n" },
   { name: 'an event wait with a named rejection callback', path: 'src/server/example.test.ts',
@@ -116,12 +125,29 @@ test.each([
     text: 'setTimeout(() => finish(), 50)\ntest.setTimeout(5000)\n' },
   { name: 'assertions that do not count calls', path: 'src/server/example.test.ts',
     text: 'expect(run).toHaveBeenCalled()\nexpect(run).toHaveBeenCalledWith(1)\n' },
+  { name: 'an uninvoked Vitest matcher', path: 'src/server/example.test.ts',
+    text: 'const assertCount = expect(run).toHaveBeenCalledTimes\n' },
   { name: 'code outside test files', path: 'src/server/helper.ts', text: 'await new Promise(resolve => setTimeout(resolve, 50))\n' },
 ])('accepts $name', ({ path, text }) => {
   write(path, text)
   const result = lint()
   expect(result.status, result.stderr).toBe(0)
   expect(result.stdout).toContain('Flaky-test patterns')
+})
+
+test('allows a public output count without suppressing the next assertion', () => {
+  const path = 'src/server/example.test.ts'
+  write(path, [
+    'test("persists one line", () => {',
+    '  // flaky-test-patterns: allow-call-count The public audit stream emits one persisted JSON line per record.',
+    '  expect(stdout).toHaveBeenCalledExactlyOnceWith("one line\\n")',
+    '  expect(prepare).toHaveBeenCalledTimes(1)',
+    '})',
+  ].join('\n'))
+  const result = lint()
+  expect(result.status).toBe(1)
+  expect(result.stderr).toContain(`${path}:4: ${callCount}`)
+  expect(result.stderr).not.toContain(`${path}:3: ${callCount}`)
 })
 
 test('fails when Git cannot enumerate tracked changes', () => {

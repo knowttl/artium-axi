@@ -7,7 +7,8 @@ const root = process.cwd()
 const fixedSleep = 'fixed sleep: wait for the observable outcome instead'
 const callCount = 'call-count assertion: assert the outcome, not how often a collaborator was called'
 const countMatchers = new Set(['toHaveBeenCalledTimes', 'toBeCalledTimes', 'toHaveBeenCalledOnce', 'toHaveBeenCalledExactlyOnceWith'])
-const chaiCountMatchers = new Set(['callCount', 'calledOnce', 'calledOnceWith', 'calledTwice', 'calledThrice'])
+const chaiCountMethods = new Set(['callCount', 'calledOnceWith'])
+const chaiCountProperties = new Set(['calledOnce', 'calledTwice', 'calledThrice'])
 const failures: string[] = []
 
 function git(args: string[]) {
@@ -61,7 +62,8 @@ function timeoutClock(call: ts.CallExpression): boolean | undefined {
     (ts.isIdentifier(property.name) || ts.isStringLiteral(property.name)) && property.name.text === 'toFake')
   if (!toFake) return true
   return ts.isArrayLiteralExpression(toFake.initializer) &&
-    toFake.initializer.elements.some(timer => ts.isStringLiteral(timer) && timer.text === 'setTimeout')
+    (toFake.initializer.elements.length === 0 ||
+      toFake.initializer.elements.some(timer => ts.isStringLiteral(timer) && timer.text === 'setTimeout'))
 }
 
 function unwrap(expression: ts.Expression): ts.Expression {
@@ -114,6 +116,20 @@ function resolvesOnTimeout(awaited: ts.Expression): boolean {
 function rootName(node: ts.Expression): string | undefined {
   while (ts.isCallExpression(node) || ts.isPropertyAccessExpression(node)) node = node.expression
   if (ts.isIdentifier(node)) return node.text
+}
+
+function runnerWaitsFor(callback: ts.Node | undefined): boolean {
+  if (!inlineCallback(callback) || !ts.isCallExpression(callback.parent) ||
+      !callback.parent.arguments.includes(callback)) return false
+  const name = rootName(callback.parent.expression)
+  return name !== undefined && ['test', 'it', 'beforeAll', 'beforeEach', 'afterAll', 'afterEach'].includes(name)
+}
+
+function allowsOutputCount(assertion: ts.Node, source: ts.SourceFile): boolean {
+  const statement = ts.findAncestor(assertion.parent, node => ts.isStatement(node) || ts.isFunctionLike(node))
+  if (!statement || !ts.isExpressionStatement(statement)) return false
+  return ts.getLeadingCommentRanges(source.text, statement.getFullStart())?.some(({ pos, end }) =>
+    /^\/\/ flaky-test-patterns: allow-call-count \S/.test(source.text.slice(pos, end))) ?? false
 }
 
 function inspect(source: ts.SourceFile, report: (start: number, end: number, at: number, message: string) => void,
@@ -169,13 +185,25 @@ function inspect(source: ts.SourceFile, report: (start: number, end: number, at:
     }
     if (ts.isPropertyAccessExpression(node)) {
       const { text: name } = node.name
-      if (countMatchers.has(name) || (chaiCountMatchers.has(name) && rootName(node.expression) === 'expect')) {
-        const assertion = ts.isCallExpression(node.parent) && node.parent.expression === node ? node.parent : node
+      const call = ts.isCallExpression(node.parent) && node.parent.expression === node ? node.parent : undefined
+      const isChai = (chaiCountMethods.has(name) || chaiCountProperties.has(name)) && rootName(node.expression) === 'expect'
+      const assertion = isChai && chaiCountProperties.has(name) ? node :
+        isChai || countMatchers.has(name) ? call : undefined
+      if (assertion && !allowsOutputCount(assertion, source)) {
         mark(assertion, callCount, node.name.getStart(source))
       }
     }
-    if (ts.isAwaitExpression(node) && !fakeTimeout) {
-      const awaited = unwrap(node.expression)
+    let waited: ts.Expression | undefined
+    if (ts.isAwaitExpression(node)) {
+      waited = node.expression
+    } else if (ts.isReturnStatement(node) && node.expression) {
+      if (runnerWaitsFor(ts.findAncestor(node.parent, ts.isFunctionLike))) waited = node.expression
+    } else if (ts.isArrowFunction(node.parent) && node.parent.body === node && !ts.isBlock(node.parent.body) &&
+        runnerWaitsFor(node.parent)) {
+      waited = node.parent.body
+    }
+    if (waited && !fakeTimeout) {
+      const awaited = unwrap(waited)
       const callee = ts.isCallExpression(awaited) ? unwrap(awaited.expression) : undefined
       const promiseTimer = callee && (ts.isIdentifier(callee) ? promiseTimers.has(callee.text) :
         ts.isPropertyAccessExpression(callee) && callee.name.text === 'setTimeout' &&

@@ -36,9 +36,11 @@ pnpm test:gate
 
 `pnpm lint` also runs `scripts/flaky-test-patterns.ts` on lines added or changed since the unique merge base with `origin/main` in `*.test.ts` and the browser runner's `test/browser/*.ts` and `test/browser/*.mjs` files.
 It checks TypeScript or JavaScript code and inline browser script templates for `waitForTimeout`, promise waits resolved by a real `setTimeout`, and call-count assertions, including Vitest and Chai aliases.
+The check covers timer promises awaited directly or returned directly by a test callback.
 The checker recognizes fake `setTimeout` when an enclosing `beforeEach` hook or the current execution scope enables it and it remains active at the wait.
 An event-driven promise may use a timer to reject when the event misses its deadline.
 Wait for the observable outcome and assert behaviour instead.
+When an exact count is part of a public output contract, place `// flaky-test-patterns: allow-call-count <contract>` immediately above that assertion and name the required output, such as one persisted JSON line on stdout.
 
 `pnpm check` verifies generated references, types, inventory and schema freshness, the test suite, compilation and the AXI/distribution checklist (`pnpm test:axi`, or `node scripts/axi-check.ts`).
 It does not run container acceptance or the private hygiene check.

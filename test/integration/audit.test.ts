@@ -276,6 +276,7 @@ test('ARTIUM_AXI_AUDIT_STDOUT=1 emits exactly one persisted JSON line', () => {
   const stdout = vi.spyOn(process.stdout, 'write').mockReturnValue(true)
   audit = new Audit(db, () => now)
   const record = audit.record({ ...context, event: 'sign-out', outcome: 'success' })
+  // flaky-test-patterns: allow-call-count The public audit stream emits one persisted JSON line per record.
   expect(stdout).toHaveBeenCalledExactlyOnceWith(`${JSON.stringify(record)}\n`)
   expect(db.prepare('SELECT * FROM audit').get()).toEqual(record)
 })
