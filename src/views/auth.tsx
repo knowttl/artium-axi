@@ -12,7 +12,8 @@ import { VStack } from '@astryxdesign/core/VStack'
 import { useState } from 'react'
 import { useClientValue } from './client-value.js'
 import { useCopy } from './copy.js'
-import { Icon } from './icon.js'
+import { Icon, type IconName } from './icon.js'
+import { ThemeSwitch, type ThemeSwitchProps } from './theme-switch.js'
 import { Time } from './time.js'
 
 export interface AuthButton {
@@ -48,13 +49,13 @@ export type AuthBlock =
 export interface AuthProps {
   title: string
   description?: string
-  mark?: { icon: string, tone: 'ok' | 'warn' | 'neutral' }
+  mark?: { icon: IconName, tone: 'ok' | 'warn' | 'neutral' }
   brand: { name: string, href: string }
   blocks: AuthBlock[]
   footnote?: string
   signedIn?: { name: string, csrf: string, sso: boolean }
-  help: string
-  themeSwitch: string
+  help: string[]
+  themeSwitch?: ThemeSwitchProps
 }
 
 function Field({ field }: { field: AuthField }) {
@@ -151,8 +152,8 @@ export function Auth({ title, description, mark, brand, blocks, footnote, signed
               {signedIn.sso && <label className="check"><input type="checkbox" name="providerLogout" value="true" /> Also sign out of your identity provider</label>}
             </form>
           )}
-          {themeSwitch && <div className="theme-row" dangerouslySetInnerHTML={{ __html: themeSwitch }} />}
-          <details className="page-help auth-help"><summary>Need help?</summary><div dangerouslySetInnerHTML={{ __html: help }} /></details>
+          {themeSwitch && <div className="theme-row"><ThemeSwitch {...themeSwitch} /></div>}
+          <details className="page-help auth-help"><summary>Need help?</summary><div>{help.map((paragraph, index) => <p key={index}>{paragraph}</p>)}</div></details>
         </div>
       </main>
     </>

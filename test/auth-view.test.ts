@@ -9,7 +9,7 @@ import { Auth, type AuthBlock, type AuthProps } from '../src/views/auth.js'
 type Element = DefaultTreeAdapterMap['element']
 
 function render(overrides: Partial<AuthProps> = {}) {
-  const props: AuthProps = { title: 'Synthetic title', brand: { name: 'Synthetic brand', href: '/synthetic-home' }, blocks: [], help: '<p>Synthetic help</p>', themeSwitch: '', ...overrides }
+  const props: AuthProps = { title: 'Synthetic title', brand: { name: 'Synthetic brand', href: '/synthetic-home' }, blocks: [], help: ['Synthetic help', 'Second help paragraph'], ...overrides }
   return renderToString(createElement(Theme, { theme: neutralTheme, children: createElement(Auth, props) }))
 }
 
@@ -80,4 +80,22 @@ test('the page has one h1 and a skip link to the main region', () => {
   expect(find(html, element => element.tagName === 'h1')).toHaveLength(1)
   expect(find(html, element => element.tagName === 'a' && attribute(element, 'href') === '#main')).toHaveLength(1)
   expect(find(html, element => element.tagName === 'main' && attribute(element, 'id') === 'main')).toHaveLength(1)
+})
+
+test('the help panel lists each paragraph', () => {
+  const [help] = find(render(), element => element.tagName === 'details' && attribute(element, 'class')?.includes('auth-help') === true)
+  expect(nodes(help!).filter(element => element.tagName === 'p').map(text)).toEqual(['Synthetic help', 'Second help paragraph'])
+})
+
+test('the theme switch posts the chosen mode back to the page and marks the current mode', () => {
+  const html = render({ themeSwitch: { mode: 'dark', next: '/synthetic-page' } })
+  const [form] = find(html, element => element.tagName === 'form' && attribute(element, 'action') === '/theme')
+  expect(attribute(form!, 'method')).toBe('post')
+  expect(nodes(form!).filter(element => element.tagName === 'input').map(input => [attribute(input, 'name'), attribute(input, 'value')])).toEqual([['next', '/synthetic-page']])
+  expect(nodes(form!).filter(element => element.tagName === 'button').map(button => [text(button), attribute(button, 'value'), attribute(button, 'aria-pressed')]))
+    .toEqual([['System', 'system', 'false'], ['Light', 'light', 'false'], ['Dark', 'dark', 'true']])
+})
+
+test('the theme switch is absent when the page offers none', () => {
+  expect(find(render(), element => element.tagName === 'form' && attribute(element, 'action') === '/theme')).toEqual([])
 })

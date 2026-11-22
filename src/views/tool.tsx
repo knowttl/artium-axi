@@ -7,7 +7,7 @@ import { TextArea } from '@astryxdesign/core/TextArea'
 import { VStack } from '@astryxdesign/core/VStack'
 import { useState } from 'react'
 import { ActionForm, Revision } from './action-form.js'
-import { Icon } from './icon.js'
+import { Icon, type IconName } from './icon.js'
 import { Panel } from './panel.js'
 import { badgeVariants, type Status } from './status.js'
 import { Tabs } from './tabs.js'
@@ -30,7 +30,7 @@ export interface ToolProps {
   writes: Status
   checkedAt: string | null
   setup: { title: string, detail: string, at: string | null, state: 'done' | 'fail' | 'todo' }[]
-  tabs: { label: string, href: string, icon: string, note: string | null, current: boolean }[]
+  tabs: { label: string, href: string, icon: IconName, note: string | null, current: boolean }[]
   panel:
     | { tab: 'instances', instances: InstancesProps }
     | { tab: 'access', access: AccessProps }

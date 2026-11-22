@@ -11,7 +11,7 @@ export const waitForReauthPills = `const waitForReauthPills = (expectedText, sta
       const pills = document.querySelectorAll(placement + ' .unlock');
       const pill = pills[0];
       return pills.length === 1 && pill.className === 'unlock ' + state
-        && pill.querySelector('use')?.getAttribute('href') === icon
+        && pill.querySelector('svg')?.getAttribute('data-icon') === icon
         && pill.textContent === expectedText;
     });
     if (matches()) return;

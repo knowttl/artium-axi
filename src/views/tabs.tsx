@@ -1,11 +1,11 @@
 import { Button } from '@astryxdesign/core/Button'
 import { HStack } from '@astryxdesign/core/HStack'
-import { Icon } from './icon.js'
+import { Icon, type IconName } from './icon.js'
 
 export interface TabLink {
   label: string
   href: string
-  icon?: string
+  icon?: IconName
   note: string | null
   current: boolean
 }

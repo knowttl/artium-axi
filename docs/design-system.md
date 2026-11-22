@@ -10,7 +10,7 @@ This document describes the current screens and their design rules.
 | --- | --- |
 | [tokens.ts](../src/server/admin/design/tokens.ts) | Legacy colour values and shared typography, radius, shadow, control-size and layout tokens, including light and dark palettes. |
 | `src/server/admin/design/components.ts` | Component classes and geometry using the shared tokens, plus base element styles for content that has no component yet. |
-| `src/server/admin/design/ui.ts` | Render helpers that own component markup, escaping and ARIA, including the frame chrome and the icon sprite. |
+| `src/server/admin/design/ui.ts` | Render helpers that own component markup, escaping and ARIA, including the frame chrome data. |
 | `src/server/admin/design/status.ts` | The status vocabulary: one word and tone per state, the badge and status-dot helpers, and the product display name and mark of each tool. |
 
 The tokens and components in `src/server/admin/design` are concatenated and served from `/admin/assets/style.css`.
@@ -119,7 +119,8 @@ The props carry a token's id, label, creator, access, scope, expiry and status, 
 The page frame is `Frame` in `src/views/frame.tsx`, built on Astryx `AppShell`: a header with the breadcrumb, a content area with the page title, description and a row of action links (`FrameAction`: a primary or secondary button that is a link, optionally naming the sheet it opens through `sheetTrigger`), and the side navigation slot.
 `adminChrome()` in `src/server/admin/design/ui.ts` builds the breadcrumb, brand, administration links, account menu and help panel once for the frame, so the links, landmarks and titles stay identical.
 The side navigation is an Astryx `SideNav` with a `SideNavSection` per group and a `SideNavItem` per link, whose current page is derived from the request path.
-The frame renders the legacy markup for the account menu and help panel through `dangerouslySetInnerHTML`.
+The frame receives the account menu, help panel and theme switch as typed data (`AccountMenuProps`, `HelpPanelProps` and `ThemeSwitchProps`) and renders them as React components, as the sign-in and error pages do for their help panel and theme switch; no view uses `dangerouslySetInnerHTML`.
+`pageHelp` in `src/server/admin/forms.ts` returns the help paragraphs as plain strings.
 The frame receives the remaining confirmation time as typed data and uses one countdown for both copies of the React pill.
 The [pill component](../src/views/reauth.tsx) updates the text, `.unlock.on` or `.unlock.off` class, and lock icon together.
 The identity confirmation dialog hands the remaining duration to the frame through `artium-reauth` after password confirmation or verified SSO confirmation.
@@ -128,7 +129,6 @@ The dialog checks the message's origin and popup source, then verifies recent co
 See [browser administration](admin-guide.md#browser-administration) for the refresh cadence and confirmation flow.
 Below the Astryx mobile breakpoint a native navigation disclosure remains usable without JavaScript, listing the same `SideNavItem` links without a second `SideNav`, and CSS hides the desktop sidebar.
 The frame retains one banner, one main and one navigation landmark, labelled "Administration" for administrators and "Account" for other people.
-The icon sprite stays outside the React root.
 The root contains the toasts and both confirmation dialogs.
 `ActionForm` submits plain forms through [`submitForm`](../src/views/submit.ts), which starts the body from the captured `FormData` or the form's `bodyFrom` result.
 It includes the CSRF token, applies conversions from the captured `data-type` controls and sends `expectedRevision` for revision-checked mutations.
@@ -220,7 +220,7 @@ The Sessions table sits in a `session-list` container and turns into stacked car
 - No `style` attribute in any rendered page; at most one `<style>` element is allowed, and it must carry the response's nonce and contain no colour literal.
 - Every stylesheet and page resource is same-origin: no `@import`, no remote or `data:` `url()`, no remote `link`, `script` or `img`, and the policy has no `unsafe-` source, `style-src-attr` or remote `font-src`.
 - Hand-written client and view source under `src/client` and `src/views` has no colour literal; colours come from the Astryx theme.
-- Every icon is a `<use>` of a symbol in the shared sprite; pages contain no ad hoc SVG shapes.
+- Every icon is an `svg.i` rendered by the `Icon` component in `src/views/icon.tsx`, which holds each icon's shapes on a 24px grid; pages contain no ad hoc SVG shapes.
 - One `h1` per page.
 
 ## Tokens
@@ -269,7 +269,7 @@ Icons are drawn on a 24px grid with a 1.75 stroke in `currentColor`, shown at 16
 | Steps | `.vsteps`, `.vstep` (`.done`, `.current`) | done, current, to do | Ordered list; done steps carry hidden "Done:" text |
 | Key-value list | `.kv` | | `<dl>` |
 | List row | `.rows`, `.list-row`, `.step-mark` | | Ordered list when the order matters |
-| Avatar and tool icon | `avatar()`: `.avatar`, `.avatar.lg`; `toolIcon()`: `.tool-ico`, `.tool-ico.lg`, using a mark from `toolProducts` | sm, lg | Initials and marks are `aria-hidden`; the name is adjacent text |
+| Avatar and tool icon | `AccountMenu` in `src/views/frame.tsx`: `.avatar`, `.avatar.lg`; `toolIcon()`: `.tool-ico`, `.tool-ico.lg`, using a mark from `toolProducts` | sm, lg | Initials and marks are `aria-hidden`; the name is adjacent text |
 | Overflow menu | `.more-menu` with `.popover` | closed, open | Native disclosure with `aria-label` on its icon summary |
 | Side sheet | `dialog.sheet` with `.sheet-head`, `.sheet-body`, `.sheet-foot`, `.scrim` | See [sheet behavior](#patterns) | Labelled by its heading |
 | Option tile | `.tiles`, `.tile`, `.tool-ico` | unchecked, checked | Native checkbox inside its label |
