@@ -251,6 +251,18 @@ test('the executable runs the selected reference check', () => {
   expect(readFileSync(join(directory, 'checked'), 'utf8')).toBe('reference current')
 })
 
+test('the lint child checks changes from the explicit base without origin/main', () => {
+  git('update-ref', '-d', 'refs/remotes/origin/main')
+  copyFileSync(resolve('scripts/flaky-test-patterns.ts'), join(directory, 'scripts/flaky-test-patterns.ts'))
+  write('package.json', '{"scripts":{"lint":"node scripts/flaky-test-patterns.ts"}}\n')
+  write('scripts/upstream-inventory.mjs', '')
+  write('scripts/mg-headless-schema.ts', '')
+  write('src/server/feature.test.ts', 'await new Promise(done => setTimeout(done, 50))\n')
+  const result = spawnSync(process.execPath, ['scripts/test-gate.ts', '--base', base], { cwd: directory, encoding: 'utf8' })
+  expect(result.status).toBe(1)
+  expect(result.stderr).toContain('src/server/feature.test.ts:1: fixed sleep')
+})
+
 test('a failing selected check stops the gate with its exit status', () => {
   write('scripts/errors-reference.ts', 'process.exit(17)\n')
   git('add', 'scripts/errors-reference.ts')

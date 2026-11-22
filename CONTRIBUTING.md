@@ -34,13 +34,14 @@ pnpm lint
 pnpm test:gate
 ```
 
-`pnpm lint` also runs `scripts/flaky-test-patterns.ts` on lines added or changed since the unique merge base with `origin/main` in `*.test.ts` and the browser runner's `test/browser/*.ts` and `test/browser/*.mjs` files.
+`pnpm lint` also runs `scripts/flaky-test-patterns.ts` on added or changed lines in `*.test.ts` and the browser runner's `test/browser/*.ts` and `test/browser/*.mjs` files.
+Standalone lint uses the unique merge base with `origin/main`, and `pnpm test:gate` passes its selected base to lint.
 It checks the full file when a rename brings it into test scope.
-It checks TypeScript or JavaScript code and browser script templates, including concatenated templates and imported fragments, for `waitForTimeout`, promise waits resolved by a real `setTimeout`, and call-count assertions, including length checks on mock call lists.
-Exact single-write assertions on spies of `process.stdout.write` or `process.stderr.write` are allowed for single-line output contracts.
+It checks TypeScript or JavaScript code and browser script literals, including concatenated and imported fragments, for `waitForTimeout`, promise waits resolved by a real `setTimeout`, and call-count assertions, including length checks on mock call lists.
+An exact single-write assertion on a spy of `process.stdout.write` or `process.stderr.write` is allowed when the same assertion or a companion assertion checks the text of one newline-terminated line.
 The check covers timer promises awaited directly or returned directly by a test, hook, or inline or serialized `page.eval` callback.
-The checker tracks fake `setTimeout` through test registration, setup, tests, and cleanup so the clock active at the wait determines whether it flags the timer.
-An event-driven promise may use a timer to reject when the event misses its deadline.
+The checker exempts a wait when the callback's setup or body establishes fake `setTimeout` and the clock still holds at the wait.
+An event-driven promise may use a timer to report failure when readiness misses its deadline.
 Wait for the observable outcome and assert behaviour instead.
 
 `pnpm check` verifies generated references, types, inventory and schema freshness, the test suite, compilation and the AXI/distribution checklist (`pnpm test:axi`, or `node scripts/axi-check.ts`).
