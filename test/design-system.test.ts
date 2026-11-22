@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type Database from 'better-sqlite3'
@@ -145,6 +145,11 @@ afterAll(async () => {
   await app.close()
   db.close()
   rmSync(directory, { recursive: true, force: true })
+})
+
+test('the served stylesheet carries the hand-written frame stylesheet', async () => {
+  const response = await app.inject({ url: '/admin/assets/style.css' })
+  expect(response.body).toContain(readFileSync('src/server/admin/design/frame.css', 'utf8'))
 })
 
 test('the served stylesheet defines colours only through the token contract', async () => {
