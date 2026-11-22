@@ -217,8 +217,10 @@ test.each([
     expect(element.attrs.filter(attribute => attribute.name === 'style')).toEqual([])
     if (element.tagName !== 'svg') continue
     const attributes = Object.fromEntries(element.attrs.map(attribute => [attribute.name, attribute.value]))
-    expect(attributes).toMatchObject({ class: 'i', viewBox: '0 0 24 24', 'data-icon': expect.stringMatching(/^[a-z]+$/) })
-    expect(elements(element).slice(1).map(child => child.tagName).filter(tag => !['path', 'circle', 'rect'].includes(tag))).toEqual([])
+    expect(attributes).toMatchObject({ class: 'i', viewBox: '0 0 24 24' })
+    const shapes = elements(element).slice(1).map(child => child.tagName)
+    expect(shapes.length).toBeGreaterThan(0)
+    expect(shapes.filter(tag => !['path', 'circle', 'rect'].includes(tag))).toEqual([])
   }
   expect(page.filter(element => element.tagName === 'h1')).toHaveLength(1)
   expect(page.filter(element => element.tagName === 'form' && element.attrs.some(attribute => attribute.name === 'action' && attribute.value === '/theme'))).toHaveLength(['/admin', '/admin/tokens', '/admin/audit', '/admin/ssh/audit', '/admin/ssh', '/admin/ssh/credentials', '/account', '/admin/users','/admin/users/synthetic-ordinary', '/admin/roles', '/admin/roles/synthetic-role', '/admin/invitations', '/admin/tools', '/admin/tools/vectra-axi/instances/lab',

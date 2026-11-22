@@ -29,7 +29,7 @@ export function pageHelp(title: string, source: 'local' | 'sso' = 'local'): stri
     'CLI approval': ['Approve only a code your own terminal shows after you ran artium-axi login --sso or requested identity confirmation. Check the requesting IP and time. Choose “This wasn\'t me” for an unexpected request; codes expire after 10 minutes.'],
     'Request failed': ['Follow the recovery step shown above. If another administrator changed the record, reload its page and review the latest values before submitting again.'],
   }
-  return help[title] ?? ['Use the navigation to return to your account or an administration screen.']
+  return Object.hasOwn(help, title) ? help[title]! : ['Use the navigation to return to your account or an administration screen.']
 }
 
 export function lastChange(db: Database.Database, item: { updatedBy: string | null, updatedAt: number | null, revision: number }) {

@@ -11,7 +11,7 @@ function render(options: { description?: string, actions?: FrameAction[], reauth
   const frame = createElement(Frame, { title: 'Synthetic title', reauth: { remainingMs: 0 }, sso: false, ...options, crumbs: [{ label: 'Access', href: '/admin/users' }, { label: 'Synthetic title' }],
     brand: { name: 'Synthetic brand', href: '/synthetic-home' }, account: { name: 'Synthetic Person', initials: 'SP', method: 'Password · Admin', csrf: 'synthetic-token',
       links: [{ href: '/account', label: 'Your account', icon: 'user', current: true }, { href: '/password', label: 'Change password', icon: 'key', current: false }] },
-    themeSwitch: { mode: 'light', next: '/synthetic-next' }, help: { title: 'Synthetic Page', paragraphs: ['Synthetic help one', 'Synthetic help two'] }, children: 'Synthetic content',
+    mode: 'light', themeSwitch: { next: '/synthetic-next' }, help: { title: 'Synthetic Page', paragraphs: ['Synthetic help one', 'Synthetic help two'] }, children: 'Synthetic content',
     navigation: [{ links: [{ href: '/synthetic-top', label: 'Synthetic top', icon: 'home', current: false }] },
       { title: 'Synthetic section', links: [{ href: '/synthetic-one', label: 'Synthetic one', icon: 'users', current: false }, { href: '/synthetic-two', label: 'Synthetic two', icon: 'list', current: true }] }] })
   return renderToString(createElement(Theme, { theme: neutralTheme, children: frame }))
@@ -51,15 +51,19 @@ test.each([['header end', 'frame-controls-header', 'banner'], ['narrow-screen me
   expect(controls.map(text)).toEqual(['Changes lockedSystemLightDark'])
 })
 
+const openShackle = 'M8 10.5V7a4 4 0 0 1 7.7-1.5'
+const closedShackle = 'M8 10.5V7a4 4 0 0 1 8 0v3.5'
+
 test.each([
-  ['unlocked', { remainingMs: 14 * 60_000 }, 'on', 'unlock', 'Changes unlocked · 14 min'],
-  ['rounds a partial minute up', { remainingMs: 60_001 }, 'on', 'unlock', 'Changes unlocked · 2 min'],
-  ['locked at the end of the window', { remainingMs: 0 }, 'off', 'lock', 'Changes locked'],
-])('the confirmation pill is %s in both header placements', (_name, reauth, state, icon, words) => {
+  ['unlocked', { remainingMs: 14 * 60_000 }, 'on', openShackle, 'Changes unlocked · 14 min'],
+  ['rounds a partial minute up', { remainingMs: 60_001 }, 'on', openShackle, 'Changes unlocked · 2 min'],
+  ['locked at the end of the window', { remainingMs: 0 }, 'off', closedShackle, 'Changes locked'],
+])('the confirmation pill is %s in both header placements', (_name, reauth, state, shackle, words) => {
   const pills = nodes(parseFragment(render({ reauth }))).filter(element => attribute(element, 'class')?.split(' ').includes('unlock'))
   expect(pills.map(pill => [attribute(pill, 'class'),
-    attribute(nodes(pill).find(element => element.tagName === 'svg')!, 'data-icon'), text(pill)]))
-    .toEqual(Array(2).fill([`unlock ${state}`, icon, words]))
+    nodes(pill).filter(element => element.tagName === 'svg').flatMap(icon => nodes(icon).slice(1).map(shape =>
+      shape.tagName === 'path' ? attribute(shape, 'd') : shape.tagName)), text(pill)]))
+    .toEqual(Array(2).fill([`unlock ${state}`, ['rect', shackle], words]))
 })
 
 const regions = { 'side navigation': 'astryx-app-shell-sidenav', 'narrow-screen menu': 'frame-mobile-menu' }
@@ -99,11 +103,15 @@ test.each([['side navigation', 'astryx-app-shell-sidenav'], ['narrow-screen menu
     .toEqual([['/account', 'Your account', 'page'], ['/password', 'Change password', undefined]])
 })
 
-test.each([[true, ['_csrf', 'providerLogout']], [false, ['_csrf']]])('the account menu sign-out form for sso %s submits these fields', (sso, names) => {
-  const menu = nodes(parseFragment(render({ sso }))).find(element => attribute(element, 'class')?.split(' ').includes('account-menu'))!
-  const form = nodes(menu).find(element => element.tagName === 'form' && attribute(element, 'action') === '/logout')!
-  expect(nodes(form).filter(element => element.tagName === 'input').map(input => attribute(input, 'name'))).toEqual(names)
-  expect(attribute(nodes(form).find(element => attribute(element, 'name') === '_csrf')!, 'value')).toBe('synthetic-token')
+test.each([
+  [true, [['_csrf', 'hidden', 'synthetic-token', undefined], ['providerLogout', 'checkbox', 'true', undefined]]],
+  [false, [['_csrf', 'hidden', 'synthetic-token', undefined]]],
+])('both account menu sign-out forms for sso %s submit these fields', (sso, fields) => {
+  const menus = nodes(parseFragment(render({ sso }))).filter(element => attribute(element, 'class')?.split(' ').includes('account-menu'))
+  const forms = menus.map(menu => nodes(menu).filter(element => element.tagName === 'form' && attribute(element, 'action') === '/logout'))
+  expect(forms.map(region => region.map(form => [attribute(form, 'method'), nodes(form).filter(element => element.tagName === 'input')
+    .map(input => ['name', 'type', 'value', 'checked'].map(name => attribute(input, name)))])))
+    .toEqual([[['post', fields]], [['post', fields]]])
 })
 
 test('the help panel titles the page and lists each paragraph', () => {
@@ -113,8 +121,8 @@ test('the help panel titles the page and lists each paragraph', () => {
 })
 
 test('the theme switch posts to the current page and marks the current mode', () => {
-  const [form] = nodes(parseFragment(render())).filter(element => element.tagName === 'form' && attribute(element, 'action') === '/theme')
-  expect(attribute(nodes(form!).find(element => attribute(element, 'name') === 'next')!, 'value')).toBe('/synthetic-next')
-  expect(nodes(form!).filter(element => element.tagName === 'button').map(button => [text(button), attribute(button, 'aria-pressed')]))
-    .toEqual([['System', 'false'], ['Light', 'true'], ['Dark', 'false']])
+  const forms = nodes(parseFragment(render())).filter(element => element.tagName === 'form' && attribute(element, 'action') === '/theme')
+  expect(forms.map(form => attribute(nodes(form).find(element => attribute(element, 'name') === 'next')!, 'value'))).toEqual(['/synthetic-next', '/synthetic-next'])
+  expect(forms.map(form => nodes(form).filter(element => element.tagName === 'button').map(button => [text(button), attribute(button, 'aria-pressed')])))
+    .toEqual(Array(2).fill([['System', 'false'], ['Light', 'true'], ['Dark', 'false']]))
 })

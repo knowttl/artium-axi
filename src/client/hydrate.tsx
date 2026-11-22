@@ -1,9 +1,9 @@
-import type { ThemeMode } from '@astryxdesign/core/theme'
 import { useEffect, type ReactNode } from 'react'
 import { hydrateRoot } from 'react-dom/client'
 import { captureCredentialTextareaDrafts } from '../views/credential-editor.js'
 import type { FrameProps } from '../views/frame.js'
 import { Root, type ViewName, type ViewProps } from '../views/root.js'
+import type { ThemeMode } from '../views/theme-switch.js'
 
 function Hydrated({ children }: { children: ReactNode }) {
   useEffect(() => { document.dispatchEvent(new Event('astryx-hydrated')) }, [])

@@ -25,13 +25,9 @@ const shapes = {
   terminal: <><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3M13 15h4"/></>,
   cert: <><circle cx="12" cy="9" r="5"/><path d="m8.5 13-1.5 8 5-3 5 3-1.5-8"/></>,
   pen: <><path d="M4 20h4L19 9l-4-4L4 16z"/></>,
-  ext: <><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></>,
-  clock: <><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></>,
   logout: <><path d="M15 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4M10 16l-4-4 4-4M6 12h10"/></>,
   trash: <><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></>,
-  arrow: <><path d="M5 12h14M13 6l6 6-6 6"/></>,
   zap: <><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></>,
-  eye: <><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></>,
   globe: <><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></>,
   sliders: <><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></>,
   monitor: <><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></>,
@@ -41,5 +37,5 @@ const shapes = {
 export type IconName = keyof typeof shapes
 
 export function Icon({ name }: { name: IconName }) {
-  return <svg className="i" aria-hidden="true" viewBox="0 0 24 24" data-icon={name}>{shapes[name]}</svg>
+  return <svg className="i" aria-hidden="true" viewBox="0 0 24 24">{shapes[name]}</svg>
 }

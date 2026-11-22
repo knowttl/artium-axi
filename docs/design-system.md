@@ -10,7 +10,8 @@ This document describes the current screens and their design rules.
 | --- | --- |
 | [tokens.ts](../src/server/admin/design/tokens.ts) | Legacy colour values and shared typography, radius, shadow, control-size and layout tokens, including light and dark palettes. |
 | `src/server/admin/design/components.ts` | Component classes and geometry using the shared tokens, plus base element styles for content that has no component yet. |
-| `src/server/admin/design/ui.ts` | Render helpers that own component markup, escaping and ARIA, including the frame chrome data. |
+| `src/server/admin/design/ui.ts` | Builds the typed breadcrumb, brand, navigation, account menu and help panel data for the frame. |
+| `src/views/frame.tsx` and `src/views/icon.tsx` | Render the frame controls and inline icons, including their markup and ARIA attributes. |
 | `src/server/admin/design/status.ts` | The status vocabulary: one word and tone per state, the badge and status-dot helpers, and the product display name and mark of each tool. |
 
 The tokens and components in `src/server/admin/design` are concatenated and served from `/admin/assets/style.css`.
@@ -117,7 +118,7 @@ The status word and tone of a token come from the `token` entry of the status vo
 The props carry a token's id, label, creator, access, scope, expiry and status, never its value or hash.
 
 The page frame is `Frame` in `src/views/frame.tsx`, built on Astryx `AppShell`: a header with the breadcrumb, a content area with the page title, description and a row of action links (`FrameAction`: a primary or secondary button that is a link, optionally naming the sheet it opens through `sheetTrigger`), and the side navigation slot.
-`adminChrome()` in `src/server/admin/design/ui.ts` builds the breadcrumb, brand, administration links, account menu and help panel once for the frame, so the links, landmarks and titles stay identical.
+`adminChrome()` in `src/server/admin/design/ui.ts` supplies the breadcrumb, brand, administration links, account menu and help panel data that `Frame` renders.
 The side navigation is an Astryx `SideNav` with a `SideNavSection` per group and a `SideNavItem` per link, whose current page is derived from the request path.
 The frame receives the account menu, help panel and theme switch as typed data (`AccountMenuProps`, `HelpPanelProps` and `ThemeSwitchProps`) and renders them as React components, as the sign-in and error pages do for their help panel and theme switch; no view uses `dangerouslySetInnerHTML`.
 `pageHelp` in `src/server/admin/forms.ts` returns the help paragraphs as plain strings.

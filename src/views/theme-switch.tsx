@@ -7,11 +7,10 @@ export type ThemeMode = typeof themeModes[number]
 const labels: Record<ThemeMode, string> = { system: 'System', light: 'Light', dark: 'Dark' }
 
 export interface ThemeSwitchProps {
-  mode: ThemeMode
   next: string
 }
 
-export function ThemeSwitch({ mode, next }: ThemeSwitchProps) {
+export function ThemeSwitch({ mode, next }: ThemeSwitchProps & { mode: ThemeMode }) {
   return (
     <form method="post" action="/theme">
       <input type="hidden" name="next" value={next} />

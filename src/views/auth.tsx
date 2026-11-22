@@ -13,7 +13,7 @@ import { useState } from 'react'
 import { useClientValue } from './client-value.js'
 import { useCopy } from './copy.js'
 import { Icon, type IconName } from './icon.js'
-import { ThemeSwitch, type ThemeSwitchProps } from './theme-switch.js'
+import { ThemeSwitch, type ThemeMode, type ThemeSwitchProps } from './theme-switch.js'
 import { Time } from './time.js'
 
 export interface AuthButton {
@@ -121,7 +121,7 @@ function Block({ block }: { block: AuthBlock }) {
   }
 }
 
-export function Auth({ title, description, mark, brand, blocks, footnote, signedIn, help, themeSwitch }: AuthProps) {
+export function Auth({ title, description, mark, brand, blocks, footnote, signedIn, help, themeSwitch, mode }: AuthProps & { mode: ThemeMode }) {
   return (
     <>
       <a className="skip" href="#main">Skip to content</a>
@@ -152,7 +152,7 @@ export function Auth({ title, description, mark, brand, blocks, footnote, signed
               {signedIn.sso && <label className="check"><input type="checkbox" name="providerLogout" value="true" /> Also sign out of your identity provider</label>}
             </form>
           )}
-          {themeSwitch && <div className="theme-row"><ThemeSwitch {...themeSwitch} /></div>}
+          {themeSwitch && <div className="theme-row"><ThemeSwitch {...themeSwitch} mode={mode} /></div>}
           <details className="page-help auth-help"><summary>Need help?</summary><div>{help.map((paragraph, index) => <p key={index}>{paragraph}</p>)}</div></details>
         </div>
       </main>

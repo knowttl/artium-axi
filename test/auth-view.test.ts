@@ -5,12 +5,13 @@ import { Theme } from '@astryxdesign/core/theme'
 import { neutralTheme } from '@astryxdesign/theme-neutral/built'
 import { parseFragment, type DefaultTreeAdapterMap } from 'parse5'
 import { Auth, type AuthBlock, type AuthProps } from '../src/views/auth.js'
+import type { ThemeMode } from '../src/views/theme-switch.js'
 
 type Element = DefaultTreeAdapterMap['element']
 
-function render(overrides: Partial<AuthProps> = {}) {
+function render(overrides: Partial<AuthProps> = {}, mode: ThemeMode = 'system') {
   const props: AuthProps = { title: 'Synthetic title', brand: { name: 'Synthetic brand', href: '/synthetic-home' }, blocks: [], help: ['Synthetic help', 'Second help paragraph'], ...overrides }
-  return renderToString(createElement(Theme, { theme: neutralTheme, children: createElement(Auth, props) }))
+  return renderToString(createElement(Theme, { theme: neutralTheme, children: createElement(Auth, { ...props, mode }) }))
 }
 
 const nodes = (node: DefaultTreeAdapterMap['node']): Element[] => [...'tagName' in node ? [node] : [], ...'childNodes' in node ? node.childNodes.flatMap(nodes) : []]
@@ -88,7 +89,7 @@ test('the help panel lists each paragraph', () => {
 })
 
 test('the theme switch posts the chosen mode back to the page and marks the current mode', () => {
-  const html = render({ themeSwitch: { mode: 'dark', next: '/synthetic-page' } })
+  const html = render({ themeSwitch: { next: '/synthetic-page' } }, 'dark')
   const [form] = find(html, element => element.tagName === 'form' && attribute(element, 'action') === '/theme')
   expect(attribute(form!, 'method')).toBe('post')
   expect(nodes(form!).filter(element => element.tagName === 'input').map(input => [attribute(input, 'name'), attribute(input, 'value')])).toEqual([['next', '/synthetic-page']])

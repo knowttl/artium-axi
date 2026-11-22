@@ -1,5 +1,5 @@
 import { LayerProvider } from '@astryxdesign/core/Layer'
-import { Theme, type ThemeMode } from '@astryxdesign/core/theme'
+import { Theme } from '@astryxdesign/core/theme'
 import { neutralTheme } from '@astryxdesign/theme-neutral/built'
 import { Account, type AccountProps } from './account.js'
 import { ConfirmationTokenContext, type ConfirmationTokens } from './action-form.js'
@@ -21,6 +21,7 @@ import { SignInMatches, type SignInMatchesProps } from './sign-in-matches.js'
 import { SshAudit, type SshAuditProps } from './ssh-audit.js'
 import { SshCredentials, type SshCredentialsProps } from './ssh-credentials.js'
 import { SshHosts, type SshHostsProps } from './ssh-hosts.js'
+import type { ThemeMode } from './theme-switch.js'
 import { Tokens, type TokensProps } from './tokens.js'
 import { Tool, type ToolProps } from './tool.js'
 import { Toasts } from './toasts.js'
@@ -35,12 +36,13 @@ const views = { overview: Overview, auth: Auth, people: People, person: Person, 
   signIn: SignIn, signInMatches: SignInMatches, provider: Provider, tokens: Tokens, audit: AuditLog, sshAudit: SshAudit, sshHosts: SshHosts, sshCredentials: SshCredentials, account: Account }
 
 export function Root<Name extends ViewName>({ name, props, frame, mode, confirmations }: { name: Name, props: ViewProps[Name], frame?: FrameProps, mode: ThemeMode, confirmations: ConfirmationTokens }) {
-  const View = views[name] as (props: ViewProps[Name]) => React.JSX.Element
+  const View = views[name] as (props: ViewProps[Name] & { mode: ThemeMode }) => React.JSX.Element
+  const view = <View {...props} mode={mode} />
   return (
     <Theme theme={neutralTheme} mode={mode}>
       <LayerProvider>
         <ConfirmationTokenContext value={confirmations}>
-          <Toasts>{frame ? <><Frame {...frame}><View {...props} /></Frame><Confirmation /><ReauthDialog sso={frame.sso} /></> : <View {...props} />}</Toasts>
+          <Toasts>{frame ? <><Frame {...frame} mode={mode}>{view}</Frame><Confirmation /><ReauthDialog sso={frame.sso} /></> : view}</Toasts>
         </ConfirmationTokenContext>
       </LayerProvider>
     </Theme>

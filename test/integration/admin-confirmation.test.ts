@@ -114,6 +114,12 @@ test('a native post without confirmation changes nothing and answers with the co
   expect(revocations()).toBe(1)
 })
 
+test('a native confirmation heading matching an inherited property gets general help', async () => {
+  const step = await postForm(revokeAll, { ...pageForm(await tokenPage(), revokeAll).inputs, _confirmTitle: 'constructor' })
+  expect(step.statusCode).toBe(200)
+  expect(step.body).toContain('Use the navigation to return to your account or an administration screen.')
+})
+
 test('the confirmation step never shows a field the route does not carry, and a cross-origin referrer is not a way back', async () => {
   const step = await postForm(revokeAll, { ...pageForm(await tokenPage(), revokeAll).inputs, temporaryPassword: 'CANARY-typed-secret' },
     { ...headers, referer: 'https://elsewhere.example/admin/tokens' })

@@ -8,7 +8,7 @@ import type { ReactNode } from 'react'
 import { Icon, type IconName } from './icon.js'
 import { ReauthPill, useReauthWindow, type ReauthState } from './reauth.js'
 import { sheetTrigger } from './sheet.js'
-import { ThemeSwitch, type ThemeSwitchProps } from './theme-switch.js'
+import { ThemeSwitch, type ThemeMode, type ThemeSwitchProps } from './theme-switch.js'
 
 export interface NavigationLink {
   href: string
@@ -102,7 +102,7 @@ function HelpPanel({ title, paragraphs }: HelpPanelProps) {
   )
 }
 
-export function Frame({ title, description, actions, crumbs, brand, navigation, account, reauth, sso, themeSwitch, help, children }: FrameProps & { children: ReactNode }) {
+export function Frame({ title, description, actions, crumbs, brand, navigation, account, reauth, sso, themeSwitch, help, mode, children }: FrameProps & { mode: ThemeMode, children: ReactNode }) {
   const pill = <ReauthPill minutes={useReauthWindow(reauth)} />
   const label = navigation.length ? 'Administration' : 'Account'
   return (
@@ -114,7 +114,7 @@ export function Frame({ title, description, actions, crumbs, brand, navigation, 
             <summary className="btn btn-ghost btn-sm" data-testid="mobile-nav-toggle">{navigation.length ? 'Navigation' : 'Menu'}</summary>
             <div className="frame-mobile-menu">
               <NavigationLinks sections={navigation} />
-              <div className="frame-controls frame-controls-drawer">{pill}<div className="frame-theme"><ThemeSwitch {...themeSwitch} /></div></div>
+              <div className="frame-controls frame-controls-drawer">{pill}<div className="frame-theme"><ThemeSwitch {...themeSwitch} mode={mode} /></div></div>
               <div className="side-foot"><AccountMenu {...account} sso={sso} /></div>
             </div>
           </details>
@@ -123,7 +123,7 @@ export function Frame({ title, description, actions, crumbs, brand, navigation, 
           ? <strong aria-current="page">{crumb.label}</strong>
           : crumb.href ? <a href={crumb.href}>{crumb.label}</a> : <span>{crumb.label}</span>}</li>)}</ol>
         <div data-frame-slot="header-end">
-          <div className="frame-controls frame-controls-header">{pill}<div className="frame-theme"><ThemeSwitch {...themeSwitch} /></div></div>
+          <div className="frame-controls frame-controls-header">{pill}<div className="frame-theme"><ThemeSwitch {...themeSwitch} mode={mode} /></div></div>
           <div><HelpPanel {...help} /></div>
         </div>
       </header>}

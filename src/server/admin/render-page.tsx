@@ -27,11 +27,10 @@ function respond<Name extends ViewName>(reply: FastifyReply, title: string, name
 
 export function renderPage<Name extends ViewName>(reply: FastifyReply, title: string, name: Name, props: ViewProps[Name],
   current: BrowserSession, description?: string, actions?: FrameAction[], heading?: string, parent?: { href: string, label: string }, helpTopic = title) {
-  const mode = readThemeMode(reply.request)
   const viewer = browserViewer(reply, current)
   const { crumbs, brand, navigation, account, help } = adminChrome({ title, heading, parent, description, content: '', help: pageHelp(helpTopic, current.source),
     path: reply.request.url.split('?')[0]!, viewer })
-  const frame = { title: heading ?? title, description, actions, crumbs, brand: { ...brand, href: current.administrator ? brand.href : '/account' }, navigation: current.administrator ? navigation : [], account, reauth: { remainingMs: browserReauthRemainingMs(current) }, sso: viewer.sso, themeSwitch: { mode, next: reply.request.url }, help }
+  const frame = { title: heading ?? title, description, actions, crumbs, brand: { ...brand, href: current.administrator ? brand.href : '/account' }, navigation: current.administrator ? navigation : [], account, reauth: { remainingMs: browserReauthRemainingMs(current) }, sso: viewer.sso, themeSwitch: { next: reply.request.url }, help }
   return respond(reply, title, name, props, frame, current)
 }
 
@@ -51,5 +50,5 @@ export function renderAuthPage(reply: FastifyReply, { title, description, mark, 
   const switchable = reply.request.method === 'GET' && !reply.request.url.startsWith('/auth/sso/')
   return respond(reply, title, 'auth', { title, description, mark, blocks, footnote, brand: { name: product.name, href: home },
     signedIn: viewer && { name: viewer.name, csrf: viewer.csrf, sso: viewer.sso }, help: pageHelp(helpTopic ?? title, current?.source),
-    themeSwitch: switchable ? { mode: readThemeMode(reply.request), next: reply.request.url } : undefined }, undefined, current, notifiesOpener)
+    themeSwitch: switchable ? { next: reply.request.url } : undefined }, undefined, current, notifiesOpener)
 }
