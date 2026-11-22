@@ -95,7 +95,7 @@
   margin: var(--spacing-0) var(--spacing-0) 14px;
 }
 
-:where(.content, .auth-card, dialog) .field :where(input, select, textarea) {
+:where(.content, dialog) .field :where(input, select, textarea) {
   margin-top: var(--spacing-0);
 }
 
@@ -229,11 +229,15 @@ textarea.input {
   --color-border-emphasized: var(--field-border);
 }
 
+.astryx-text-input.mono input {
+  font-family: var(--mono);
+}
+
 :where(.content, dialog) :where(form) {
   margin: 12px var(--spacing-0);
 }
 
-:where(.content, .auth-card, dialog) :where(input[type=checkbox], input[type=radio]) {
+:where(.content, dialog) :where(input[type=checkbox], input[type=radio]) {
   accent-color: var(--primary);
   width: 15px;
   height: 15px;
@@ -241,7 +245,7 @@ textarea.input {
   margin: var(--spacing-0) 6px var(--spacing-0) var(--spacing-0);
 }
 
-:where(.content, .auth-card, dialog) :where(input[type=file]) {
+:where(.content, dialog) :where(input[type=file]) {
   display: block;
   margin-top: 6px;
   font-size: var(--fs-sm);

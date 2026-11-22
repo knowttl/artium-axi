@@ -32,8 +32,10 @@ The archive's `README.txt` records the stylesheet checksums, screenshot comparis
 The form controls keep their legacy surface, text, border and status colors for the same reason.
 They keep font sizes, corner radii, nonzero spacing and layout dimensions at their baseline values across browser font sizes, except the small control height, which matches the Astryx small element size at every root font size.
 Because `forms.css` is served after the `.mono` utility in `components.ts`, the `.input.mono` rule sets its own font size so the monospace size is unchanged.
-The [forms CSS parity archive](forms-css-parity.zip) contains 96 before-and-after screenshot pairs at the default root font size for base revision `e8ea8b5aa7ad05924025f1e85b0ced0960facc6d`.
-The first 95 pairs compare the original extraction on authenticated pages, and the sign-in pair compares the stylesheet after review on the rendered `/login` form.
+Astryx puts the `.mono` class on the TextInput wrapper, so `forms.css` applies the monospace font to the nested input.
+The [forms CSS parity archive](forms-css-parity.zip) contains 100 before-and-after screenshot pairs at the default root font size for base revision `e8ea8b5aa7ad05924025f1e85b0ced0960facc6d`.
+Thirty pairs compare the final stylesheet on rendered forms, including sign-in, CLI approval, and forms with filled monospace fields.
+The other 70 pairs record the original extraction on authenticated pages.
 The archive's `README.txt` records the stylesheet checksums and the computed style comparison for the original extraction, which covers 190 cases across two root font sizes and includes synthetic markup for form controls in content, dialogs, sign-in cards and Astryx roots.
 Rules for markup that no view renders any more, such as the legacy form element styles outside the Astryx root, stay in `components.ts`.
 
