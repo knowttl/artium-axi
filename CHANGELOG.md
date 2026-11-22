@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.0.59](https://github.com/knowttl/artium-axi/compare/v0.0.58...v0.0.59) (2026-11-22)
+
+
+### Bug Fixes
+
+* **admin:** serve admin and sign-in styles from one bundle ([#592](https://github.com/knowttl/artium-axi/issues/592)) ([3092305](https://github.com/knowttl/artium-axi/commit/309230597feb8ba049b22340ee86ad34592dd75e))
+* render browser menus, help, and theme controls in React ([#584](https://github.com/knowttl/artium-axi/issues/584)) ([64bba26](https://github.com/knowttl/artium-axi/commit/64bba2600f9f421d22d67cc445e9cc05582d897d))
+
 ## [0.0.58](https://github.com/knowttl/artium-axi/compare/v0.0.57...v0.0.58) (2026-11-22)
 
 
