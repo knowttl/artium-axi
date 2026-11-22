@@ -2,7 +2,7 @@ import { readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { Readable } from 'node:stream'
 import { join } from 'node:path'
 import { decode } from '@toon-format/toon'
-import { expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { toolInput } from '../../src/cli/input.js'
 import { createApp } from '../../src/server/app.js'
 import { createTenableAdapter } from '../../src/server/adapters/tenable.js'
@@ -16,6 +16,9 @@ import { loadTrustedCa } from '../../src/server/trusted-ca.js'
 import { loginResponseSchema } from '../../src/shared/api.js'
 import { withFakeService } from '../fake-service/fixture.js'
 import { seedToolUser } from '../fixtures/tokens.js'
+
+beforeEach(() => { vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] }) })
+afterEach(() => { vi.useRealTimers() })
 
 test('managed Tenable saves secret keys, reads, tests health and gates business writes and exports through the published CLI', async () => {
   await withFakeService(async ({ directory, port, send }) => {

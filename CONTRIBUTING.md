@@ -34,6 +34,10 @@ pnpm lint
 pnpm test:gate
 ```
 
+`pnpm lint` also runs `scripts/flaky-test-patterns.ts` on `*.test.ts` lines added or changed since the merge base with `origin/main`, falling back to `main`.
+It rejects `waitForTimeout` calls, `await new Promise(...)` waits that call `setTimeout` outside files that use fake timers, and `toHaveBeenCalledTimes` or `toHaveBeenCalledOnce` assertions.
+Wait for the observable outcome and assert behaviour instead.
+
 `pnpm check` verifies generated references, types, inventory and schema freshness, the test suite, compilation and the AXI/distribution checklist (`pnpm test:axi`, or `node scripts/axi-check.ts`).
 It does not run container acceptance or the private hygiene check.
 Before publication, follow the [private hygiene requirements](#private-hygiene-check).

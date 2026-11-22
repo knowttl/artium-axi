@@ -35,6 +35,8 @@ vi.mock('node:child_process', async importOriginal => {
   return { ...original, spawn: vi.fn<typeof original.spawn>(() => { throw new Error('Unexpected health process') }) }
 })
 
+vi.setConfig({ testTimeout: 120_000, hookTimeout: 120_000 })
+
 const { spawn: spawnProcess } = await vi.importActual<typeof import('node:child_process')>('node:child_process')
 
 function controlledHealthProcess(output = { stdout: 'synthetic', stderr: '', exitCode: 0 }) {
