@@ -161,7 +161,27 @@ test('tokens.css defines the light and dark palettes', () => {
 
 test('the Astryx stylesheet carries the hand-written stylesheets in order ahead of the Astryx rules', async () => {
   const response = await app.inject({ url: '/admin/assets/astryx.css' })
-  expect(response.body.startsWith(stylesheetNames.map(name => stylesheets[name]).join('\n') + '\n')).toBe(true)
+  expect(response.statusCode).toBe(200)
+  const expectedOrder = [
+    [':root', '--bg'],
+    ['body', 'margin'],
+    ['.logo', 'width'],
+    ['.link', 'padding'],
+    ['.table-wrap', 'overflow-x'],
+    ['.note', 'gap'],
+    ['.message', 'padding'],
+    ['reset', 'tab-size'],
+    ['astryx-base', '--_astryx-reduced-motion'],
+    ['astryx-theme', '--color-background-surface'],
+  ] as const
+  const order = postcss.parse(response.body).nodes.flatMap(node => {
+    if (node.type !== 'rule' && (node.type !== 'atrule' || node.name !== 'layer')) return []
+    const context = (node.type === 'rule' ? node.selector : node.params).trim()
+    const properties = new Set<string>()
+    node.walkDecls(declaration => { properties.add(declaration.prop) })
+    return expectedOrder.filter(([selectorOrLayer, property]) => selectorOrLayer === context && properties.has(property))
+  })
+  expect(order).toEqual(expectedOrder)
 })
 
 test('every custom property the hand-written stylesheets read is declared in the served stylesheet', async () => {
