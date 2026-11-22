@@ -615,7 +615,7 @@ describe.each(['synthetic-development-user', healthDefaults.actor])('destination
     if (actor !== healthDefaults.actor) scriptPreflight()
     failHealthProcess(text)
     await expect(health.check(tool, actor, 'destination-test', null)).rejects.toMatchObject({
-      code, diagnostic: { stage, message: 'Details unavailable.', checkedAt: expect.any(Number), credentialRevision: 1 },
+      code, diagnostic: { stage, toolCode, message: 'Details unavailable.', checkedAt: expect.any(Number), credentialRevision: 1 },
     })
     const cached = db.prepare('SELECT checked_at FROM tool_health WHERE tool = ?').get(tool) as { checked_at: number }
     expect(JSON.stringify(health.diagnostic(tool, 1, cached.checked_at))).not.toContain(host)
@@ -669,6 +669,7 @@ test.each([
   })
   const cached = db.prepare("SELECT checked_at FROM tool_health WHERE tool = 'ldap-axi'").get() as { checked_at: number }
   expect(health.diagnostic('ldap-axi', 1, cached.checked_at)).toBeUndefined()
+  expect(db.prepare("SELECT exit_code FROM audit WHERE request_id = 'ldap-scan' AND event = 'run-terminal'").get()).toEqual({ exit_code: 1 })
   expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain('directory.test')
   expect(db.prepare('SELECT * FROM run_diagnostics').all()).toEqual([])
 })

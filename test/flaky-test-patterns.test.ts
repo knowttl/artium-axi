@@ -33,7 +33,7 @@ beforeEach(() => {
   symlinkSync(resolve('node_modules'), join(directory, 'node_modules'), 'dir')
   write('src/server/example.test.ts', 'export {}\n')
   write('src/server/legacy.test.ts', legacy)
-  write('src/server/helper.ts', 'export {}\n')
+  write('src/server/helper.ts', legacy)
   git('init', '--quiet')
   git('config', 'core.quotePath', 'true')
   git('add', '.')
@@ -49,6 +49,8 @@ test.each([
     text: 'export {}\nexpect(run).toHaveBeenCalledTimes(2)\n', report: `src/server/example.test.ts:2: ${callCount}` },
   { name: 'a single-call assertion', path: 'src/server/example.test.ts',
     text: 'export {}\nexpect(run).toHaveBeenCalledOnce()\n', report: `src/server/example.test.ts:2: ${callCount}` },
+  { name: 'an exact length check on a mock call list', path: 'src/server/example.test.ts',
+    text: 'expect(run.mock.calls).toHaveLength(1)\n', report: `src/server/example.test.ts:1: ${callCount}` },
   ...['toBeCalledTimes(2)', 'toHaveBeenCalledExactlyOnceWith(1)', 'to.have.callCount(2)', 'to.have.been.calledOnce', 'to.have.been.calledOnceWith(1)']
     .map(matcher => ({ name: matcher, path: 'src/server/example.test.ts',
       text: `export {}\nexpect(run).${matcher}\n`, report: `src/server/example.test.ts:2: ${callCount}` })),
@@ -87,6 +89,24 @@ test.each([
   { name: 'a fixed wait in an interpolated browser script', path: 'test/browser/example.ts',
     text: 'browser(`\n  if (${\n    condition\n  }) await page.eval(async () => { await new Promise(done => setTimeout(done, 50)) })\n`)\n',
     report: `test/browser/example.ts:4: ${fixedSleep}` },
+  { name: 'a fixed wait in a named browser script', path: 'test/browser/example.ts',
+    text: 'const script = `\n  await new Promise(done => setTimeout(done, 50))\n`\nbrowser(script)\n',
+    report: `test/browser/example.ts:2: ${fixedSleep}` },
+  { name: 'a fixed wait in an interpolated browser fragment', path: 'test/browser/example.ts',
+    text: 'const delay = `\n  await new Promise(done => setTimeout(done, 50))\n`\nconst script = `${delay}\n  await page.open(base)\n`\nbrowser(script)\n',
+    report: `test/browser/example.ts:2: ${fixedSleep}` },
+  { name: 'a fixed wait passed through a browser script builder', path: 'test/browser/example.ts',
+    text: 'const compose = (script: string) => `await page.open(base); ${script}`\nbrowser(compose(`\n  await new Promise(done => setTimeout(done, 50))\n`))\n',
+    report: `test/browser/example.ts:3: ${fixedSleep}` },
+  { name: 'a timer returned by page.eval', path: 'test/browser/example.ts',
+    text: 'browser(`\n  await page.eval(() => new Promise(done => setTimeout(done, 50)))\n`)\n',
+    report: `test/browser/example.ts:2: ${fixedSleep}` },
+  { name: 'a timer returned from a browser setup hook', path: 'test/browser/example.mjs',
+    text: "import { setTimeout as delay } from 'node:timers/promises'\nbefore(() => delay(50))\n",
+    report: `test/browser/example.mjs:2: ${fixedSleep}` },
+  { name: 'a timer returned from a browser test cleanup hook', path: 'test/browser/example.ts',
+    text: 'test("close", context => { context.after(() => { return new Promise(done => setTimeout(done, 50)) }) })\n',
+    report: `test/browser/example.ts:1: ${fixedSleep}` },
   { name: 'an edit inside an existing call-count assertion', path: 'src/server/legacy.test.ts',
     text: legacy.replace('(1)', '(2)'), report: `src/server/legacy.test.ts:1: ${callCount}` },
   { name: 'a new untracked test file', path: 'test/new.test.ts',
@@ -127,27 +147,14 @@ test.each([
     text: 'expect(run).toHaveBeenCalled()\nexpect(run).toHaveBeenCalledWith(1)\n' },
   { name: 'an uninvoked Vitest matcher', path: 'src/server/example.test.ts',
     text: 'const assertCount = expect(run).toHaveBeenCalledTimes\n' },
+  { name: 'an ordinary output length assertion', path: 'src/server/example.test.ts',
+    text: 'expect(records).toHaveLength(1)\n' },
   { name: 'code outside test files', path: 'src/server/helper.ts', text: 'await new Promise(resolve => setTimeout(resolve, 50))\n' },
 ])('accepts $name', ({ path, text }) => {
   write(path, text)
   const result = lint()
   expect(result.status, result.stderr).toBe(0)
   expect(result.stdout).toContain('Flaky-test patterns')
-})
-
-test('allows a public output count without suppressing the next assertion', () => {
-  const path = 'src/server/example.test.ts'
-  write(path, [
-    'test("persists one line", () => {',
-    '  // flaky-test-patterns: allow-call-count The public audit stream emits one persisted JSON line per record.',
-    '  expect(stdout).toHaveBeenCalledExactlyOnceWith("one line\\n")',
-    '  expect(prepare).toHaveBeenCalledTimes(1)',
-    '})',
-  ].join('\n'))
-  const result = lint()
-  expect(result.status).toBe(1)
-  expect(result.stderr).toContain(`${path}:4: ${callCount}`)
-  expect(result.stderr).not.toContain(`${path}:3: ${callCount}`)
 })
 
 test('fails when Git cannot enumerate tracked changes', () => {
@@ -162,6 +169,14 @@ test('accepts a pure rename of a legacy test', () => {
   git('mv', 'src/server/legacy.test.ts', 'src/server/renamed.test.ts')
   const result = lint()
   expect(result.status, result.stderr).toBe(0)
+})
+
+test('checks a file renamed into test scope', () => {
+  const path = 'src/server/helper.test.ts'
+  git('mv', 'src/server/helper.ts', path)
+  const result = lint()
+  expect(result.status).toBe(1)
+  expect(result.stderr).toContain(`${path}:2: ${fixedSleep}`)
 })
 
 test('reports changed lines at a renamed test destination', () => {

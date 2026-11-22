@@ -26,6 +26,7 @@ const isBrowserFile = (file: string) => /^test\/browser\/[^/]+\.(?:mjs|ts)$/.tes
 const isTestFile = (file: string) => /^(?:src|test)\/.*\.test\.ts$/s.test(file) || isBrowserFile(file)
 
 type LineRange = { start: number, end: number }
+const wholeFile = [{ start: 1, end: Infinity }]
 const diff = ['diff', '--no-color', '--no-ext-diff', '--no-textconv', '--find-renames']
 const tracked = git([...diff, '--name-status', '--diff-filter=d', '-z', base]).split('\0')
 const untracked = git(['ls-files', '--others', '--exclude-standard', '-z', '--', 'src', 'test'])
@@ -37,6 +38,10 @@ for (let index = 0; index < tracked.length - 1;) {
   index += count
   const file = paths.at(-1)!
   if (!isTestFile(file)) continue
+  if (paths.length === 2 && !isTestFile(paths[0])) {
+    added.set(file, wholeFile)
+    continue
+  }
   const patch = git(['--literal-pathspecs', ...diff, '--unified=0', '--inter-hunk-context=0', base, '--', ...paths])
   const ranges: LineRange[] = []
   for (const [, first, length] of patch.matchAll(/^@@ -\S+ \+(\d+)(?:,(\d+))? @@/gm)) {
@@ -47,7 +52,7 @@ for (let index = 0; index < tracked.length - 1;) {
   if (ranges.length) added.set(file, ranges)
 }
 for (const file of untracked.split('\0').filter(isTestFile)) {
-  added.set(file, [{ start: 1, end: Infinity }])
+  added.set(file, wholeFile)
 }
 
 function timeoutClock(call: ts.CallExpression): boolean | undefined {
@@ -121,15 +126,35 @@ function rootName(node: ts.Expression): string | undefined {
 function runnerWaitsFor(callback: ts.Node | undefined): boolean {
   if (!inlineCallback(callback) || !ts.isCallExpression(callback.parent) ||
       !callback.parent.arguments.includes(callback)) return false
-  const name = rootName(callback.parent.expression)
-  return name !== undefined && ['test', 'it', 'beforeAll', 'beforeEach', 'afterAll', 'afterEach'].includes(name)
+  const callee = callback.parent.expression
+  const name = rootName(callee)
+  if (name && ['test', 'it', 'before', 'after', 'beforeAll', 'beforeEach', 'afterAll', 'afterEach'].includes(name)) return true
+  if (!ts.isPropertyAccessExpression(callee)) return false
+  return (name === 'page' && callee.name.text === 'eval') ||
+    (name === 'context' && ['before', 'after', 'beforeEach', 'afterEach'].includes(callee.name.text))
 }
 
-function allowsOutputCount(assertion: ts.Node, source: ts.SourceFile): boolean {
-  const statement = ts.findAncestor(assertion.parent, node => ts.isStatement(node) || ts.isFunctionLike(node))
-  if (!statement || !ts.isExpressionStatement(statement)) return false
-  return ts.getLeadingCommentRanges(source.text, statement.getFullStart())?.some(({ pos, end }) =>
-    /^\/\/ flaky-test-patterns: allow-call-count \S/.test(source.text.slice(pos, end))) ?? false
+function countsMockCalls(matcher: ts.PropertyAccessExpression): boolean {
+  if (!['toHaveLength', 'length', 'lengthOf'].includes(matcher.name.text)) return false
+  let target = matcher.expression
+  while (ts.isPropertyAccessExpression(target)) target = target.expression
+  if (!ts.isCallExpression(target) || rootName(target.expression) !== 'expect' || !target.arguments[0]) return false
+  const calls = unwrap(target.arguments[0])
+  return ts.isPropertyAccessExpression(calls) && calls.name.text === 'calls' &&
+    ts.isPropertyAccessExpression(calls.expression) && calls.expression.name.text === 'mock'
+}
+
+function constInitializer(identifier: ts.Identifier): ts.Expression | undefined {
+  for (let scope = identifier.parent; scope; scope = scope.parent) {
+    if (ts.isFunctionLike(scope) && scope.parameters.some(({ name }) => ts.isIdentifier(name) && name.text === identifier.text)) return
+    if (!ts.isBlock(scope) && !ts.isSourceFile(scope)) continue
+    for (const statement of scope.statements) {
+      if (!ts.isVariableStatement(statement)) continue
+      const list = statement.declarationList
+      const binding = list.declarations.find(({ name }) => ts.isIdentifier(name) && name.text === identifier.text)
+      if (binding) return list.flags & ts.NodeFlags.Const ? binding.initializer : undefined
+    }
+  }
 }
 
 function inspect(source: ts.SourceFile, report: (start: number, end: number, at: number, message: string) => void,
@@ -147,6 +172,41 @@ function inspect(source: ts.SourceFile, report: (start: number, end: number, at:
         if ((binding.propertyName ?? binding.name).text === 'setTimeout') promiseTimers.add(binding.name.text)
       }
     }
+  }
+
+  const visitedScripts = new Set<ts.Expression>()
+  const inspectScript = (value: ts.Expression): void => {
+    const expression = unwrap(value)
+    if (visitedScripts.has(expression)) return
+    visitedScripts.add(expression)
+    if (ts.isIdentifier(expression)) {
+      const initializer = constInitializer(expression)
+      if (initializer) inspectScript(initializer)
+      return
+    }
+    const builder = ts.isCallExpression(expression) && ts.isIdentifier(expression.expression)
+      ? constInitializer(expression.expression) : undefined
+    const template = inlineCallback(builder) && !ts.isBlock(builder.body) ? unwrap(builder.body) : expression
+    if (!ts.isNoSubstitutionTemplateLiteral(template) && !ts.isTemplateExpression(template)) return
+    const start = template.getStart(source) + 1
+    let text = source.text.slice(start, template.end - 1)
+    if (ts.isTemplateExpression(template)) {
+      let from = template.head.end - 2
+      for (const span of template.templateSpans) {
+        const fragment = unwrap(span.expression)
+        if (inlineCallback(builder) && ts.isCallExpression(expression) && ts.isIdentifier(fragment)) {
+          const index = builder.parameters.findIndex(({ name }) => ts.isIdentifier(name) && name.text === fragment.text)
+          inspectScript(expression.arguments[index] ?? fragment)
+        } else {
+          inspectScript(fragment)
+        }
+        const to = span.literal.getStart(source) + 1
+        text = text.slice(0, from - start) + '0' + source.text.slice(from + 1, to).replace(/[^\r\n]/g, ' ') + text.slice(to - start)
+        from = span.literal.end - 2
+      }
+    }
+    inspect(ts.createSourceFile('browser-script.js', text, ts.ScriptTarget.Latest, true),
+      (first, end, at, message) => report(first + start, end + start, at + start, message))
   }
 
   const mark = (node: ts.Node, message: string, at = node.getStart(source)) => report(node.getStart(source), node.end, at, message)
@@ -167,20 +227,7 @@ function inspect(source: ts.SourceFile, report: (start: number, end: number, at:
         const [first, second] = node.arguments
         const command = first && ts.isArrayLiteralExpression(first) ? first.elements[0] : undefined
         const script = name === 'browser' ? first : name === 'chrome' && command && ts.isStringLiteral(command) && command.text === 'run' ? second : undefined
-        if (script && (ts.isNoSubstitutionTemplateLiteral(script) || ts.isTemplateExpression(script))) {
-          const start = script.getStart(source) + 1
-          let text = source.text.slice(start, script.end - 1)
-          if (ts.isTemplateExpression(script)) {
-            let from = script.head.end - 2
-            for (const span of script.templateSpans) {
-              const to = span.literal.getStart(source) + 1
-              text = text.slice(0, from - start) + '0' + source.text.slice(from + 1, to).replace(/[^\r\n]/g, ' ') + text.slice(to - start)
-              from = span.literal.end - 2
-            }
-          }
-          inspect(ts.createSourceFile('browser-script.js', text, ts.ScriptTarget.Latest, true),
-            (first, end, at, message) => report(first + start, end + start, at + start, message))
-        }
+        if (script) inspectScript(script)
       }
     }
     if (ts.isPropertyAccessExpression(node)) {
@@ -188,8 +235,8 @@ function inspect(source: ts.SourceFile, report: (start: number, end: number, at:
       const call = ts.isCallExpression(node.parent) && node.parent.expression === node ? node.parent : undefined
       const isChai = (chaiCountMethods.has(name) || chaiCountProperties.has(name)) && rootName(node.expression) === 'expect'
       const assertion = isChai && chaiCountProperties.has(name) ? node :
-        isChai || countMatchers.has(name) ? call : undefined
-      if (assertion && !allowsOutputCount(assertion, source)) {
+        call && (isChai || countMatchers.has(name) || countsMockCalls(node)) ? call : undefined
+      if (assertion) {
         mark(assertion, callCount, node.name.getStart(source))
       }
     }
