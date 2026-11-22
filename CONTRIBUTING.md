@@ -34,16 +34,17 @@ pnpm lint
 pnpm test:gate
 ```
 
-`pnpm lint` also runs `scripts/flaky-test-patterns.ts` on added or changed lines in `*.test.ts` and the browser runner's `test/browser/*.ts` and `test/browser/*.mjs` files.
-Standalone lint uses the unique merge base with `origin/main`, and `pnpm test:gate` passes its selected base to lint.
-When no baseline can be established, the check runs over every in-scope test file in advisory mode: it lists the findings and exits successfully so the full suite still runs.
-It checks the full file when a rename brings it into test scope.
-It checks TypeScript or JavaScript code and browser script literals, including concatenated and imported fragments, for `waitForTimeout`, promise waits resolved by a real `setTimeout`, and call-count assertions, including length checks on mock call lists.
-An exact single-write assertion on a spy of `process.stdout.write` or `process.stderr.write` is allowed when the same assertion checks the text of one newline-terminated line.
-The check covers timer promises awaited directly or returned directly by a test, hook, or inline or serialized `page.eval` callback.
-The checker exempts a wait when the callback's setup or body establishes fake `setTimeout` and the clock still holds at the wait.
-An event-driven promise may use a timer to report failure when readiness misses its deadline.
-Wait for the observable outcome and assert behaviour instead.
+`pnpm lint` runs `scripts/flaky-test-patterns.ts` on `*.test.ts` files under `src/` and `test/` and on `.ts` and `.mjs` files directly under `test/browser/`.
+With a baseline, findings on added or changed lines fail lint.
+The check covers the whole file for non-ignored untracked tests and for files renamed into scope.
+Standalone lint defaults to the unique merge base of `HEAD` and `origin/main`.
+When no baseline is available, the checker scans all tracked and non-ignored untracked test files in scope and reports findings without failing lint.
+
+The checker flags `waitForTimeout`, waits resolved by a real `setTimeout` (including imports from `node:timers/promises`), and call-count assertions such as checks on the length of `mock.calls`.
+It detects direct awaits and timer promises returned by tests, hooks and supported `page.eval` callbacks, including in statically resolved browser script fragments.
+Use an observable readiness signal and assert the outcome.
+Use failure deadlines to bound event-driven waits, or use fake timers that remain active for the timer being awaited.
+For a single-line output contract, use `toHaveBeenCalledExactlyOnceWith` on a spy of `process.stdout.write` or `process.stderr.write` with a newline-terminated string literal or a template using single-argument `JSON.stringify` interpolations.
 
 `pnpm check` verifies generated references, types, inventory and schema freshness, the test suite, compilation and the AXI/distribution checklist (`pnpm test:axi`, or `node scripts/axi-check.ts`).
 It does not run container acceptance or the private hygiene check.
@@ -84,7 +85,7 @@ Executable entry points reached by the import graph select their consumer tests;
 Explicit owners retain CLI bundles and installed package journeys where applicable.
 Embedded skills run CLI and package checks rather than taking the documentation shortcut.
 Generated inventories, schemas, dynamic fixtures, other shared code, toolchain changes, unknown paths, deleted runtime inputs, missing or ambiguous bases, unchanged inputs and empty runtime test selections require the full suite.
-When the gate cannot establish a base, the flaky-test checker scans all tracked and non-ignored untracked test files in scope.
+When the gate runs lint, it passes its selected baseline to the flaky-test checker, including for `--full`.
 Every selection checks `docs/errors.md` freshness with `scripts/errors-reference.ts`.
 Changes or deletions of `docs/awx-parity-matrix.md` also select `scripts/awx-parity.mjs`; these generated-reference edits and other documentation-only edits select no runtime tests.
 README and license changes also run the package journeys that copy those files.
