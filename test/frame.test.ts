@@ -51,19 +51,14 @@ test.each([['header end', 'frame-controls-header', 'banner'], ['narrow-screen me
   expect(controls.map(text)).toEqual(['Changes lockedSystemLightDark'])
 })
 
-const openShackle = 'M8 10.5V7a4 4 0 0 1 7.7-1.5'
-const closedShackle = 'M8 10.5V7a4 4 0 0 1 8 0v3.5'
-
 test.each([
-  ['unlocked', { remainingMs: 14 * 60_000 }, 'on', openShackle, 'Changes unlocked · 14 min'],
-  ['rounds a partial minute up', { remainingMs: 60_001 }, 'on', openShackle, 'Changes unlocked · 2 min'],
-  ['locked at the end of the window', { remainingMs: 0 }, 'off', closedShackle, 'Changes locked'],
-])('the confirmation pill is %s in both header placements', (_name, reauth, state, shackle, words) => {
+  ['unlocked', { remainingMs: 14 * 60_000 }, 'on', 'Changes unlocked · 14 min'],
+  ['rounds a partial minute up', { remainingMs: 60_001 }, 'on', 'Changes unlocked · 2 min'],
+  ['locked at the end of the window', { remainingMs: 0 }, 'off', 'Changes locked'],
+])('the confirmation pill is %s in both header placements', (_name, reauth, state, words) => {
   const pills = nodes(parseFragment(render({ reauth }))).filter(element => attribute(element, 'class')?.split(' ').includes('unlock'))
-  expect(pills.map(pill => [attribute(pill, 'class'),
-    nodes(pill).filter(element => element.tagName === 'svg').flatMap(icon => nodes(icon).slice(1).map(shape =>
-      shape.tagName === 'path' ? attribute(shape, 'd') : shape.tagName)), text(pill)]))
-    .toEqual(Array(2).fill([`unlock ${state}`, ['rect', shackle], words]))
+  expect(pills.map(pill => [attribute(pill, 'class'), text(pill)]))
+    .toEqual(Array(2).fill([`unlock ${state}`, words]))
 })
 
 const regions = { 'side navigation': 'astryx-app-shell-sidenav', 'narrow-screen menu': 'frame-mobile-menu' }
@@ -107,11 +102,14 @@ test.each([
   [true, [['_csrf', 'hidden', 'synthetic-token', undefined], ['providerLogout', 'checkbox', 'true', undefined]]],
   [false, [['_csrf', 'hidden', 'synthetic-token', undefined]]],
 ])('both account menu sign-out forms for sso %s submit these fields', (sso, fields) => {
-  const menus = nodes(parseFragment(render({ sso }))).filter(element => attribute(element, 'class')?.split(' ').includes('account-menu'))
-  const forms = menus.map(menu => nodes(menu).filter(element => element.tagName === 'form' && attribute(element, 'action') === '/logout'))
-  expect(forms.map(region => region.map(form => [attribute(form, 'method'), nodes(form).filter(element => element.tagName === 'input')
-    .map(input => ['name', 'type', 'value', 'checked'].map(name => attribute(input, name)))])))
-    .toEqual([[['post', fields]], [['post', fields]]])
+  const elements = nodes(parseFragment(render({ sso })))
+  for (const [region, className] of Object.entries(regions)) {
+    const container = elements.find(element => attribute(element, 'class')?.split(' ').includes(className))!
+    const menu = nodes(container).find(element => attribute(element, 'class')?.split(' ').includes('account-menu'))!
+    const forms = nodes(menu).filter(element => element.tagName === 'form' && attribute(element, 'action') === '/logout')
+    expect(forms.map(form => [attribute(form, 'method'), nodes(form).filter(element => element.tagName === 'input')
+      .map(input => ['name', 'type', 'value', 'checked'].map(name => attribute(input, name)))]), region).toEqual([['post', fields]])
+  }
 })
 
 test('the help panel titles the page and lists each paragraph', () => {

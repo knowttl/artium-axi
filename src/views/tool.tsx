@@ -10,7 +10,7 @@ import { ActionForm, Revision } from './action-form.js'
 import { Icon, type IconName } from './icon.js'
 import { Panel } from './panel.js'
 import { badgeVariants, type Status } from './status.js'
-import { Tabs } from './tabs.js'
+import { Tabs, type TabLink } from './tabs.js'
 import { TestOutcomeProvider, TestResultNote } from './test-outcome.js'
 import { Time } from './time.js'
 import { Access, type AccessProps } from './tool-access.js'
@@ -30,7 +30,7 @@ export interface ToolProps {
   writes: Status
   checkedAt: string | null
   setup: { title: string, detail: string, at: string | null, state: 'done' | 'fail' | 'todo' }[]
-  tabs: { label: string, href: string, icon: IconName, note: string | null, current: boolean }[]
+  tabs: (TabLink & { icon: IconName })[]
   panel:
     | { tab: 'instances', instances: InstancesProps }
     | { tab: 'access', access: AccessProps }

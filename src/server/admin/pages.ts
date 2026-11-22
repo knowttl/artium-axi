@@ -12,7 +12,6 @@ import { editorProfile } from './credential-form.js'
 import { instancesPanel, readInstanceRows, registerInstancePages } from './instances.js'
 import { describeWrites, rawApiModeWords, setupStatus, toolProducts, toolSetupState } from './design/status.js'
 import { renderPage } from './render-page.js'
-import type { IconName } from '../../views/icon.js'
 import type { AccessProps } from '../../views/tool-access.js'
 import type { ToolProps } from '../../views/tool.js'
 import type { WritesProps } from '../../views/tool-writes.js'
@@ -142,7 +141,7 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
       { title: 'Granted to a role', detail: roles.length ? roles.map(role => role.name).join(', ') : 'No roles yet', at: null, state: roles.length ? 'done' : 'todo' },
     ]
     const writesNote = !writes.capable ? 'Read-only' : tool.readOnly ? 'Off' : writes.supportedOperations ? `${writes.allowedOperations.length} on` : 'On'
-    const tabLinks: { id: string, label: string, icon: IconName, note: string | null }[] = [
+    const tabLinks: (Omit<ToolProps['tabs'][number], 'href' | 'current'> & { id: string })[] = [
       { id: 'instances', label: 'Instances', icon: 'globe', note: String(instanceRows.length) },
       { id: 'writes', label: 'Write permissions', icon: 'zap', note: writesNote },
       ...(rawCapable ? [{ id: 'raw-api', label: 'Raw API', icon: 'terminal' as const, note: rawApiModeWords[tool.rawApi.mode].label }] : []),

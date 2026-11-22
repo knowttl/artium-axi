@@ -32,12 +32,17 @@ export interface ViewProps { overview: OverviewProps, auth: AuthProps, people: P
   sshAudit: SshAuditProps, sshHosts: SshHostsProps, sshCredentials: SshCredentialsProps, account: AccountProps }
 export type ViewName = keyof ViewProps
 
-const views = { overview: Overview, auth: Auth, people: People, person: Person, roles: Roles, role: Role, invitations: Invitations, tools: Tools, tool: Tool, instance: Instance,
+const views = { overview: Overview, people: People, person: Person, roles: Roles, role: Role, invitations: Invitations, tools: Tools, tool: Tool, instance: Instance,
   signIn: SignIn, signInMatches: SignInMatches, provider: Provider, tokens: Tokens, audit: AuditLog, sshAudit: SshAudit, sshHosts: SshHosts, sshCredentials: SshCredentials, account: Account }
 
 export function Root<Name extends ViewName>({ name, props, frame, mode, confirmations }: { name: Name, props: ViewProps[Name], frame?: FrameProps, mode: ThemeMode, confirmations: ConfirmationTokens }) {
-  const View = views[name] as (props: ViewProps[Name] & { mode: ThemeMode }) => React.JSX.Element
-  const view = <View {...props} mode={mode} />
+  let view: React.JSX.Element
+  if (name === 'auth') {
+    view = <Auth {...props as AuthProps} mode={mode} />
+  } else {
+    const View = views[name as Exclude<ViewName, 'auth'>] as (props: ViewProps[Name]) => React.JSX.Element
+    view = <View {...props} />
+  }
   return (
     <Theme theme={neutralTheme} mode={mode}>
       <LayerProvider>

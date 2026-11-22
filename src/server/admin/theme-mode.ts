@@ -4,13 +4,12 @@ import { ArtiumError } from '../../shared/errors.js'
 import { themeModes } from '../../views/theme-switch.js'
 
 const themeModeSchema = z.enum(themeModes)
-export type ThemeMode = z.infer<typeof themeModeSchema>
 
 export const themeCookie = 'artium-theme'
 const themeCookieOptions = { path: '/', secure: true, httpOnly: true, sameSite: 'lax', maxAge: 365 * 24 * 60 * 60 } as const
 const sameOriginPath = /^\/(?![/\\])[^\u0000-\u001f\u007f]*$/
 
-export function readThemeMode(request: FastifyRequest): ThemeMode {
+export function readThemeMode(request: FastifyRequest) {
   return themeModeSchema.catch('system').parse(request.cookies?.[themeCookie])
 }
 
