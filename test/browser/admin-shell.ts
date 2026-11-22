@@ -416,7 +416,7 @@ async function verifyReauthCadence() {
       document.head.append(script);
     });
     await page.wait('html[data-reauth-test-hydrated]');
-    await waitForReauthPills('Changes unlocked · 2 min', 'on', '#i-unlock');`)
+    await waitForReauthPills('Changes unlocked · 2 min', 'on');`)
   const targets: { url: string, webSocketDebuggerUrl: string }[] = await (await fetch(`http://127.0.0.1:${chromeDebugPort}/json/list`)).json()
   const target = targets.find(page => page.url === fixture.url + '/admin')
   assert.ok(target)
@@ -452,18 +452,18 @@ async function verifyReauthCadence() {
     assert.ok(elapsed !== undefined && elapsed >= 0 && elapsed < 29_750, `Unexpected time since hydration: ${elapsed}`)
 
     await advance(29_750 - elapsed)
-    browser(`${waitForReauthPills} await waitForReauthPills('Changes unlocked · 2 min', 'on', '#i-unlock', 0);`)
+    browser(`${waitForReauthPills} await waitForReauthPills('Changes unlocked · 2 min', 'on', 0);`)
     await advance(500)
     browser(`${waitForReauthPills}
-      await waitForReauthPills('Changes unlocked · 1 min', 'on', '#i-unlock', 0);
+      await waitForReauthPills('Changes unlocked · 1 min', 'on', 0);
       await page.eval(() => { const now = Date.now.bind(Date); Date.now = () => now() + 45_000; });`)
     await advance(29_500)
-    browser(`${waitForReauthPills} await waitForReauthPills('Changes unlocked · 1 min', 'on', '#i-unlock', 0);`)
+    browser(`${waitForReauthPills} await waitForReauthPills('Changes unlocked · 1 min', 'on', 0);`)
     await advance(500)
-    browser(`${waitForReauthPills} await waitForReauthPills('Changes locked', 'off', '#i-lock', 0);`)
+    browser(`${waitForReauthPills} await waitForReauthPills('Changes locked', 'off', 0);`)
     browser(`await page.eval(() => { const now = Date.now.bind(Date); Date.now = () => now() - 120_000; });`)
     await advance(30_000)
-    browser(`${waitForReauthPills} await waitForReauthPills('Changes locked', 'off', '#i-lock', 0);`)
+    browser(`${waitForReauthPills} await waitForReauthPills('Changes locked', 'off', 0);`)
   } finally { socket.close() }
 }
 
@@ -590,13 +590,13 @@ test(resizeCadence, async () => {
     browser(`
       ${waitForReauthPills}
       await page.wait('[data-testid=mobile-nav-toggle]');
-      await waitForReauthPills('Changes locked', 'off', '#i-lock');
+      await waitForReauthPills('Changes locked', 'off');
     `)
     chrome(['resize', '1280', '900'])
     browser(`
       ${waitForReauthPills}
       await page.wait('.astryx-app-shell-sidenav');
-      await waitForReauthPills('Changes locked', 'off', '#i-lock');
+      await waitForReauthPills('Changes locked', 'off');
     `)
   } finally { chrome(['stop']) }
 })
@@ -672,7 +672,7 @@ test('ordinary users can create temporary tokens after recent authentication exp
     ${createdTokenDialog}
     await page.open(base + '/account');
     await page.wait('html[data-astryx-theme]');
-    await waitForReauthPills('Changes locked', 'off', '#i-lock');
+    await waitForReauthPills('Changes locked', 'off');
     await page.eval(() => { window.sameDocument = true; });
     await page.fill('form[action="/v1/account/tokens"] [name=label]', 'Synthetic token');
     await page.fill('[name=duration]', '2.5');
@@ -688,7 +688,7 @@ test('ordinary users can create temporary tokens after recent authentication exp
     await page.fill('#reauth-dialog [name=password]', 'CANARY-local-password');
     await page.click('#reauth-dialog button:not([type=button])');
     await expectCreatedToken();
-    await waitForReauthPills('Changes unlocked · 15 min', 'on', '#i-unlock');
+    await waitForReauthPills('Changes unlocked · 15 min', 'on');
     check(await page.eval(() => window.sameDocument === true), 'Confirmation reloaded the page instead of refreshing the pill');
     await closeCreatedToken();
     const saved = await page.eval(() => {

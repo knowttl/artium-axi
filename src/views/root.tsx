@@ -1,5 +1,5 @@
 import { LayerProvider } from '@astryxdesign/core/Layer'
-import { Theme, type ThemeMode } from '@astryxdesign/core/theme'
+import { Theme } from '@astryxdesign/core/theme'
 import { neutralTheme } from '@astryxdesign/theme-neutral/built'
 import { Account, type AccountProps } from './account.js'
 import { ConfirmationTokenContext, type ConfirmationTokens } from './action-form.js'
@@ -21,6 +21,7 @@ import { SignInMatches, type SignInMatchesProps } from './sign-in-matches.js'
 import { SshAudit, type SshAuditProps } from './ssh-audit.js'
 import { SshCredentials, type SshCredentialsProps } from './ssh-credentials.js'
 import { SshHosts, type SshHostsProps } from './ssh-hosts.js'
+import type { ThemeMode } from './theme-switch.js'
 import { Tokens, type TokensProps } from './tokens.js'
 import { Tool, type ToolProps } from './tool.js'
 import { Toasts } from './toasts.js'
@@ -31,16 +32,22 @@ export interface ViewProps { overview: OverviewProps, auth: AuthProps, people: P
   sshAudit: SshAuditProps, sshHosts: SshHostsProps, sshCredentials: SshCredentialsProps, account: AccountProps }
 export type ViewName = keyof ViewProps
 
-const views = { overview: Overview, auth: Auth, people: People, person: Person, roles: Roles, role: Role, invitations: Invitations, tools: Tools, tool: Tool, instance: Instance,
+const views = { overview: Overview, people: People, person: Person, roles: Roles, role: Role, invitations: Invitations, tools: Tools, tool: Tool, instance: Instance,
   signIn: SignIn, signInMatches: SignInMatches, provider: Provider, tokens: Tokens, audit: AuditLog, sshAudit: SshAudit, sshHosts: SshHosts, sshCredentials: SshCredentials, account: Account }
 
 export function Root<Name extends ViewName>({ name, props, frame, mode, confirmations }: { name: Name, props: ViewProps[Name], frame?: FrameProps, mode: ThemeMode, confirmations: ConfirmationTokens }) {
-  const View = views[name] as (props: ViewProps[Name]) => React.JSX.Element
+  let view: React.JSX.Element
+  if (name === 'auth') {
+    view = <Auth {...props as AuthProps} mode={mode} />
+  } else {
+    const View = views[name as Exclude<ViewName, 'auth'>] as (props: ViewProps[Name]) => React.JSX.Element
+    view = <View {...props} />
+  }
   return (
     <Theme theme={neutralTheme} mode={mode}>
       <LayerProvider>
         <ConfirmationTokenContext value={confirmations}>
-          <Toasts>{frame ? <><Frame {...frame}><View {...props} /></Frame><Confirmation /><ReauthDialog sso={frame.sso} /></> : <View {...props} />}</Toasts>
+          <Toasts>{frame ? <><Frame {...frame} mode={mode}>{view}</Frame><Confirmation /><ReauthDialog sso={frame.sso} /></> : view}</Toasts>
         </ConfirmationTokenContext>
       </LayerProvider>
     </Theme>

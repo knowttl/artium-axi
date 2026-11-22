@@ -10,7 +10,10 @@ This document describes the current screens and their design rules.
 | --- | --- |
 | [tokens.ts](../src/server/admin/design/tokens.ts) | Legacy colour values and shared typography, radius, shadow, control-size and layout tokens, including light and dark palettes. |
 | `src/server/admin/design/components.ts` | Component classes and geometry using the shared tokens, plus base element styles for content that has no component yet. |
-| `src/server/admin/design/ui.ts` | Render helpers that own component markup, escaping and ARIA, including the frame chrome and the icon sprite. |
+| `src/server/admin/design/ui.ts` | Builds the typed breadcrumb, brand, navigation, account menu and help panel data for the frame. |
+| `src/views/frame.tsx` | Renders the frame, including its account menu and Learn disclosure. |
+| `src/views/theme-switch.tsx` | Renders the theme switch shared by the frame and auth views. |
+| `src/views/icon.tsx` | Owns the shared inline icon catalog and markup. |
 | `src/server/admin/design/status.ts` | The status vocabulary: one word and tone per state, the badge and status-dot helpers, and the product display name and mark of each tool. |
 
 The tokens and components in `src/server/admin/design` are concatenated and served from `/admin/assets/style.css`.
@@ -22,7 +25,8 @@ All pages load the stylesheet; render-seam pages also load the browser bundle.
 A page on the seam is a React view in `src/views`, registered in `src/views/root.tsx` with the JSON-serializable props type its route builds.
 `renderPage()` in `src/server/admin/render-page.tsx` renders a view inside the page frame; `renderAuthPage()` renders the auth view without that frame.
 Both use `renderToString` and `hoistInlineStyles()` to move emitted `style` attributes into the response's one nonce'd `<style>` element, then provide the view props and optional frame props as an `application/json` data block and load `hydrate.js`.
-`src/client/hydrate.tsx` first writes each hoisted declaration back onto its element through `element.style`, which the policy allows because it is not markup, then reads the root's view name and the data block and hydrates the same tree.
+`src/client/hydrate.tsx` first writes each hoisted declaration back onto its element through `element.style`, which the policy allows because it is not markup, then reads the root's view name, its theme mode from `data-mode`, and the data block to hydrate the same tree.
+The React root passes that mode to `Frame` or `Auth` for the shared `ThemeSwitch`, whose serialized props contain only the form's return path.
 React therefore finds the markup it rendered and owns later style changes.
 Overview is the first page on the seam, People (`src/views/people.tsx`) is the second, the person detail page (`src/views/person.tsx`) is the third, the Roles list (`src/views/roles.tsx`) is the fourth, the role detail page (`src/views/role.tsx`) is the fifth, Invitations (`src/views/invitations.tsx`) is the sixth, the Tools list (`src/views/tools.tsx`) is the seventh, and the tool page (`src/views/tool.tsx`, `src/views/tool-writes.tsx` and `src/views/tool-access.tsx`) is the eighth.
 The Tools list offers no action of its own: enabling and disabling a tool is on the tool page.
@@ -117,9 +121,11 @@ The status word and tone of a token come from the `token` entry of the status vo
 The props carry a token's id, label, creator, access, scope, expiry and status, never its value or hash.
 
 The page frame is `Frame` in `src/views/frame.tsx`, built on Astryx `AppShell`: a header with the breadcrumb, a content area with the page title, description and a row of action links (`FrameAction`: a primary or secondary button that is a link, optionally naming the sheet it opens through `sheetTrigger`), and the side navigation slot.
-`adminChrome()` in `src/server/admin/design/ui.ts` builds the breadcrumb, brand, administration links, account menu and help panel once for the frame, so the links, landmarks and titles stay identical.
+`adminChrome()` in `src/server/admin/design/ui.ts` supplies the breadcrumb, brand, administration links, account menu and help panel data that `Frame` renders.
 The side navigation is an Astryx `SideNav` with a `SideNavSection` per group and a `SideNavItem` per link, whose current page is derived from the request path.
-The frame renders the legacy markup for the account menu and help panel through `dangerouslySetInnerHTML`.
+The frame renders `AccountMenu`, `HelpPanel` and `ThemeSwitch` from typed data.
+`pageHelp` in `src/server/admin/forms.ts` supplies plain-text paragraphs for both the frame's Learn panel and the auth view's Need help? disclosure, with fallback text for unknown topics.
+Views render without `dangerouslySetInnerHTML`.
 The frame receives the remaining confirmation time as typed data and uses one countdown for both copies of the React pill.
 The [pill component](../src/views/reauth.tsx) updates the text, `.unlock.on` or `.unlock.off` class, and lock icon together.
 The identity confirmation dialog hands the remaining duration to the frame through `artium-reauth` after password confirmation or verified SSO confirmation.
@@ -128,7 +134,6 @@ The dialog checks the message's origin and popup source, then verifies recent co
 See [browser administration](admin-guide.md#browser-administration) for the refresh cadence and confirmation flow.
 Below the Astryx mobile breakpoint a native navigation disclosure remains usable without JavaScript, listing the same `SideNavItem` links without a second `SideNav`, and CSS hides the desktop sidebar.
 The frame retains one banner, one main and one navigation landmark, labelled "Administration" for administrators and "Account" for other people.
-The icon sprite stays outside the React root.
 The root contains the toasts and both confirmation dialogs.
 `ActionForm` submits plain forms through [`submitForm`](../src/views/submit.ts), which starts the body from the captured `FormData` or the form's `bodyFrom` result.
 It includes the CSRF token, applies conversions from the captured `data-type` controls and sends `expectedRevision` for revision-checked mutations.
@@ -220,7 +225,8 @@ The Sessions table sits in a `session-list` container and turns into stacked car
 - No `style` attribute in any rendered page; at most one `<style>` element is allowed, and it must carry the response's nonce and contain no colour literal.
 - Every stylesheet and page resource is same-origin: no `@import`, no remote or `data:` `url()`, no remote `link`, `script` or `img`, and the policy has no `unsafe-` source, `style-src-attr` or remote `font-src`.
 - Hand-written client and view source under `src/client` and `src/views` has no colour literal; colours come from the Astryx theme.
-- Every icon is a `<use>` of a symbol in the shared sprite; pages contain no ad hoc SVG shapes.
+- Every icon is an `svg.i` rendered by the `Icon` component in `src/views/icon.tsx`, with its own inline shapes on a 24px grid.
+  Pages contain no ad hoc SVG shapes, sprite symbols or `<use>` references.
 - One `h1` per page.
 
 ## Tokens
@@ -246,7 +252,7 @@ Text pairs meet WCAG 2.2 AA (4.5:1), and control outlines, focus rings and statu
 
 Use a 4px spacing grid for new components.
 Colour, background, switch-thumb and disclosure-icon transitions last 120ms, with no transitions under `prefers-reduced-motion`.
-Icons are drawn on a 24px grid with a 1.75 stroke in `currentColor`, shown at 16px.
+Icons use a 1.75 stroke in `currentColor` and are shown at 16px.
 
 ## Legacy components
 
@@ -269,7 +275,7 @@ Icons are drawn on a 24px grid with a 1.75 stroke in `currentColor`, shown at 16
 | Steps | `.vsteps`, `.vstep` (`.done`, `.current`) | done, current, to do | Ordered list; done steps carry hidden "Done:" text |
 | Key-value list | `.kv` | | `<dl>` |
 | List row | `.rows`, `.list-row`, `.step-mark` | | Ordered list when the order matters |
-| Avatar and tool icon | `avatar()`: `.avatar`, `.avatar.lg`; `toolIcon()`: `.tool-ico`, `.tool-ico.lg`, using a mark from `toolProducts` | sm, lg | Initials and marks are `aria-hidden`; the name is adjacent text |
+| Avatar and tool icon | `.avatar` (e.g., `AccountMenu` in `src/views/frame.tsx`), `.avatar.lg` (`Person` in `src/views/person.tsx`); `toolIcon()`: `.tool-ico`, `.tool-ico.lg`, using a mark from `toolProducts` | sm, lg | Initials and marks are `aria-hidden`; the name is adjacent text |
 | Overflow menu | `.more-menu` with `.popover` | closed, open | Native disclosure with `aria-label` on its icon summary |
 | Side sheet | `dialog.sheet` with `.sheet-head`, `.sheet-body`, `.sheet-foot`, `.scrim` | See [sheet behavior](#patterns) | Labelled by its heading |
 | Option tile | `.tiles`, `.tile`, `.tool-ico` | unchecked, checked | Native checkbox inside its label |
@@ -334,7 +340,7 @@ Confirmed browser requests carry a server-issued confirmation token; CSRF, revis
 Sign-in, password, identity confirmation, CLI approval, results and error pages use the `Auth` view in `src/views/auth.tsx`, with an Astryx `Card` inside `.auth` and `.auth-wrap` and an optional `.auth-foot`.
 `renderAuthPage()` builds the view's props from a list of typed blocks (text, form, buttons, details, banner, code, divider) so a route never writes markup.
 The view has one `h1`; the primary action follows cancel or deny in a row of buttons.
-Signed-in people also get a sign-out link under the card.
+Signed-in people also get a sign-out form under the card.
 For the optional provider sign-out choice, see [browser administration](admin-guide.md#browser-administration).
 Error pages say what happened and what to do, show the code and a copyable request ID, and offer the viewer's home page.
 

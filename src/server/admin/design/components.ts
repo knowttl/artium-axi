@@ -11,7 +11,6 @@ small { overflow-wrap: anywhere; }
 a, button, summary, .nav-item, .btn { transition: background-color 120ms, color 120ms, border-color 120ms; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; } }
 svg.i { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; vertical-align: -3px; }
-.sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
 .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 .skip { position: absolute; left: 12px; top: -48px; z-index: 100; padding: 8px 12px; border-radius: var(--r-sm); background: var(--primary); color: var(--primary-fg); text-decoration: none; font-size: var(--fs-sm); }
 .skip:focus { top: 12px; }

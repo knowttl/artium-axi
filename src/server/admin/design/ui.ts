@@ -1,54 +1,5 @@
-import type { FrameProps, NavigationSection } from '../../../views/frame.js'
-import { escape } from '../escape.js'
-
-// Every icon comes from this sprite: 24px grid, 1.75 stroke, currentColor.
-const icons = {
-  home: '<rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/>',
-  users: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.6c1.8.7 3 2.6 3.5 5.4"/>',
-  shield: '<path d="M12 3 4.5 6v6c0 4.5 3.2 7.8 7.5 9 4.3-1.2 7.5-4.5 7.5-9V6z"/>',
-  mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3.5 6.5 8.5 6.5 8.5-6.5"/>',
-  box: '<path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/>',
-  key: '<circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M17 6l3 3M15 8l2 2"/>',
-  list: '<path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/>',
-  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/>',
-  lock: '<rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/>',
-  unlock: '<rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 7.7-1.5"/>',
-  check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
-  x: '<path d="M6 6l12 12M18 6 6 18"/>',
-  alert: '<path d="M12 3.5 2.5 20h19z"/><path d="M12 10v4.5M12 17.5h.01"/>',
-  info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.5h.01"/>',
-  search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
-  plus: '<path d="M12 5v14M5 12h14"/>',
-  more: '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
-  chev: '<path d="m9 6 6 6-6 6"/>',
-  chevd: '<path d="m6 9 6 6 6-6"/>',
-  copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>',
-  download: '<path d="M12 4v11M7 10.5l5 5 5-5M4 20h16"/>',
-  test: '<path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v4.5h-4.5"/>',
-  book: '<path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5z"/><path d="M5 19.5A1.5 1.5 0 0 0 6.5 21H19"/>',
-  terminal: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3M13 15h4"/>',
-  cert: '<circle cx="12" cy="9" r="5"/><path d="m8.5 13-1.5 8 5-3 5 3-1.5-8"/>',
-  pen: '<path d="M4 20h4L19 9l-4-4L4 16z"/>',
-  ext: '<path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
-  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
-  logout: '<path d="M15 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4M10 16l-4-4 4-4M6 12h10"/>',
-  trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',
-  arrow: '<path d="M5 12h14M13 6l6 6-6 6"/>',
-  zap: '<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>',
-  eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
-  globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
-  sliders: '<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>',
-  monitor: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>',
-  link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
-} as const
-export type IconName = keyof typeof icons
-
-const sprite = `<svg class="sprite" aria-hidden="true">${Object.entries(icons).map(([name, paths]) =>
-  `<symbol id="i-${name}" viewBox="0 0 24 24">${paths}</symbol>`).join('')}</svg>`
-
-export function icon(name: IconName): string {
-  return `<svg class="i" aria-hidden="true"><use href="#i-${name}"/></svg>`
-}
+import type { FrameProps, NavigationLink, NavigationSection } from '../../../views/frame.js'
+import type { IconName } from '../../../views/icon.js'
 
 export interface PageHeader {
   // A detail page names its record in the h1 and crumbs while `title` keeps naming the screen.
@@ -72,10 +23,9 @@ export interface Page extends PageHeader {
   parent?: { href: string, label: string }
   title: string
   content: string
-  help: string
+  help: string[]
   path: string
   viewer: Viewer
-  themeSwitch: string
 }
 
 const navigation: { group?: string, href: string, label: string, icon: IconName }[] = [
@@ -98,26 +48,7 @@ export function initials(name: string): string {
   return (words.length > 1 ? words[0]![0]! + words[1]![0]! : name.trim().slice(0, 2)).toUpperCase()
 }
 
-export function avatar(name: string, large = false): string {
-  return `<span class="avatar${large ? ' lg' : ''}" aria-hidden="true">${escape(initials(name))}</span>`
-}
-
-function accountMenu(viewer: Viewer, path: string, placement: 'up' | 'down', themeSwitch: string): string {
-  const role = viewer.administrator && !viewer.mustChange ? ' · Admin' : ''
-  const links = viewer.mustChange ? '' : `<a href="/account"${path === '/account' ? ' aria-current="page"' : ''}>${icon('user')}Your account</a>${viewer.local ? `<a href="/password"${path === '/password' ? ' aria-current="page"' : ''}>${icon('key')}Change password</a>` : ''}<hr>`
-  return `<details class="account-menu ${placement}"><summary>${avatar(viewer.name)}<span class="who"><span class="sr-only">Signed in as </span><strong>${escape(viewer.name)}</strong><span>${escape(viewer.method + role)}</span></span>${icon('chevd')}</summary>
-    <div class="popover">${links}${themeSwitch ? `<p class="popover-note">Colour theme</p><div class="theme-row">${themeSwitch}</div><hr>` : ''}<form method="post" action="/logout"><input type="hidden" name="_csrf" value="${escape(viewer.csrf)}">${viewer.sso ? '<label class="check"><input type="checkbox" name="providerLogout" value="true"> Also sign out of your identity provider</label>' : ''}<button class="btn btn-ghost btn-sm">${icon('logout')}Sign out</button></form></div></details>`
-}
-
-function learn(title: string, help: string): string {
-  return `<details class="page-help learn"><summary class="btn btn-ghost btn-sm" aria-label="Learn">${icon('book')}<span class="label">Learn</span></summary><div class="learn-panel"><h2>Help with ${escape(title.toLowerCase())}</h2>${help}</div></details>`
-}
-
-export const authOverlays = sprite
-
-export interface AdminChrome extends Pick<FrameProps, 'crumbs' | 'brand' | 'navigation' | 'account' | 'topbarEnd'> {
-  overlays: string
-}
+export type AdminChrome = Pick<FrameProps, 'crumbs' | 'brand' | 'navigation' | 'account' | 'help'>
 
 export function adminChrome(page: Page): AdminChrome {
   const { viewer } = page
@@ -129,14 +60,17 @@ export function adminChrome(page: Page): AdminChrome {
     if (last && last.title === item.group) last.links.push(link)
     else sections.push({ title: item.group, links: [link] })
   }
-  const account = accountMenu(viewer, page.path, 'up', page.themeSwitch)
+  const role = viewer.administrator && !viewer.mustChange ? ' · Admin' : ''
+  const accountLinks: NavigationLink[] = viewer.mustChange ? [] : [
+    { href: '/account', label: 'Your account', icon: 'user', current: page.path === '/account' },
+    ...viewer.local ? [{ href: '/password', label: 'Change password', icon: 'key' as const, current: page.path === '/password' }] : [],
+  ]
   const parent = page.parent ?? (page.heading && active ? { href: active.href, label: active.label } : active?.group && active.group !== page.title ? { label: active.group } : undefined)
   return {
     crumbs: [...parent ? [parent] : [], { label: page.heading ?? page.title }],
     brand: product,
     navigation: sections,
-    account,
-    topbarEnd: learn(page.title, page.help),
-    overlays: sprite,
+    account: { name: viewer.name, initials: initials(viewer.name), method: viewer.method + role, links: accountLinks, csrf: viewer.csrf },
+    help: { title: page.title, paragraphs: page.help },
   }
 }

@@ -2,6 +2,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type Database from 'better-sqlite3'
+import { parse, type DefaultTreeAdapterMap } from 'parse5'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { confirmationRoutes } from '../../src/shared/confirmation-routes.js'
 import { mintConfirmation } from '../../src/server/admin/confirmation-token.js'
@@ -112,6 +113,20 @@ test('a native post without confirmation changes nothing and answers with the co
   expect([completed.statusCode, completed.headers.location]).toEqual([303, '/admin'])
   expect(revoked()).toEqual(['token-live'])
   expect(revocations()).toBe(1)
+})
+
+test('a native confirmation heading matching an inherited property gets general help', async () => {
+  const step = await postForm(revokeAll, { ...pageForm(await tokenPage(), revokeAll).inputs, _confirmTitle: 'constructor' })
+  expect(step.statusCode).toBe(200)
+  const elements = (node: DefaultTreeAdapterMap['node']): DefaultTreeAdapterMap['element'][] => [
+    ...('tagName' in node ? [node] : []), ...('childNodes' in node ? node.childNodes.flatMap(elements) : []),
+  ]
+  const text = (element: DefaultTreeAdapterMap['element']): string =>
+    element.childNodes.map(child => 'value' in child ? child.value : 'tagName' in child ? text(child) : '').join('')
+  const help = elements(parse(step.body)).find(element => element.tagName === 'details' &&
+    element.childNodes.some(child => 'tagName' in child && child.tagName === 'summary' && text(child) === 'Need help?'))
+  expect(help && elements(help).filter(element => element.tagName === 'p').map(text))
+    .toEqual(['Use the navigation to return to your account or an administration screen.'])
 })
 
 test('the confirmation step never shows a field the route does not carry, and a cross-origin referrer is not a way back', async () => {

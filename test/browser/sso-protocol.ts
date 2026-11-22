@@ -417,7 +417,7 @@ test('SSO popup confirmation refreshes both pills on the original document', asy
     await page.click('a[href="/account"]');
     await page.wait('form[action="/v1/account/tokens"]');
     await page.wait('html[data-astryx-theme]');
-    await waitForReauthPills('Changes locked', 'off', '#i-lock');
+    await waitForReauthPills('Changes locked', 'off');
     check(await page.eval(async () => (await (await fetch('/reauth?status=1')).json()).until === 0), 'Unconfirmed SSO status must report no legacy deadline');
     await page.eval(() => {
       window.sameDocument = true;
@@ -441,7 +441,7 @@ test('SSO popup confirmation refreshes both pills on the original document', asy
     ${tokenCreation}
     await expectCreatedToken();
     check(await page.eval(() => window.sameDocument === true), 'SSO confirmation replaced the opener document');
-    await waitForReauthPills('Changes unlocked · 15 min', 'on', '#i-unlock');
+    await waitForReauthPills('Changes unlocked · 15 min', 'on');
     const until = await page.eval(async () => (await (await fetch('/reauth?status=1')).json()).until);
     check(until === ${confirmedAt + 900_000}, 'SSO status must retain the original 15-minute deadline');`)
 })

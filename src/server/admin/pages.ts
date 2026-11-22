@@ -141,13 +141,14 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
       { title: 'Granted to a role', detail: roles.length ? roles.map(role => role.name).join(', ') : 'No roles yet', at: null, state: roles.length ? 'done' : 'todo' },
     ]
     const writesNote = !writes.capable ? 'Read-only' : tool.readOnly ? 'Off' : writes.supportedOperations ? `${writes.allowedOperations.length} on` : 'On'
-    const tabs: ToolProps['tabs'] = [
+    const tabLinks: (Omit<ToolProps['tabs'][number], 'href' | 'current'> & { id: string })[] = [
       { id: 'instances', label: 'Instances', icon: 'globe', note: String(instanceRows.length) },
       { id: 'writes', label: 'Write permissions', icon: 'zap', note: writesNote },
-      ...(rawCapable ? [{ id: 'raw-api', label: 'Raw API', icon: 'terminal', note: rawApiModeWords[tool.rawApi.mode].label }] : []),
+      ...(rawCapable ? [{ id: 'raw-api', label: 'Raw API', icon: 'terminal' as const, note: rawApiModeWords[tool.rawApi.mode].label }] : []),
       { id: 'access', label: 'Access', icon: 'users', note: String(roles.length) },
       { id: 'advanced', label: 'Advanced', icon: 'sliders', note: null },
-    ].map(({ id, ...item }) => ({ ...item, href: `/admin/tools/${tool.name}?tab=${id}`, current: id === tab }))
+    ]
+    const tabs: ToolProps['tabs'] = tabLinks.map(({ id, ...item }) => ({ ...item, href: `/admin/tools/${tool.name}?tab=${id}`, current: id === tab }))
 
     let panel: ToolProps['panel']
     if (tab === 'instances') {

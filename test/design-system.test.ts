@@ -20,7 +20,7 @@ import { SshHosts } from '../src/server/store/ssh-hosts.js'
 import { FakeCredentialStore } from './fixtures/credential-store.js'
 import { seedToolUser } from './fixtures/tokens.js'
 
-// Rules from docs/design-system.md: colours live only in tokens, pages never style themselves, icons come from the sprite.
+// Rules from docs/design-system.md: colours live only in tokens, pages never style themselves, icons are inline SVGs rendered by the Icon component.
 function hasColourLiteral(value: string) {
   let found = false
   cssTree.walk(cssTree.parse(value, { context: 'value', parseCustomProperty: true }), function (node) {
@@ -213,19 +213,14 @@ test.each([
   assertPresentationColours(page)
   assertSameOriginResources(page)
   assertNonceStyles(page, response.headers['content-security-policy'] as string)
-  const sprites = page.filter(element => element.tagName === 'svg' && element.attrs.some(attribute => attribute.name === 'class' && attribute.value === 'sprite'))
-  expect(sprites.length).toBeLessThanOrEqual(1)
-  const sprite = sprites[0]
-  const symbols = sprite ? elements(sprite).filter(element => element.tagName === 'symbol')
-    .map(element => element.attrs.find(attribute => attribute.name === 'id')?.value) : []
   for (const element of page) {
     expect(element.attrs.filter(attribute => attribute.name === 'style')).toEqual([])
-    if (element.tagName !== 'svg' || element === sprite) continue
+    if (element.tagName !== 'svg') continue
+    const attributes = Object.fromEntries(element.attrs.map(attribute => [attribute.name, attribute.value]))
+    expect(attributes).toMatchObject({ class: 'i', viewBox: '0 0 24 24' })
     const descendants = elements(element).slice(1)
-    expect(descendants.map(child => child.tagName)).toEqual(['use'])
-    const reference = descendants[0]!.attrs.find(attribute => attribute.name === 'href')?.value
-    expect(reference).toMatch(/^#i-[a-z]+$/)
-    expect(symbols).toContain(reference!.slice(1))
+    expect(descendants.length).toBeGreaterThan(0)
+    expect(descendants.filter(child => child.tagName === 'use' || child.tagName === 'symbol')).toEqual([])
   }
   expect(page.filter(element => element.tagName === 'h1')).toHaveLength(1)
   expect(page.filter(element => element.tagName === 'form' && element.attrs.some(attribute => attribute.name === 'action' && attribute.value === '/theme'))).toHaveLength(['/admin', '/admin/tokens', '/admin/audit', '/admin/ssh/audit', '/admin/ssh', '/admin/ssh/credentials', '/account', '/admin/users','/admin/users/synthetic-ordinary', '/admin/roles', '/admin/roles/synthetic-role', '/admin/invitations', '/admin/tools', '/admin/tools/vectra-axi/instances/lab',

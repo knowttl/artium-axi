@@ -5,13 +5,34 @@ import { SideNav, SideNavHeading, SideNavItem, SideNavSection } from '@astryxdes
 import { Heading, Text } from '@astryxdesign/core/Text'
 import { VStack } from '@astryxdesign/core/VStack'
 import type { ReactNode } from 'react'
-import { Icon } from './icon.js'
+import { Icon, type IconName } from './icon.js'
 import { ReauthPill, useReauthWindow, type ReauthState } from './reauth.js'
 import { sheetTrigger } from './sheet.js'
+import { ThemeSwitch, type ThemeMode, type ThemeSwitchProps } from './theme-switch.js'
+
+export interface NavigationLink {
+  href: string
+  label: string
+  icon: IconName
+  current: boolean
+}
 
 export interface NavigationSection {
   title?: string
-  links: { href: string, label: string, icon: string, current: boolean }[]
+  links: NavigationLink[]
+}
+
+export interface AccountMenuProps {
+  name: string
+  initials: string
+  method: string
+  links: NavigationLink[]
+  csrf: string
+}
+
+export interface HelpPanelProps {
+  title: string
+  paragraphs: string[]
 }
 
 export interface FrameAction {
@@ -19,7 +40,7 @@ export interface FrameAction {
   label: string
   href: string
   variant: 'primary' | 'secondary'
-  icon: string
+  icon: IconName
   sheet?: string
   disabled?: boolean
 }
@@ -31,11 +52,11 @@ export interface FrameProps {
   crumbs: { label: string, href?: string }[]
   brand: { name: string, href: string }
   navigation: NavigationSection[]
-  account: string
+  account: AccountMenuProps
   reauth: ReauthState
   sso: boolean
-  controls: string
-  topbarEnd: string
+  themeSwitch: ThemeSwitchProps
+  help: HelpPanelProps
 }
 
 function NavigationLinks({ sections }: { sections: NavigationSection[] }) {
@@ -46,7 +67,42 @@ function NavigationLinks({ sections }: { sections: NavigationSection[] }) {
   })
 }
 
-export function Frame({ title, description, actions, crumbs, brand, navigation, account, reauth, controls, topbarEnd, children }: FrameProps & { children: ReactNode }) {
+function AccountMenu({ name, initials, method, links, csrf, sso }: AccountMenuProps & { sso: boolean }) {
+  return (
+    <details className="account-menu up">
+      <summary>
+        <span className="avatar" aria-hidden="true">{initials}</span>
+        <span className="who"><span className="sr-only">Signed in as </span><strong>{name}</strong><span>{method}</span></span>
+        <Icon name="chevd" />
+      </summary>
+      <div className="popover">
+        {links.length > 0 && <>
+          {links.map(link => <a key={link.href} href={link.href} aria-current={link.current ? 'page' : undefined}><Icon name={link.icon} />{link.label}</a>)}
+          <hr />
+        </>}
+        <form method="post" action="/logout">
+          <input type="hidden" name="_csrf" value={csrf} />
+          {sso && <label className="check"><input type="checkbox" name="providerLogout" value="true" /> Also sign out of your identity provider</label>}
+          <button type="submit" className="btn btn-ghost btn-sm"><Icon name="logout" />Sign out</button>
+        </form>
+      </div>
+    </details>
+  )
+}
+
+function HelpPanel({ title, paragraphs }: HelpPanelProps) {
+  return (
+    <details className="page-help learn">
+      <summary className="btn btn-ghost btn-sm" aria-label="Learn"><Icon name="book" /><span className="label">Learn</span></summary>
+      <div className="learn-panel">
+        <h2>{`Help with ${title.toLowerCase()}`}</h2>
+        {paragraphs.map((paragraph, index) => <p key={index}>{paragraph}</p>)}
+      </div>
+    </details>
+  )
+}
+
+export function Frame({ title, description, actions, crumbs, brand, navigation, account, reauth, sso, themeSwitch, help, mode, children }: FrameProps & { mode: ThemeMode, children: ReactNode }) {
   const pill = <ReauthPill minutes={useReauthWindow(reauth)} />
   const label = navigation.length ? 'Administration' : 'Account'
   return (
@@ -58,8 +114,8 @@ export function Frame({ title, description, actions, crumbs, brand, navigation, 
             <summary className="btn btn-ghost btn-sm" data-testid="mobile-nav-toggle">{navigation.length ? 'Navigation' : 'Menu'}</summary>
             <div className="frame-mobile-menu">
               <NavigationLinks sections={navigation} />
-              <div className="frame-controls frame-controls-drawer">{pill}<div className="frame-theme" dangerouslySetInnerHTML={{ __html: controls }} /></div>
-              <div className="side-foot" dangerouslySetInnerHTML={{ __html: account }} />
+              <div className="frame-controls frame-controls-drawer">{pill}<div className="frame-theme"><ThemeSwitch {...themeSwitch} mode={mode} /></div></div>
+              <div className="side-foot"><AccountMenu {...account} sso={sso} /></div>
             </div>
           </details>
         </nav>
@@ -67,14 +123,14 @@ export function Frame({ title, description, actions, crumbs, brand, navigation, 
           ? <strong aria-current="page">{crumb.label}</strong>
           : crumb.href ? <a href={crumb.href}>{crumb.label}</a> : <span>{crumb.label}</span>}</li>)}</ol>
         <div data-frame-slot="header-end">
-          <div className="frame-controls frame-controls-header">{pill}<div className="frame-theme" dangerouslySetInnerHTML={{ __html: controls }} /></div>
-          <div dangerouslySetInnerHTML={{ __html: topbarEnd }} />
+          <div className="frame-controls frame-controls-header">{pill}<div className="frame-theme"><ThemeSwitch {...themeSwitch} mode={mode} /></div></div>
+          <div><HelpPanel {...help} /></div>
         </div>
       </header>}
       sideNav={
         <SideNav className="frame-side" aria-label={label}
           header={<SideNavHeading heading={brand.name} headingHref={brand.href} icon={<span className="logo" aria-hidden="true">{brand.name[0]}</span>} />}
-          footer={<div className="side-foot" dangerouslySetInnerHTML={{ __html: account }} />}>
+          footer={<div className="side-foot"><AccountMenu {...account} sso={sso} /></div>}>
           <NavigationLinks sections={navigation} />
         </SideNav>
       }>

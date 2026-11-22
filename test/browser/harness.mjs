@@ -5,17 +5,23 @@ import { createServer } from 'node:net'
 import { createInterface } from 'node:readline'
 import { after, afterEach, before, beforeEach } from 'node:test'
 
-export const waitForReauthPills = `const waitForReauthPills = (expectedText, state, icon, timeoutMs = 5000) => page.eval('() => (' +
-  ((expectedText, state, icon, timeoutMs) => {
+export const waitForReauthPills = `const waitForReauthPills = (expectedText, state, timeoutMs = 5000) => page.eval('() => (' +
+  ((expectedText, state, timeoutMs) => {
     const matches = () => ['.frame-controls-header', '.frame-controls-drawer'].every(placement => {
       const pills = document.querySelectorAll(placement + ' .unlock');
       const pill = pills[0];
-      return pills.length === 1 && pill.className === 'unlock ' + state
-        && pill.querySelector('use')?.getAttribute('href') === icon
-        && pill.textContent === expectedText;
+      if (pills.length !== 1 || pill.className !== 'unlock ' + state || pill.textContent !== expectedText) return false;
+      const body = pill.querySelector('svg.i > rect');
+      const shackle = pill.querySelector('svg.i > path');
+      if (!body || !shackle) return false;
+      const top = body.y.baseVal.value;
+      const start = shackle.getPointAtLength(0);
+      const end = shackle.getPointAtLength(shackle.getTotalLength());
+      return Math.abs(start.y - top) < 0.1 && end.x > start.x
+        && (state === 'on' ? end.y < top - 0.1 : Math.abs(end.y - top) < 0.1);
     });
     if (matches()) return;
-    const fail = () => new Error('Expected one recent-authentication pill in each frame placement showing ' + expectedText + ', ' + state + ', ' + icon);
+    const fail = () => new Error('Expected one recent-authentication pill in each frame placement showing ' + expectedText + ' with a matching lock shackle');
     if (timeoutMs === 0) throw fail();
     return new Promise((resolve, reject) => {
       const observer = new MutationObserver(() => {
@@ -30,7 +36,7 @@ export const waitForReauthPills = `const waitForReauthPills = (expectedText, sta
       }, timeoutMs);
       observer.observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true });
     });
-  }).toString() + ')(...' + JSON.stringify([expectedText, state, icon, timeoutMs]) + ')');`
+  }).toString() + ')(...' + JSON.stringify([expectedText, state, timeoutMs]) + ')');`
 
 export const waitForTime = `const waitForTime = async (selector, iso, expected) => {
   await page.wait(selector);
