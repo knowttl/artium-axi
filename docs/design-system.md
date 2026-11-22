@@ -9,9 +9,9 @@ This document describes the current screens and their design rules.
 | File | Owns |
 | --- | --- |
 | [tokens.ts](../src/server/admin/design/tokens.ts) | Legacy colour values and shared typography, radius, shadow, control-size and layout tokens, including light and dark palettes. |
-| `src/server/admin/design/components.ts` | Remaining component classes, geometry, and base element styles, including fallback controls outside the Astryx root. |
-| [frame.css](../src/server/admin/design/frame.css) | Hand-written styles for the top bar, breadcrumbs, side navigation footer, mobile navigation drawer, account menu, Learn panel and recent-authentication pill. Also owns the brand mark shared with sign-in and the popover styles shared with page action menus. Uses Astryx font weights, border width and zero spacing. |
-| [forms.css](../src/server/admin/design/forms.css) | Hand-written styles for buttons, text fields, selects, checkboxes, option cards and tiles, switches, segmented controls, filter chips, the credential editor and the operation picker, and the base styles for form elements in page content, dialogs and sign-in cards. Uses Astryx font weights, border width, zero spacing, focus outline width and the small element size. |
+| [components.ts](../src/server/admin/design/components.ts) | Remaining component classes and geometry, including neutral section and table styles, fallback controls outside the Astryx root, and the `.btn-ghost.danger` variant. |
+| [frame.css](../src/server/admin/design/frame.css) | Hand-written styles for the top bar, breadcrumbs, side navigation footer, mobile navigation drawer, account menu, Learn panel and recent-authentication pill. Also owns the brand mark shared with sign-in and the popover styles, including button overrides shared with page action menus. Uses Astryx font weights, border width and zero spacing. |
+| [forms.css](../src/server/admin/design/forms.css) | Hand-written styles for shared `.btn` controls, text fields, selects, checkboxes, option cards and tiles, switches, segmented controls, filter chips, the credential editor and the operation picker. Also owns base form and fieldset styles in `.content` and dialogs, and the shared Astryx TextInput border override used by sign-in. Uses Astryx font weights, border width, zero spacing, focus outline width and the small element size. |
 | `src/server/admin/design/ui.ts` | Builds the typed breadcrumb, brand, navigation, account menu and help panel data for the frame. |
 | `src/views/frame.tsx` | Renders the frame, including its account menu and Learn disclosure. |
 | `src/views/theme-switch.tsx` | Renders the theme switch shared by the frame and auth views. |
@@ -30,15 +30,12 @@ The [frame CSS parity archive](frame-css-parity.zip) contains 96 historical befo
 The archive's `README.txt` records the stylesheet checksums, screenshot comparison at the default root font size and computed token checks at the default and 20px root font sizes.
 
 The form controls keep their legacy surface, text, border and status colors for the same reason.
-They keep font sizes, corner radii, nonzero spacing and layout dimensions at their baseline values across browser font sizes, except the small control height, which matches the Astryx small element size at every root font size.
+They keep legacy font sizes, corner radii, nonzero spacing and layout dimensions across browser font sizes.
+Small buttons and filter chips use the Astryx small element size for height, and small icon buttons also use it for width.
 Because `forms.css` is served after the `.mono` utility in `components.ts`, the `.input.mono` rule sets its own font size so the monospace size is unchanged.
 Astryx puts the `.mono` class on the TextInput wrapper, so `forms.css` applies the monospace font to the nested input.
-The [forms CSS parity archive](forms-css-parity.zip) contains 100 before-and-after screenshot pairs at the default root font size for base revision `e8ea8b5aa7ad05924025f1e85b0ced0960facc6d`.
-Three pairs compare the final stylesheet on the account, role and tool write-access pages.
-Thirty pairs record the preceding revision on rendered forms, including sign-in, CLI approval, and forms with filled monospace fields.
-The other 67 pairs record the original extraction on authenticated pages.
-The archive's `README.txt` records the stylesheet checksums and the computed style comparison for the original extraction, which covers 190 cases across two root font sizes and includes synthetic markup for form controls in content, dialogs, sign-in cards and Astryx roots.
-Rules for markup that no view renders any more, such as the legacy form element styles outside the Astryx root, stay in `components.ts`.
+The [forms CSS parity archive](forms-css-parity.zip) includes before-and-after screenshots from successive extraction revisions, including rendered sign-in and filled monospace fields.
+See its `README.txt` for the stylesheet checksums, capture coverage by revision and computed style checks.
 
 ## Render seam
 
@@ -313,9 +310,7 @@ Icons use a 1.75 stroke in `currentColor` and are shown at 16px.
 | Operation catalogue | `.ops`, `details.ops-group`, `label.op` | collapsed, open, filtered, Delete and Bulk tags | Native disclosures and checkboxes; see [label and risk ownership](#write-operation-labels-and-risk) |
 | Credential editor | `CredentialEditor` styled through `[data-credential-editor]` and `[data-credential-field]` | stored secret, required, hidden | Controls have associated labels; `aria-describedby` links their hints |
 
-`forms.css` defines the base styles for forms and fieldsets in page content and dialogs, along with the shared `.btn` styles.
-`components.ts` still defines neutral styles for sections and tables, fallback styles for plain buttons outside the Astryx root, and the `.btn-ghost.danger` variant.
-`frame.css` defines the popover-specific button styles.
+See [Files](#files) for ownership of base form styles and legacy button variants.
 
 ## Patterns
 
