@@ -95,10 +95,6 @@
   margin: var(--spacing-0) var(--spacing-0) 14px;
 }
 
-:where(.content, dialog) .field :where(input, select, textarea) {
-  margin-top: var(--spacing-0);
-}
-
 :where(.content, dialog, [data-astryx-root]) .option {
   display: flex;
   gap: 10px;
@@ -563,10 +559,6 @@ input.switch:disabled {
   gap: 14px;
   margin: var(--spacing-0);
   font-weight: var(--font-weight-normal);
-}
-
-:where(.content, [data-astryx-root]) label.switch-row {
-  margin: var(--spacing-0);
 }
 
 .switch-row b {
