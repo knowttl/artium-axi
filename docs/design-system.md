@@ -14,15 +14,15 @@ This document describes the current screens and their design rules.
 | [forms.css](../src/server/admin/design/forms.css) | Hand-written styles for shared `.btn` controls, text fields, selects, checkboxes, option cards and tiles, switches, segmented controls, filter chips, the credential editor and the operation picker. Also owns base form and fieldset styles in `.content` and dialogs, and the shared Astryx TextInput border override used by sign-in. Uses Astryx font weights, border width, zero spacing, focus outline width and the small element size. |
 | [tables.css](../src/server/admin/design/tables.css) | Hand-written styles for table wrappers and the people, roles, tools, instances, invitations, providers, rules, tokens, audit, SSH event and session tables, including their stacked narrow layouts and the base table styles for content outside the Astryx root. Uses Astryx font weights, border width, focus outline width and zero spacing. |
 | [cards.css](../src/server/admin/design/cards.css) | Hand-written styles for notes, hints and text utilities, card parts, list rows, avatars, tool icons, status dots, page grids, docked record sheets and shared sheet header and body layout, key-value lists, code and copy blocks, vertical and setup steps, disclosures including `.all-fields` summaries, and the tool grid. Also owns the Advanced tool tab's JSON validation note colors within the Astryx root. Uses Astryx font weights, border width and zero spacing. |
-| [dialogs.css](../src/server/admin/design/dialogs.css) | Hand-written styles for the `.message` form error box, side sheets with their scrim and footer, native dialogs and their backdrop, the icon circles on signed-out screens, certificate inspection text wrapping, and the signed-out auth screens including their footnote, help disclosure and theme row. Uses Astryx font weights, border width and zero spacing. |
+| [dialogs.css](../src/server/admin/design/dialogs.css) | Hand-written styles for the `.message` form error box, modal side sheets with their scrim and footer, native dialogs and their backdrop, certificate inspection text and action-button wrapping, and auth views including their icon circles, footnote, sign-out form, help disclosure and theme row. Uses Astryx font weights, border width and zero spacing. |
 | `src/server/admin/design/ui.ts` | Builds the typed breadcrumb, brand, navigation, account menu and help panel data for the frame. |
 | `src/views/frame.tsx` | Renders the frame, including its account menu and Learn disclosure. |
 | `src/views/theme-switch.tsx` | Renders the theme switch shared by the frame and auth views. |
 | `src/views/icon.tsx` | Owns the shared inline icon catalog and markup. |
 | `src/server/admin/design/status.ts` | The status vocabulary: one word and tone per state, the badge and status-dot helpers, and the product display name and mark of each tool. |
 
-The tokens, components, `frame.css`, `forms.css`, `tables.css`, `cards.css` and `dialogs.css` in `src/server/admin/design` are concatenated, in that order, and served from `/admin/assets/style.css`.
-The [asset route](../src/server/admin/users.ts) reads `design/frame.css`, `design/forms.css`, `design/tables.css`, `design/cards.css` and `design/dialogs.css` relative to its module at load time, so builds and server bundles must include all five stylesheets at those relative paths.
+The [asset route](../src/server/admin/users.ts) concatenates the tokens, components, `frame.css`, `forms.css`, `tables.css`, `cards.css` and `dialogs.css` in that order and serves them from `/admin/assets/style.css`.
+It reads the stylesheet files from `design/` relative to its module at load time, so builds and server bundles must include them there.
 The build also produces a React and Astryx browser bundle and the Astryx neutral stylesheet, served at `/admin/assets/hydrate.js` and `/admin/assets/astryx.css`.
 All pages load the stylesheet; render-seam pages also load the browser bundle.
 
@@ -52,11 +52,8 @@ The [cards CSS parity archive](cards-css-parity.zip) includes comparisons with t
 See its `README.txt` for capture coverage by revision, stylesheet checksums, screenshot comparison results and computed style checks.
 
 The dialog and auth styles keep their legacy surface, text, border and status colors, font sizes, corner radii, nonzero spacing, layout dimensions, z-index values and the 760px viewport breakpoint.
-The unused `.modal-foot` and `.dialog-actions` rules stay in `components.ts`.
 The extracted rules in `dialogs.css` keep their relative order, including the narrow-screen sheet width.
-The [dialogs CSS parity archive](dialogs-css-parity.zip) includes before-and-after screenshots of signed-out and signed-in auth pages, side sheets and dialogs with their populated and error states.
-The archive lists separate candidate checksums for the original captures and the supplemental comparisons of the pre-hydration sheet, certificate name-change button and SSO sign-out checkbox.
-See its `README.txt` for the stylesheet checksums, capture method, screenshot comparison results and computed style checks at the default and 20px root font sizes.
+See the `README.txt` in the [dialogs CSS parity archive](dialogs-css-parity.zip) for capture coverage, stylesheet checksums, comparison results and computed style checks.
 
 ## Render seam
 
