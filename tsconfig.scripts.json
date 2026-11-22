@@ -14,6 +14,7 @@
     "test/fake-service/hybrid-transport.ts",
     "test/fake-service/hybrid-artifact-transport.ts",
     "scripts/tls-policy.ts",
+    "scripts/flaky-test-patterns.ts",
     "scripts/errors-reference.ts",
     "scripts/mg-headless-schema.ts",
     "scripts/test-gate.ts",

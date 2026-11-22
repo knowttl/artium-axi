@@ -3,7 +3,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
-import { connect as connectTls } from 'node:tls'
+import { connect as connectTcp, Socket } from 'node:net'
+import { connect as connectTls, TLSSocket } from 'node:tls'
 import type Database from 'better-sqlite3'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { createApp } from '../../src/server/app.js'
@@ -15,7 +16,7 @@ import { AzureTokenCache } from '../../src/server/adapters/azure-token-cache.js'
 import { Audit } from '../../src/server/audit/audit.js'
 import { browserCookie } from '../../src/server/auth/browser.js'
 import { createBrowserSession } from '../../src/server/auth/sessions.js'
-import { healthDefaults } from '../../src/server/config.js'
+import { healthDefaults, runnerLimits } from '../../src/server/config.js'
 import { ToolHealth } from '../../src/server/health/health.js'
 import { cliOutdatedDownloadNext, cliOutdatedUpdateNext, errors } from '../../src/shared/errors.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
@@ -36,6 +37,7 @@ vi.mock('node:child_process', async importOriginal => {
 })
 
 const { spawn: spawnProcess } = await vi.importActual<typeof import('node:child_process')>('node:child_process')
+const nativeHealthTimeout = runnerLimits.admissionWaitMs + runnerLimits.timeoutMs + runnerLimits.terminationGraceMs + 10_000
 
 function controlledHealthProcess(output = { stdout: 'synthetic', stderr: '', exitCode: 0 }) {
   let started!: (finish: () => void) => void
@@ -53,6 +55,29 @@ function controlledHealthProcess(output = { stdout: 'synthetic', stderr: '', exi
 function failHealthProcess(text: string) {
   vi.mocked(spawn).mockImplementationOnce((_executable, _args, options) =>
     spawnProcess(fakeTool.executable, [...fakeTool.args, 'failure', text], options))
+}
+
+function healthOutputText(output: unknown) {
+  return JSON.stringify(output instanceof Error ? { ...output, message: output.message } : output)
+}
+
+async function healthRejection(check: ReturnType<ToolHealth['check']>): Promise<unknown> {
+  return check.then(() => { throw new Error('Expected the health check to reject') }, (error: unknown) => error)
+}
+
+function scriptPreflight(tlsError?: string) {
+  vi.mocked(connectTcp).mockImplementationOnce(() => {
+    const socket = new Socket()
+    queueMicrotask(() => socket.emit('connect'))
+    return socket
+  })
+  vi.mocked(connectTls).mockImplementationOnce(() => {
+    if (tlsError) return failedTlsSocket(tlsError)
+    const socket = new TLSSocket(new Socket())
+    socket.authorized = true
+    queueMicrotask(() => socket.emit('secureConnect'))
+    return socket
+  })
 }
 
 let directory: string
@@ -82,6 +107,8 @@ beforeEach(async () => {
     resolver: new SharedIdentityResolver(store, db), environment: {} })
 })
 afterEach(async () => {
+  vi.mocked(connectTcp).mockReset()
+  vi.mocked(connectTls).mockReset()
   await app.close()
   await health.stop()
   db.close()
@@ -546,15 +573,17 @@ test.each([
 
 describe.each(['synthetic-development-user', healthDefaults.actor])('destination diagnostics for %s', actor => {
   test.each(['ENETUNREACH', 'EHOSTUNREACH', 'response terminated before completion'])(
-    'Vectra native transport failure %s retains network detail', async cause => {
+    'Vectra native transport failure %s retains network detail', { timeout: nativeHealthTimeout }, async cause => {
       store.replaceCredential('vectra-axi', { kind: 'qux', apiVersion: '2.5', origin: 'https://appliance.test',
         auth: 'token', token: 'CANARY-VECTRA-TOKEN' }, 0, 'synthetic-development-user', Date.now())
       db.exec("UPDATE tools SET enabled = 1 WHERE name = 'vectra-axi'")
       const vectra = createVectraAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'))
       const text = `code: TRANSPORT_FAILED\nmessage: Request to https://appliance.test could not complete\nhint: ${cause}`
+      if (actor !== healthDefaults.actor) scriptPreflight()
       failHealthProcess(text)
       health = new ToolHealth(db, new Audit(db), runner, [vectra], store)
-      await expect(health.check('vectra-axi', actor, 'native-transport', null)).rejects.toMatchObject({
+      const error = await healthRejection(health.check('vectra-axi', actor, 'native-transport', null))
+      expect(error).toMatchObject({
         code: 'UPSTREAM_NETWORK_FAILED', diagnostic: { stage: 'TCP', toolCode: 'TRANSPORT_FAILED',
           message: 'Details unavailable.', checkedAt: expect.any(Number), credentialRevision: 1 },
       })
@@ -568,10 +597,11 @@ describe.each(['synthetic-development-user', healthDefaults.actor])('destination
       } else {
         expect(health.diagnostic('vectra-axi', 1, cached.checked_at)).toMatchObject({ transportCode: cause })
       }
-      expect(JSON.stringify(health.diagnostic('vectra-axi', 1, cached.checked_at))).not.toContain('CANARY-VECTRA-TOKEN')
       const audit = JSON.stringify(db.prepare('SELECT * FROM audit').all())
       expect(audit).not.toContain(cause)
-      expect(audit).not.toContain('CANARY-VECTRA-TOKEN')
+      for (const output of [healthOutputText(error), JSON.stringify(health.diagnostic('vectra-axi', 1, cached.checked_at)), audit]) {
+        expect(output).not.toMatch(/appliance\.test|CANARY-VECTRA-TOKEN/)
+      }
     })
 
   test.each([
@@ -588,21 +618,23 @@ describe.each(['synthetic-development-user', healthDefaults.actor])('destination
     create: () => createVectraAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log')),
     toolCode: 'TLS_TRUST_ERROR', message: 'certificate verification failed',
     code: 'UPSTREAM_TLS_FAILED', stage: 'TLS', host: 'appliance.test' },
-  ] as const)('$tool $toolCode omits the configured host', async ({ tool, credential, create, toolCode, message, code, stage, host }) => {
+  ] as const)('$tool $toolCode omits the configured host', { timeout: nativeHealthTimeout }, async ({ tool, credential, create, toolCode, message, code, stage, host }) => {
     store.replaceCredential(tool, credential, 0, 'synthetic-development-user', Date.now())
     db.prepare('UPDATE tools SET enabled = 1 WHERE name = ?').run(tool)
     health = new ToolHealth(db, new Audit(db), runner, [create()], store)
     const text = `code: ${toolCode}\nmessage: ${message}`
+    if (actor !== healthDefaults.actor) scriptPreflight()
     failHealthProcess(text)
-    await expect(health.check(tool, actor, 'destination-test', null)).rejects.toMatchObject({
-      code, diagnostic: { stage, message: 'Details unavailable.', checkedAt: expect.any(Number), credentialRevision: 1 },
+    const error = await healthRejection(health.check(tool, actor, 'destination-test', null))
+    expect(error).toMatchObject({
+      code, diagnostic: { stage, toolCode, message: 'Details unavailable.', checkedAt: expect.any(Number), credentialRevision: 1 },
     })
     const cached = db.prepare('SELECT checked_at FROM tool_health WHERE tool = ?').get(tool) as { checked_at: number }
-    expect(JSON.stringify(health.diagnostic(tool, 1, cached.checked_at))).not.toContain(host)
-    const audit = JSON.stringify(db.prepare('SELECT * FROM audit').all())
-    expect(audit).not.toContain(host)
-    expect(audit).not.toContain('CANARY-')
-    expect(JSON.stringify(health.diagnostic(tool, 1, cached.checked_at))).not.toContain('CANARY-')
+    for (const output of [error, health.diagnostic(tool, 1, cached.checked_at), db.prepare('SELECT * FROM audit').all()]) {
+      const outputText = healthOutputText(output)
+      expect(outputText).not.toContain(host)
+      expect(outputText).not.toContain('CANARY-')
+    }
   })
 })
 
@@ -612,10 +644,12 @@ test.each(['UPSTREAM_NETWORK_FAILED', 'UPSTREAM_TLS_FAILED'] as const)('omits th
   0, 'synthetic-development-user', Date.now())
   health = new ToolHealth(db, new Audit(db), runner,
     [createAzAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'))], store)
-  vi.mocked(connectTls).mockImplementationOnce(() => failedTlsSocket(code === 'UPSTREAM_TLS_FAILED' ? 'CERT_HAS_EXPIRED' : 'ECONNRESET'))
-  await expect(health.check('az-axi', 'synthetic-development-user', 'specific-host', null)).rejects.toMatchObject({
+  scriptPreflight(code === 'UPSTREAM_TLS_FAILED' ? 'CERT_HAS_EXPIRED' : 'ECONNRESET')
+  const error = await healthRejection(health.check('az-axi', 'synthetic-development-user', 'specific-host', null))
+  expect(error).toMatchObject({
     code, diagnostic: { stage: 'TLS', message: 'Details unavailable.', checkedAt: expect.any(Number), credentialRevision: 1 },
   })
+  expect(healthOutputText(error)).not.toMatch(/login\.microsoftonline\.com|CANARY-AZURE-SECRET/)
 })
 
 test.each([
@@ -638,17 +672,20 @@ test.each([
 test.each([
   ['SERVER_UNREACHABLE', 'could not connect to the directory', 'UPSTREAM_NETWORK_FAILED'],
   ['TLS_UNTRUSTED', 'certificate verification failed', 'UPSTREAM_TLS_FAILED'],
-])('scans the configured host before returning or caching %s', async (toolCode, message, code) => {
+])('scans the configured host before returning or caching %s', { timeout: nativeHealthTimeout }, async (toolCode, message, code) => {
   store.replaceCredential('ldap-axi', { url: 'ldaps://directory.test:636', auth: 'simple', bindDn: 'cn=synthetic',
     bindPassword: 'directory.test' }, 0, 'synthetic-development-user', Date.now())
   health = new ToolHealth(db, new Audit(db), runner, [createLdapAdapter(new EmbeddedSecretSource(store))], store)
-  vi.spyOn(runner, 'run').mockResolvedValue({ ...result, stdout: '',
-    stderr: `code: ${toolCode}\nmessage: ${message}`, exitCode: 1 })
-  await expect(health.check('ldap-axi', 'synthetic-development-user', 'ldap-scan', null)).rejects.toMatchObject({
+  scriptPreflight()
+  failHealthProcess(`code: ${toolCode}\nmessage: ${message}`)
+  const error = await healthRejection(health.check('ldap-axi', 'synthetic-development-user', 'ldap-scan', null))
+  expect(error).toMatchObject({
     code, diagnostic: undefined,
   })
+  expect(healthOutputText(error)).not.toContain('directory.test')
   const cached = db.prepare("SELECT checked_at FROM tool_health WHERE tool = 'ldap-axi'").get() as { checked_at: number }
   expect(health.diagnostic('ldap-axi', 1, cached.checked_at)).toBeUndefined()
+  expect(db.prepare("SELECT exit_code FROM audit WHERE request_id = 'ldap-scan' AND event = 'run-terminal'").get()).toEqual({ exit_code: 1 })
   expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain('directory.test')
   expect(db.prepare('SELECT * FROM run_diagnostics').all()).toEqual([])
 })

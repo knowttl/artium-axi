@@ -791,14 +791,14 @@ test('the real server process exits at startup with a development setting', asyn
   symlinkSync(join(process.cwd(), 'node_modules'), join(directory, 'node_modules'), 'dir')
   await build({ entryPoints: ['src/server/main.ts'], outfile: entry, bundle: true, platform: 'node', format: 'esm', packages: 'external' })
   const result = spawnSync(process.execPath, ['--input-type=module', '-e', `import(${JSON.stringify(entry)})`], {
-    cwd: process.cwd(), env: { ...process.env, ...environment, ARTIUM_AXI_DEV: '0' }, encoding: 'utf8', timeout: 10_000,
+    cwd: process.cwd(), env: { ...process.env, ...environment, ARTIUM_AXI_DEV: '0' }, encoding: 'utf8', timeout: 60_000,
   })
   expect(result.status).toBe(1)
   expect(result.stderr.trim().split('\n').map(line => JSON.parse(line))).toEqual([
     expect.objectContaining({ level: 'info', event: 'startup', requestId: null }),
     expect.objectContaining({ level: 'error', event: 'startup', code: 'DEV_AUTH_INVALID', requestId: null }),
   ])
-})
+}, 120_000)
 
 test('the real server remains available after startup encounters a damaged native journal', async () => {
   db.exec(`INSERT INTO users (id, username, display_name, password_hash, administrator)

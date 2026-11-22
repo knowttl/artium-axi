@@ -45,7 +45,7 @@ function selectGate(root: string, { base, full = false }: { base?: string; full?
   const head = git(root, ['rev-parse', '--verify', 'HEAD'])
   const bases = base === undefined
     ? git(root, ['merge-base', '--all', 'HEAD', 'refs/remotes/origin/main'])?.split('\n')
-    : git(root, ['rev-parse', '--verify', `${base}^{commit}`])?.split('\n')
+    : git(root, ['rev-parse', '--verify', '--end-of-options', `${base}^{commit}`])?.split('\n')
   const selectedBase = bases?.length === 1 && git(root, ['merge-base', '--is-ancestor', bases[0], 'HEAD']) !== null
     ? bases[0] : null
   const diff = selectedBase === null ? null : git(root, ['diff', '--name-only', '--no-renames', '-z', selectedBase, '--'])
@@ -151,7 +151,10 @@ function main() {
   if (values.plan) return 0
   for (const [command, ...args] of plan.checks) {
     const started = performance.now()
-    const result = spawnSync(command, args, { cwd: root, stdio: ['inherit', 2, 2] })
+    const env = command === 'pnpm' && args[0] === 'lint'
+      ? { ...process.env, ARTIUM_AXI_LINT_BASE: plan.base ?? '' }
+      : process.env
+    const result = spawnSync(command, args, { cwd: root, env, stdio: ['inherit', 2, 2] })
     console.log(encode({ check: [command, ...args], exit: result.status, seconds: (performance.now() - started) / 1000 }))
     if (result.status !== 0) return result.status ?? 1
   }
