@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.58](https://github.com/knowttl/artium-axi/compare/v0.0.57...v0.0.58) (2026-11-22)
+
+
+### Bug Fixes
+
+* **views:** disable migrated admin forms until React hydrates ([#578](https://github.com/knowttl/artium-axi/issues/578)) ([e65c549](https://github.com/knowttl/artium-axi/commit/e65c549c432f93d306949506a648e9a977296a25))
+
 ## [0.0.57](https://github.com/knowttl/artium-axi/compare/v0.0.56...v0.0.57) (2026-11-21)
 
 
