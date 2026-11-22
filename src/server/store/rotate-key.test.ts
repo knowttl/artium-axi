@@ -122,6 +122,7 @@ async function bundle(contents: string, name: string) {
     symlinkSync(join(process.cwd(), 'node_modules'), join(directory, 'node_modules'), 'dir')
     cpSync('src/server/store/migrations', join(directory, 'migrations'), { recursive: true })
     cpSync('src/server/admin/client', join(directory, 'client'), { recursive: true })
+    cpSync('src/server/admin/design/frame.css', join(directory, 'design', 'frame.css'))
   }
   await build({ stdin: { contents, resolveDir: process.cwd() }, outfile: entry,
     bundle: true, platform: 'node', format: 'esm', packages: 'external' })
