@@ -9,7 +9,7 @@ This document describes the current screens and their design rules.
 | File | Owns |
 | --- | --- |
 | [tokens.ts](../src/server/admin/design/tokens.ts) | Legacy colour values and shared typography, radius, shadow, control-size and layout tokens, including light and dark palettes. |
-| `src/server/admin/design/components.ts` | Component classes and geometry using the shared tokens, plus base element styles for content that has no component yet. |
+| `src/server/admin/design/components.ts` | Remaining component classes, geometry, and base element styles, including fallback controls outside the Astryx root. |
 | [frame.css](../src/server/admin/design/frame.css) | Hand-written styles for the top bar, breadcrumbs, side navigation footer, mobile navigation drawer, account menu, Learn panel and recent-authentication pill. Also owns the brand mark shared with sign-in and the popover styles shared with page action menus. Uses Astryx font weights, border width and zero spacing. |
 | [forms.css](../src/server/admin/design/forms.css) | Hand-written styles for buttons, text fields, selects, checkboxes, option cards and tiles, switches, segmented controls, filter chips, the credential editor and the operation picker, and the base styles for form elements in page content, dialogs and sign-in cards. Uses Astryx font weights, border width, zero spacing, focus outline width and the small element size. |
 | `src/server/admin/design/ui.ts` | Builds the typed breadcrumb, brand, navigation, account menu and help panel data for the frame. |
@@ -309,7 +309,9 @@ Icons use a 1.75 stroke in `currentColor` and are shown at 16px.
 | Operation catalogue | `.ops`, `details.ops-group`, `label.op` | collapsed, open, filtered, Delete and Bulk tags | Native disclosures and checkboxes; see [label and risk ownership](#write-operation-labels-and-risk) |
 | Credential editor | `CredentialEditor` styled through `[data-credential-editor]` and `[data-credential-field]` | stored secret, required, hidden | Controls have associated labels; `aria-describedby` links their hints |
 
-Elements that no component covers yet (sections, tables, forms, fieldsets and plain buttons inside page content) get neutral base styles from `components.ts`, so existing pages stay readable until they are rebuilt from components.
+`forms.css` defines the base styles for forms and fieldsets in page content and dialogs, along with the shared `.btn` styles.
+`components.ts` still defines neutral styles for sections and tables, fallback styles for plain buttons outside the Astryx root, and the `.btn-ghost.danger` variant.
+`frame.css` defines the popover-specific button styles.
 
 ## Patterns
 
