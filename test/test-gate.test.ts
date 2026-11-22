@@ -251,16 +251,29 @@ test('the executable runs the selected reference check', () => {
   expect(readFileSync(join(directory, 'checked'), 'utf8')).toBe('reference current')
 })
 
-test('the lint child checks changes from the explicit base without origin/main', () => {
+test.each([
+  { name: 'the explicit ancestor', full: false },
+  { name: 'the full fallback with a missing base', full: true },
+])('the lint child catches a committed violation using $name', ({ full }) => {
   git('update-ref', '-d', 'refs/remotes/origin/main')
   copyFileSync(resolve('scripts/flaky-test-patterns.ts'), join(directory, 'scripts/flaky-test-patterns.ts'))
   write('package.json', '{"scripts":{"lint":"node scripts/flaky-test-patterns.ts"}}\n')
   write('scripts/upstream-inventory.mjs', '')
   write('scripts/mg-headless-schema.ts', '')
+  write('src/server/unrelated.test.ts', 'await new Promise(done => setTimeout(done, 50))\n')
+  git('add', '.')
+  git('-c', 'user.name=Synthetic Developer', '-c', 'user.email=developer@example.test',
+    '-c', 'commit.gpgsign=false', 'commit', '--quiet', '-m', 'Legacy lint violation')
+  const ancestor = git('rev-parse', 'HEAD')
   write('src/server/feature.test.ts', 'await new Promise(done => setTimeout(done, 50))\n')
-  const result = spawnSync(process.execPath, ['scripts/test-gate.ts', '--base', base], { cwd: directory, encoding: 'utf8' })
+  git('add', '.')
+  git('-c', 'user.name=Synthetic Developer', '-c', 'user.email=developer@example.test',
+    '-c', 'commit.gpgsign=false', 'commit', '--quiet', '-m', 'Committed lint violation')
+  const result = spawnSync(process.execPath, ['scripts/test-gate.ts', ...(full ? [] : ['--base', ancestor])],
+    { cwd: directory, encoding: 'utf8' })
   expect(result.status).toBe(1)
   expect(result.stderr).toContain('src/server/feature.test.ts:1: fixed sleep')
+  expect(result.stderr.includes('src/server/unrelated.test.ts:1: fixed sleep')).toBe(full)
 })
 
 test('a failing selected check stops the gate with its exit status', () => {

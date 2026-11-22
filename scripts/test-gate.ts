@@ -152,7 +152,7 @@ function main() {
   for (const [command, ...args] of plan.checks) {
     const started = performance.now()
     const env = command === 'pnpm' && args[0] === 'lint'
-      ? { ...process.env, ARTIUM_AXI_LINT_BASE: plan.base ?? undefined }
+      ? { ...process.env, ARTIUM_AXI_LINT_BASE: plan.base ?? '' }
       : process.env
     const result = spawnSync(command, args, { cwd: root, env, stdio: ['inherit', 2, 2] })
     console.log(encode({ check: [command, ...args], exit: result.status, seconds: (performance.now() - started) / 1000 }))

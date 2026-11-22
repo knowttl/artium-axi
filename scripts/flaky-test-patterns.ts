@@ -20,6 +20,7 @@ function git(args: string[]) {
 
 function lintBase() {
   const selected = process.env.ARTIUM_AXI_LINT_BASE
+  if (selected === '') return null
   if (selected !== undefined) {
     const commit = git(['rev-parse', '--verify', '--end-of-options', `${selected}^{commit}`]).trim()
     git(['merge-base', '--is-ancestor', commit, 'HEAD'])
@@ -38,31 +39,34 @@ const isTestFile = (file: string) => /^(?:src|test)\/.*\.test\.ts$/s.test(file) 
 type LineRange = { start: number, end: number }
 const wholeFile = [{ start: 1, end: Infinity }]
 const diff = ['diff', '--no-color', '--no-ext-diff', '--no-textconv', '--find-renames']
-const tracked = git([...diff, '--name-status', '--diff-filter=d', '-z', base]).split('\0')
-const untracked = git(['ls-files', '--others', '--exclude-standard', '-z', '--', 'src', 'test'])
 const added = new Map<string, LineRange[]>()
-for (let index = 0; index < tracked.length - 1;) {
-  const status = tracked[index++]
-  const count = status.startsWith('R') ? 2 : 1
-  const paths = tracked.slice(index, index + count)
-  index += count
-  const file = paths.at(-1)!
-  if (!isTestFile(file)) continue
-  if (paths.length === 2 && !isTestFile(paths[0])) {
-    added.set(file, wholeFile)
-    continue
+
+if (base !== null) {
+  const tracked = git([...diff, '--name-status', '--diff-filter=d', '-z', base]).split('\0')
+  for (let index = 0; index < tracked.length - 1;) {
+    const status = tracked[index++]
+    const count = status.startsWith('R') ? 2 : 1
+    const paths = tracked.slice(index, index + count)
+    index += count
+    const file = paths.at(-1)!
+    if (!isTestFile(file)) continue
+    if (paths.length === 2 && !isTestFile(paths[0])) {
+      added.set(file, wholeFile)
+      continue
+    }
+    const patch = git(['--literal-pathspecs', ...diff, '--unified=0', '--inter-hunk-context=0', base, '--', ...paths])
+    const ranges: LineRange[] = []
+    for (const [, first, length] of patch.matchAll(/^@@ -\S+ \+(\d+)(?:,(\d+))? @@/gm)) {
+      const start = Number(first)
+      const count = length === undefined ? 1 : Number(length)
+      if (count) ranges.push({ start, end: start + count - 1 })
+    }
+    if (ranges.length) added.set(file, ranges)
   }
-  const patch = git(['--literal-pathspecs', ...diff, '--unified=0', '--inter-hunk-context=0', base, '--', ...paths])
-  const ranges: LineRange[] = []
-  for (const [, first, length] of patch.matchAll(/^@@ -\S+ \+(\d+)(?:,(\d+))? @@/gm)) {
-    const start = Number(first)
-    const count = length === undefined ? 1 : Number(length)
-    if (count) ranges.push({ start, end: start + count - 1 })
-  }
-  if (ranges.length) added.set(file, ranges)
 }
-for (const file of untracked.split('\0').filter(isTestFile)) {
-  added.set(file, wholeFile)
+const fullFiles = git(['ls-files', ...(base === null ? ['--cached'] : []), '--others', '--exclude-standard', '-z', '--', 'src', 'test'])
+for (const file of fullFiles.split('\0').filter(isTestFile)) {
+  if (existsSync(join(root, file))) added.set(file, wholeFile)
 }
 
 const browserSources = new Map<string, ts.SourceFile>()
@@ -119,47 +123,67 @@ function resolvesOnTimeout(awaited: ts.Expression): boolean {
   const namesResolver = (node: ts.Node) => ts.isIdentifier(node) && node.text === resolve.text
   const isTimer = (node: ts.Node): node is ts.CallExpression =>
     ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === 'setTimeout'
-  const callbackBody = (callback: ts.Expression) => {
-    if (inlineCallback(callback)) return callback.body
+  const localCallback = (callback: ts.Expression) => {
+    if (inlineCallback(callback)) return callback
     if (!ts.isIdentifier(callback)) return
     for (let scope = callback.parent; scope !== executor; scope = scope.parent) {
       if (!ts.isBlock(scope)) continue
       for (const statement of scope.statements) {
         if (ts.isFunctionDeclaration(statement) && statement.name?.text === callback.text) {
-          return statement.body
+          return statement
         }
         if (!ts.isVariableStatement(statement)) continue
         const local = statement.declarationList.declarations.find(({ name }) => ts.isIdentifier(name) && name.text === callback.text)
-        if (local) return inlineCallback(local.initializer) ? local.initializer.body : undefined
+        if (local) return inlineCallback(local.initializer) ? local.initializer : undefined
       }
     }
   }
-  const timerBodies = new Set<ts.Node>()
+  type Bindings = ReadonlyMap<string, ts.Expression | undefined>
+  const visiting = new Set<ts.Node>()
+  const settles = (callback: ts.Expression, args: readonly (ts.Expression | undefined)[],
+    match: (value: ts.Expression | undefined) => boolean, inTimer: boolean): boolean => {
+    if (namesResolver(callback)) return match(args[0])
+    const local = localCallback(callback)
+    if (!local?.body || visiting.has(local)) return false
+    const bindings = new Map<string, ts.Expression | undefined>()
+    local.parameters.forEach(({ name }, index) => {
+      if (ts.isIdentifier(name)) bindings.set(name.text, args[index])
+    })
+    visiting.add(local)
+    const result = visitsSettlement(local.body, match, inTimer, bindings)
+    visiting.delete(local)
+    return result
+  }
+  const visitsSettlement = (node: ts.Node, match: (value: ts.Expression | undefined) => boolean,
+    inTimer: boolean, bindings?: Bindings): boolean => {
+    if (isTimer(node) || ts.isFunctionLike(node)) return false
+    if (ts.isCallExpression(node)) {
+      const args = node.arguments.map(argument => {
+        const value = unwrap(argument)
+        return ts.isIdentifier(value) && bindings?.has(value.text) ? bindings.get(value.text) : value
+      })
+      if (settles(unwrap(node.expression), args, match, inTimer)) return true
+    }
+    if (!inTimer && (ts.isCallExpression(node) || ts.isNewExpression(node)) &&
+        node.arguments?.some(argument => settles(unwrap(argument), [], match, inTimer))) return true
+    return ts.forEachChild(node, child => visitsSettlement(child, match, inTimer, bindings)) === true
+  }
+
   let failureDeadline = false
   const successFromTimer = (value: ts.Expression | undefined) => {
     if (value?.kind !== ts.SyntaxKind.FalseKeyword) return true
     failureDeadline = true
     return false
   }
-  const timerResolves = (node: ts.Node): boolean => !ts.isFunctionLike(node) &&
-    (ts.isCallExpression(node) && namesResolver(node.expression) && successFromTimer(node.arguments[0]) ||
-      ts.forEachChild(node, timerResolves) === true)
   const schedulesResolution = (node: ts.Node): boolean => {
     if (ts.isFunctionLike(node)) return false
     if (isTimer(node) && node.arguments[0]) {
-      const callback = unwrap(node.arguments[0])
-      if (namesResolver(callback)) return successFromTimer(node.arguments[2])
-      const body = callbackBody(callback)
-      if (!body) return false
-      timerBodies.add(body)
-      return timerResolves(body)
+      return settles(unwrap(node.arguments[0]), node.arguments.slice(2).map(unwrap), successFromTimer, true)
     }
     return ts.forEachChild(node, schedulesResolution) === true
   }
-  const signalsReady = (node: ts.Node): boolean => !isTimer(node) && !timerBodies.has(node) &&
-    (ts.isCallExpression(node) && namesResolver(node.expression) && node.arguments[0]?.kind === ts.SyntaxKind.TrueKeyword ||
-      ts.forEachChild(node, signalsReady) === true)
-  return schedulesResolution(executor.body) || failureDeadline && !signalsReady(executor.body)
+  return schedulesResolution(executor.body) || failureDeadline &&
+    !visitsSettlement(executor.body, value => !value || value.kind === ts.SyntaxKind.TrueKeyword, false)
 }
 
 function rootName(node: ts.Expression): string | undefined {
@@ -443,17 +467,19 @@ function inspect(source: ts.SourceFile, report: (file: ts.SourceFile, start: num
           continue
         }
         if (name === 'test' || name === 'it') {
-          entries.push(checkRows(call.expression, (active, { setup, cleanup }) =>
+          entries.push(checkRegistration(registration(call), (active, { setup, cleanup }) =>
             applyHooks(visitCallback(callback, applyHooks(active, setup)), cleanup)))
           continue
         }
         if (name === 'describe' || name === 'suite') {
+          const execution = registration(call)
           if (ts.isBlock(callback.body)) {
             const inner = collectSuite(callback.body.statements, clock)
-            clock &&= inner.clock
-            entries.push(checkRows(call.expression, inner.run))
+            if (execution.rows) clock &&= inner.clock
+            entries.push(checkRegistration(execution, inner.run))
           } else {
-            clock = visitCallback(callback, clock) && clock
+            const collected = visitCallback(callback, clock)
+            if (execution.rows) clock &&= collected
           }
           continue
         }
@@ -470,25 +496,36 @@ function inspect(source: ts.SourceFile, report: (file: ts.SourceFile, start: num
     } }
   }
 
-  function checkRows(callee: ts.Expression, run: RunSuite): RunSuite {
-    if (!hasMultipleRows(callee)) return run
+  function checkRegistration({ skipped, rows }: ReturnType<typeof registration>, run: RunSuite): RunSuite {
     return (clock, hooks) => {
       const after = run(clock, hooks)
-      if (clock && !after) run(false, hooks)
+      if (skipped || rows === 0) return clock
+      if (rows > 1 && clock && !after) run(false, hooks)
       return after
     }
   }
 
-  function hasMultipleRows(callee: ts.Expression): boolean {
+  function registration(call: ts.CallExpression) {
+    let skipped = call.arguments.some(argument => ts.isObjectLiteralExpression(argument) && argument.properties.some(property =>
+      ts.isPropertyAssignment(property) && (ts.isIdentifier(property.name) || ts.isStringLiteral(property.name)) &&
+      ['skip', 'todo'].includes(property.name.text) && unwrap(property.initializer).kind === ts.SyntaxKind.TrueKeyword))
+    let rows = 1
+    let callee = call.expression
     while (ts.isCallExpression(callee) || ts.isPropertyAccessExpression(callee)) {
-      if (ts.isCallExpression(callee) && ts.isPropertyAccessExpression(callee.expression) &&
-          ['each', 'for'].includes(callee.expression.name.text)) {
-        const table = callee.arguments[0]
-        return !table || !ts.isArrayLiteralExpression(table) || table.elements.length > 1 || table.elements.some(ts.isSpreadElement)
+      if (ts.isPropertyAccessExpression(callee) && ['skip', 'todo'].includes(callee.name.text)) skipped = true
+      if (ts.isCallExpression(callee) && ts.isPropertyAccessExpression(callee.expression) && callee.arguments[0]) {
+        const argument = unwrap(callee.arguments[0])
+        const modifier = callee.expression.name.text
+        if (modifier === 'each' || modifier === 'for') {
+          const table = ts.isAsExpression(argument) ? unwrap(argument.expression) : argument
+          rows = ts.isArrayLiteralExpression(table) && !table.elements.some(ts.isSpreadElement) ? table.elements.length : 2
+        }
+        skipped ||= modifier === 'skipIf' && argument.kind === ts.SyntaxKind.TrueKeyword ||
+          modifier === 'runIf' && argument.kind === ts.SyntaxKind.FalseKeyword
       }
       callee = callee.expression
     }
-    return false
+    return { skipped, rows }
   }
 
   const suite = collectSuite(source.statements, false)
@@ -505,4 +542,4 @@ for (const file of new Set([...added.keys(), ...browserSources.keys()])) {
 }
 
 if (failures.size) throw new Error([...failures].sort().join('\n'))
-console.log('Flaky-test patterns: changed tests wait for outcomes and assert behaviour, not call counts')
+console.log(`Flaky-test patterns: ${base === null ? 'all in-scope' : 'changed'} tests wait for outcomes and assert behaviour, not call counts`)
