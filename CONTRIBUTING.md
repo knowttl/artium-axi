@@ -35,7 +35,9 @@ pnpm test:gate
 ```
 
 `pnpm lint` also runs `scripts/flaky-test-patterns.ts` on `*.test.ts` lines added or changed since the merge base with `origin/main`, falling back to `main`.
-It rejects `waitForTimeout` calls, `await new Promise(...)` waits that call `setTimeout` outside files that use fake timers, and `toHaveBeenCalledTimes` or `toHaveBeenCalledOnce` assertions.
+It rejects `waitForTimeout` calls, `await new Promise(...)` waits that resolve on a real `setTimeout`, and `toHaveBeenCalledTimes` or `toHaveBeenCalledOnce` assertions.
+The checker recognizes fake `setTimeout` when the clock is enabled in the same execution scope and remains active at the wait.
+An event-driven promise may use a timer to reject when the event misses its deadline.
 Wait for the observable outcome and assert behaviour instead.
 
 `pnpm check` verifies generated references, types, inventory and schema freshness, the test suite, compilation and the AXI/distribution checklist (`pnpm test:axi`, or `node scripts/axi-check.ts`).
