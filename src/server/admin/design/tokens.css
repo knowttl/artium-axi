@@ -1,5 +1,4 @@
 :root {
-  color-scheme: light dark;
   --transparent: transparent;
   --bg: light-dark(#ffffff, #09090b);
   --bg-subtle: light-dark(#fafafa, #0f0f11);
@@ -47,11 +46,4 @@
 }
 @media (max-width: 760px) {
   :root { --gutter: 16px; }
-}
-
-:root[data-theme="light"] {
-  color-scheme: light;
-}
-:root[data-theme="dark"] {
-  color-scheme: dark;
 }
