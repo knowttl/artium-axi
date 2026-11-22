@@ -7,17 +7,17 @@
   display: grid;
   place-items: center;
   font-size: var(--fs-xs);
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
 }
 
 .side-foot {
   margin-top: auto;
   padding-top: 10px;
-  border-top: 1px solid var(--border);
+  border-top: var(--border-width) solid var(--border);
 }
 
 .frame-side .side-foot {
-  margin: 0 10px 10px;
+  margin: var(--spacing-0) 10px 10px;
   border-top-color: var(--border-strong);
 }
 
@@ -42,7 +42,7 @@
   overflow-y: auto;
   padding: 12px 10px;
   background: var(--bg);
-  border: 1px solid var(--border);
+  border: var(--border-width) solid var(--border);
 }
 
 .frame-controls {
@@ -99,7 +99,7 @@
 }
 
 .frame-topbar .crumbs {
-  padding: 0;
+  padding: var(--spacing-0);
   list-style: none;
 }
 
@@ -116,13 +116,13 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 0 24px;
+  padding: var(--spacing-0) 24px;
   background: var(--bg);
-  border-bottom: 1px solid var(--border);
+  border-bottom: var(--border-width) solid var(--border);
 }
 
 .crumbs {
-  margin: 0;
+  margin: var(--spacing-0);
   min-width: 0;
   overflow: hidden;
   display: flex;
@@ -135,7 +135,7 @@
 
 .crumbs strong {
   color: var(--text);
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -154,7 +154,7 @@
   align-items: center;
   gap: 6px;
   padding: 3px 10px 3px 8px;
-  border: 1px solid var(--border);
+  border: var(--border-width) solid var(--border);
   border-radius: var(--r-full);
   background: var(--bg);
   color: var(--text-muted);
@@ -215,7 +215,7 @@
 }
 
 .account-menu .who strong {
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -236,7 +236,7 @@
   min-width: 220px;
   padding: 4px;
   background: var(--bg);
-  border: 1px solid var(--border);
+  border: var(--border-width) solid var(--border);
   border-radius: var(--r-md);
   box-shadow: var(--shadow-pop);
   font-size: var(--fs-sm);
@@ -272,13 +272,13 @@
 }
 
 .popover hr {
-  margin: 4px 0;
+  margin: 4px var(--spacing-0);
   border: 0;
-  border-top: 1px solid var(--border);
+  border-top: var(--border-width) solid var(--border);
 }
 
 .popover form {
-  margin: 0;
+  margin: var(--spacing-0);
 }
 
 .popover .check {
@@ -297,7 +297,7 @@
   overflow-y: auto;
   padding: 16px 18px;
   background: var(--bg);
-  border: 1px solid var(--border);
+  border: var(--border-width) solid var(--border);
   border-radius: var(--r-lg);
   box-shadow: var(--shadow-pop);
   color: var(--text-muted);
@@ -305,18 +305,18 @@
 }
 
 .learn-panel h2 {
-  margin: 0 0 8px;
+  margin: var(--spacing-0) var(--spacing-0) 8px;
   color: var(--text);
   font-size: var(--fs-base);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .learn-panel p {
-  margin: 0 0 10px;
+  margin: var(--spacing-0) var(--spacing-0) 10px;
 }
 
 .learn-panel p:last-child {
-  margin-bottom: 0;
+  margin-bottom: var(--spacing-0);
 }
 
 .learn[open] > summary {
@@ -326,7 +326,7 @@
 
 @media (max-width: 760px) {
   .topbar {
-    padding: 0 var(--gutter);
+    padding: var(--spacing-0) var(--gutter);
   }
   .crumbs span, .crumbs > a, .learn .label {
     display: none;

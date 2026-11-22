@@ -10,7 +10,7 @@ This document describes the current screens and their design rules.
 | --- | --- |
 | [tokens.ts](../src/server/admin/design/tokens.ts) | Legacy colour values and shared typography, radius, shadow, control-size and layout tokens, including light and dark palettes. |
 | `src/server/admin/design/components.ts` | Component classes and geometry using the shared tokens, plus base element styles for content that has no component yet. |
-| [frame.css](../src/server/admin/design/frame.css) | Hand-written frame and chrome styles: the top bar, breadcrumbs, brand mark, account menu, Learn panel, popover menus and recent-authentication pill. The frame retains the existing shared tokens to preserve its appearance, including fixed-pixel radii at different browser font sizes. |
+| [frame.css](../src/server/admin/design/frame.css) | Hand-written frame and chrome styles: the top bar, breadcrumbs, brand mark, account menu, Learn panel, popover menus and recent-authentication pill. Uses Astryx font weights, border width and zero spacing. |
 | `src/server/admin/design/ui.ts` | Builds the typed breadcrumb, brand, navigation, account menu and help panel data for the frame. |
 | `src/views/frame.tsx` | Renders the frame, including its account menu and Learn disclosure. |
 | `src/views/theme-switch.tsx` | Renders the theme switch shared by the frame and auth views. |
@@ -21,6 +21,9 @@ The tokens, components and `frame.css` in `src/server/admin/design` are concaten
 The build also produces a React and Astryx browser bundle and the Astryx neutral stylesheet, served at `/admin/assets/hydrate.js` and `/admin/assets/astryx.css`.
 All pages load the stylesheet; render-seam pages also load the browser bundle.
 
+The frame keeps its legacy surface, text, border and status colors because the Astryx palettes yield different values in light or dark mode.
+It keeps the legacy popover shadow because Astryx uses different offsets and opacity.
+Font sizes, corner radii, nonzero spacing and layout dimensions retain their baseline values across browser font sizes.
 The frame extraction was compared against base revision `64bba2600f9f421d22d67cc445e9cc05582d897d` with [96 before and after screenshot pairs](frame-css-parity.zip).
 
 ## Render seam
