@@ -21,6 +21,7 @@ type Role = { id: string, name: string, tools: z.infer<typeof toolSchema>[] }
 
 const frame = readFileSync(new URL('./design/frame.css', import.meta.url), 'utf8')
 const forms = readFileSync(new URL('./design/forms.css', import.meta.url), 'utf8')
+const tables = readFileSync(new URL('./design/tables.css', import.meta.url), 'utf8')
 
 export const roleTools = (role: Role) => role.tools.map(tool => toolProducts[tool].name).join(', ') || 'No tools yet'
 
@@ -37,7 +38,7 @@ const roleLink = (user: { roleGrants: { roleId: string, origin: string }[] }, id
 const signInState = (user: { source: string, breakGlass: boolean }) => user.source === 'sso' ? 'sso' : user.breakGlass ? 'break-glass' : 'password'
 
 export function registerUsersPage(app: FastifyInstance, db: Database.Database): void {
-  app.get('/admin/assets/style.css', async (_request, reply) => reply.type('text/css').send(tokens + components + frame + forms))
+  app.get('/admin/assets/style.css', async (_request, reply) => reply.type('text/css').send(tokens + components + frame + forms + tables))
   registerAdminClientAssets(app)
 
   async function allRoles(request: FastifyRequest) {

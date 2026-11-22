@@ -299,6 +299,7 @@ test('real entry point bootstraps local authentication and repeat starts ignore 
   cpSync('src/server/admin/client', join(directory, 'client'), { recursive: true })
   cpSync('src/server/admin/design/frame.css', join(directory, 'design', 'frame.css'))
   cpSync('src/server/admin/design/forms.css', join(directory, 'design', 'forms.css'))
+  cpSync('src/server/admin/design/tables.css', join(directory, 'design', 'tables.css'))
   const entry = await bundle(`
     import { Server } from 'node:net';
     const listen = Server.prototype.listen;
