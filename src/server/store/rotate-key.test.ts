@@ -172,6 +172,7 @@ test('a running real server blocks rotation and releases maintenance after a cra
   cpSync('src/server/admin/design/frame.css', join(directory, 'design', 'frame.css'))
   cpSync('src/server/admin/design/forms.css', join(directory, 'design', 'forms.css'))
   cpSync('src/server/admin/design/tables.css', join(directory, 'design', 'tables.css'))
+  cpSync('src/server/admin/design/cards.css', join(directory, 'design', 'cards.css'))
   const entry = await bundle(`
     import { Server } from 'node:net';
     import { serverDefaults } from './src/server/config.ts';
