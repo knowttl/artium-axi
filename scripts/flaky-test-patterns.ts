@@ -6,7 +6,9 @@ import ts from 'typescript'
 const root = process.cwd()
 const fixedSleep = 'fixed sleep: wait for the observable outcome instead'
 const callCount = 'call-count assertion: assert the outcome, not how often a collaborator was called'
-const countMatchers = new Set(['toHaveBeenCalledTimes', 'toBeCalledTimes', 'toHaveBeenCalledOnce'])
+const countMethods = new Set(['toHaveBeenCalledTimes', 'toBeCalledTimes', 'callCount'])
+const singleCallMethods = new Set(['toHaveBeenCalledOnce', 'toHaveBeenCalledExactlyOnceWith', 'calledOnceWith'])
+const countProperties = new Set(['calledOnce', 'calledTwice', 'calledThrice'])
 const failures = new Set<string>()
 
 function git(args: string[]) {
@@ -31,7 +33,7 @@ const untracked = git(['ls-files', '--others', '--exclude-standard', '-z', '--',
 const added = new Map<string, LineRange[]>()
 for (let index = 0; index < tracked.length - 1;) {
   const status = tracked[index++]
-  const count = /^[RC]/.test(status) ? 2 : 1
+  const count = status.startsWith('R') ? 2 : 1
   const paths = tracked.slice(index, index + count)
   index += count
   const file = paths.at(-1)!
@@ -79,6 +81,13 @@ function timeoutClock(call: ts.CallExpression): boolean | undefined {
   return ts.isArrayLiteralExpression(toFake.initializer) &&
     (toFake.initializer.elements.length === 0 ||
       toFake.initializer.elements.some(timer => ts.isStringLiteral(timer) && timer.text === 'setTimeout'))
+}
+
+function clockChange(expression: ts.Expression | undefined): boolean | undefined {
+  if (!expression) return
+  let value = unwrap(expression)
+  if (ts.isAwaitExpression(value)) value = unwrap(value.expression)
+  return ts.isCallExpression(value) ? timeoutClock(value) : undefined
 }
 
 function unwrap(expression: ts.Expression): ts.Expression {
@@ -133,25 +142,77 @@ function rootName(node: ts.Expression): string | undefined {
   if (ts.isIdentifier(node)) return node.text
 }
 
+function isProperty(node: ts.Expression, name: string): node is ts.PropertyAccessExpression {
+  return ts.isPropertyAccessExpression(node) && node.name.text === name
+}
+
+function enclosingParens(expression: ts.Expression): ts.Expression {
+  while (ts.isParenthesizedExpression(expression.parent)) expression = expression.parent
+  return expression
+}
+
+function isPageEval(callee: ts.Expression): boolean {
+  return isProperty(callee, 'eval') && rootName(callee) === 'page'
+}
+
 function runnerWaitsFor(callback: ts.Node | undefined): boolean {
-  if (!inlineCallback(callback) || !ts.isCallExpression(callback.parent) ||
-      !callback.parent.arguments.includes(callback)) return false
-  const callee = callback.parent.expression
+  if (!inlineCallback(callback)) return false
+  let argument = enclosingParens(callback)
+  const member = argument.parent
+  if (ts.isPropertyAccessExpression(member) && member.expression === argument && member.name.text === 'toString') {
+    const serialized = member.parent
+    if (!ts.isCallExpression(serialized) || serialized.expression !== member || serialized.arguments.length) return false
+    argument = enclosingParens(serialized)
+    while (ts.isBinaryExpression(argument.parent) && argument.parent.operatorToken.kind === ts.SyntaxKind.PlusToken) {
+      argument = enclosingParens(argument.parent)
+    }
+    return ts.isCallExpression(argument.parent) && argument.parent.arguments[0] === argument && isPageEval(argument.parent.expression)
+  }
+  if (!ts.isCallExpression(argument.parent) || !argument.parent.arguments.includes(argument)) return false
+  const callee = argument.parent.expression
   const name = rootName(callee)
   if (name && ['test', 'it', 'before', 'after', 'beforeAll', 'beforeEach', 'afterAll', 'afterEach'].includes(name)) return true
   if (!ts.isPropertyAccessExpression(callee)) return false
-  return (name === 'page' && callee.name.text === 'eval') ||
+  return isPageEval(callee) ||
     (name === 'context' && ['before', 'after', 'beforeEach', 'afterEach'].includes(callee.name.text))
 }
 
-function countsMockCalls(matcher: ts.PropertyAccessExpression): boolean {
-  if (!['toHaveLength', 'length', 'lengthOf'].includes(matcher.name.text)) return false
+function countAssertion(matcher: ts.PropertyAccessExpression): ts.Node | undefined {
+  const name = matcher.name.text
+  const call = ts.isCallExpression(matcher.parent) && matcher.parent.expression === matcher ? matcher.parent : undefined
+  const mockLength = !!call && ['toHaveLength', 'length', 'lengthOf'].includes(name)
+  if (!countProperties.has(name) && !(call && (countMethods.has(name) || singleCallMethods.has(name) || mockLength))) return
   let target = matcher.expression
-  while (ts.isPropertyAccessExpression(target)) target = target.expression
-  if (!ts.isCallExpression(target) || rootName(target.expression) !== 'expect' || !target.arguments[0]) return false
-  const calls = unwrap(target.arguments[0])
-  return ts.isPropertyAccessExpression(calls) && calls.name.text === 'calls' &&
-    ts.isPropertyAccessExpression(calls.expression) && calls.expression.name.text === 'mock'
+  let negated = false
+  while (ts.isPropertyAccessExpression(target)) {
+    negated ||= target.name.text === 'not'
+    target = target.expression
+  }
+  if (!ts.isCallExpression(target) || rootName(target.expression) !== 'expect' || !target.arguments[0]) return
+  let mock = unwrap(target.arguments[0])
+  if (mockLength) {
+    if (!isProperty(mock, 'calls') || !isProperty(mock.expression, 'mock')) return
+    mock = unwrap(mock.expression.expression)
+  }
+  const expected = call?.arguments[0]
+  const once = singleCallMethods.has(name) || name === 'calledOnce' ||
+    (mockLength || countMethods.has(name)) && !!expected && ts.isNumericLiteral(expected) && Number(expected.text) === 1
+  if (once && !negated && isOutputSpy(mock)) return
+  return call ?? matcher
+}
+
+function isOutputSpy(target: ts.Expression): boolean {
+  let call = ts.isIdentifier(target) ? constInitializer(target) : target
+  while (call && ts.isCallExpression(call) && ts.isPropertyAccessExpression(call.expression)) {
+    if (!call.expression.name.text.startsWith('mock')) break
+    call = call.expression.expression
+  }
+  if (!call || !ts.isCallExpression(call) || !isProperty(call.expression, 'spyOn') ||
+      !['vi', 'vitest'].includes(rootName(call.expression) ?? '')) return false
+  const [stream, method] = call.arguments
+  return !!stream && ts.isPropertyAccessExpression(stream) && ['stdout', 'stderr'].includes(stream.name.text) &&
+    ts.isIdentifier(stream.expression) && stream.expression.text === 'process' &&
+    !!method && ts.isStringLiteral(method) && method.text === 'write'
 }
 
 function variableBinding(statements: ts.NodeArray<ts.Statement>, name: string, exported = false) {
@@ -248,7 +309,7 @@ function inspect(source: ts.SourceFile, report: (file: ts.SourceFile, start: num
   const mark = (node: ts.Node, message: string, at = node.getStart(source)) => report(source, node.getStart(source), node.end, at, message)
   const visitCallback = (callback: Callback, fakeTimeout: boolean): boolean => {
     const after = visit(callback.body, fakeTimeout)
-    return (ts.isCallExpression(callback.body) ? timeoutClock(callback.body) : undefined) ?? after
+    return ts.isBlock(callback.body) ? after : clockChange(callback.body) ?? after
   }
   const visit = (node: ts.Node, fakeTimeout: boolean): boolean => {
     if (ts.isBlock(node)) {
@@ -267,9 +328,8 @@ function inspect(source: ts.SourceFile, report: (file: ts.SourceFile, start: num
       }
     }
     if (ts.isPropertyAccessExpression(node)) {
-      const { text: name } = node.name
-      const call = ts.isCallExpression(node.parent) && node.parent.expression === node ? node.parent : undefined
-      if (call && (countMatchers.has(name) || countsMockCalls(node))) mark(call, callCount, node.name.getStart(source))
+      const assertion = countAssertion(node)
+      if (assertion) mark(assertion, callCount, node.name.getStart(source))
     }
     let waited: ts.Expression | undefined
     if (ts.isAwaitExpression(node)) {
@@ -293,34 +353,35 @@ function inspect(source: ts.SourceFile, report: (file: ts.SourceFile, start: num
     ts.forEachChild(node, child => {
       if (!visit(child, !separateExecution && fakeTimeout)) stillFake = false
     })
-    const change = ts.isExpressionStatement(node) && ts.isCallExpression(node.expression) ? timeoutClock(node.expression) : undefined
+    const change = ts.isExpressionStatement(node) || ts.isReturnStatement(node) ? clockChange(node.expression) : undefined
     return change ?? (separateExecution ? fakeTimeout : stillFake)
   }
 
-  type RunSuite = (clock: boolean, setup: Callback[]) => void
+  type TestHooks = { setup: Callback[], cleanup: Callback[] }
+  type RunSuite = (clock: boolean, hooks: TestHooks) => boolean
+  const applyHooks = (clock: boolean, hooks: Callback[]) => hooks.reduce((active, hook) => visitCallback(hook, active), clock)
   const collectSuite = (statements: ts.NodeArray<ts.Statement>, clock: boolean): { clock: boolean, run: RunSuite } => {
-    const beforeAll: Callback[] = []
-    const beforeEach: Callback[] = []
+    const hooks = { beforeAll: [] as Callback[], beforeEach: [] as Callback[], afterEach: [] as Callback[], afterAll: [] as Callback[] }
     const entries: RunSuite[] = []
-    const applyHooks = (clock: boolean, hooks: Callback[]) => hooks.reduce((active, hook) => visitCallback(hook, active), clock)
     for (const statement of statements) {
       const call = ts.isExpressionStatement(statement) && ts.isCallExpression(statement.expression) ? statement.expression : undefined
       const name = call && rootName(call.expression)
       const callback = call?.arguments.find(inlineCallback)
-      if (callback) {
-        if (name === 'beforeAll' || name === 'beforeEach') {
-          (name === 'beforeAll' ? beforeAll : beforeEach).push(callback)
+      if (call && callback) {
+        if (name === 'beforeAll' || name === 'beforeEach' || name === 'afterEach' || name === 'afterAll') {
+          hooks[name].push(callback)
           continue
         }
         if (name === 'test' || name === 'it') {
-          entries.push((clock, setup) => visitCallback(callback, applyHooks(clock, setup)))
+          entries.push(registeredRun(call.expression, (active, { setup, cleanup }) =>
+            applyHooks(visitCallback(callback, applyHooks(active, setup)), cleanup)))
           continue
         }
         if (name === 'describe' || name === 'suite') {
           if (ts.isBlock(callback.body)) {
             const inner = collectSuite(callback.body.statements, clock)
             clock = inner.clock
-            entries.push(inner.run)
+            entries.push(registeredRun(call.expression, inner.run))
           } else {
             clock = visitCallback(callback, clock)
           }
@@ -329,14 +390,47 @@ function inspect(source: ts.SourceFile, report: (file: ts.SourceFile, start: num
       }
       clock = visit(statement, clock)
     }
-    return { clock, run(active, inheritedSetup) {
-      const suiteClock = applyHooks(active, beforeAll)
-      const setup = [...inheritedSetup, ...beforeEach]
-      for (const entry of entries) entry(suiteClock, setup)
+    hooks.afterEach.reverse()
+    hooks.afterAll.reverse()
+    return { clock, run(active, inherited) {
+      active = applyHooks(active, hooks.beforeAll)
+      const testHooks = { setup: [...inherited.setup, ...hooks.beforeEach], cleanup: [...hooks.afterEach, ...inherited.cleanup] }
+      for (const entry of entries) active = entry(active, testHooks)
+      return applyHooks(active, hooks.afterAll)
     } }
   }
+
+  function registeredRun(callee: ts.Expression, run: RunSuite): RunSuite {
+    let rows = 1
+    let optional = false
+    let skipped = false
+    while (ts.isCallExpression(callee) || ts.isPropertyAccessExpression(callee)) {
+      if (ts.isCallExpression(callee) && ts.isPropertyAccessExpression(callee.expression) &&
+          ['each', 'for'].includes(callee.expression.name.text)) {
+        const table = callee.arguments[0]
+        if (table && ts.isArrayLiteralExpression(table) && !table.elements.some(ts.isSpreadElement)) {
+          rows = table.elements.length
+        } else {
+          rows = 2
+          optional = true
+        }
+      }
+      if (ts.isPropertyAccessExpression(callee)) {
+        if (['skip', 'todo'].includes(callee.name.text)) skipped = true
+        if (['skipIf', 'runIf'].includes(callee.name.text)) optional = true
+      }
+      callee = callee.expression
+    }
+    return (clock, hooks) => {
+      let active = run(clock, hooks)
+      if (skipped || !rows) return clock
+      if (rows > 1 && active !== clock) active = run(active, hooks)
+      return active && (!optional || clock)
+    }
+  }
+
   const suite = collectSuite(source.statements, false)
-  suite.run(suite.clock, [])
+  suite.run(suite.clock, { setup: [], cleanup: [] })
 }
 
 for (const file of new Set([...added.keys(), ...browserSources.keys()])) {

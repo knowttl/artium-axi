@@ -16,7 +16,7 @@ import { AzureTokenCache } from '../../src/server/adapters/azure-token-cache.js'
 import { Audit } from '../../src/server/audit/audit.js'
 import { browserCookie } from '../../src/server/auth/browser.js'
 import { createBrowserSession } from '../../src/server/auth/sessions.js'
-import { healthDefaults } from '../../src/server/config.js'
+import { healthDefaults, runnerLimits } from '../../src/server/config.js'
 import { ToolHealth } from '../../src/server/health/health.js'
 import { cliOutdatedDownloadNext, cliOutdatedUpdateNext, errors } from '../../src/shared/errors.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
@@ -37,6 +37,7 @@ vi.mock('node:child_process', async importOriginal => {
 })
 
 const { spawn: spawnProcess } = await vi.importActual<typeof import('node:child_process')>('node:child_process')
+const nativeHealthTimeout = runnerLimits.admissionWaitMs + runnerLimits.timeoutMs + runnerLimits.terminationGraceMs + 10_000
 
 function controlledHealthProcess(output = { stdout: 'synthetic', stderr: '', exitCode: 0 }) {
   let started!: (finish: () => void) => void
@@ -568,7 +569,7 @@ test.each([
 
 describe.each(['synthetic-development-user', healthDefaults.actor])('destination diagnostics for %s', actor => {
   test.each(['ENETUNREACH', 'EHOSTUNREACH', 'response terminated before completion'])(
-    'Vectra native transport failure %s retains network detail', async cause => {
+    'Vectra native transport failure %s retains network detail', { timeout: nativeHealthTimeout }, async cause => {
       store.replaceCredential('vectra-axi', { kind: 'qux', apiVersion: '2.5', origin: 'https://appliance.test',
         auth: 'token', token: 'CANARY-VECTRA-TOKEN' }, 0, 'synthetic-development-user', Date.now())
       db.exec("UPDATE tools SET enabled = 1 WHERE name = 'vectra-axi'")
@@ -613,7 +614,7 @@ describe.each(['synthetic-development-user', healthDefaults.actor])('destination
     create: () => createVectraAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log')),
     toolCode: 'TLS_TRUST_ERROR', message: 'certificate verification failed',
     code: 'UPSTREAM_TLS_FAILED', stage: 'TLS', host: 'appliance.test' },
-  ] as const)('$tool $toolCode omits the configured host', async ({ tool, credential, create, toolCode, message, code, stage, host }) => {
+  ] as const)('$tool $toolCode omits the configured host', { timeout: nativeHealthTimeout }, async ({ tool, credential, create, toolCode, message, code, stage, host }) => {
     store.replaceCredential(tool, credential, 0, 'synthetic-development-user', Date.now())
     db.prepare('UPDATE tools SET enabled = 1 WHERE name = ?').run(tool)
     health = new ToolHealth(db, new Audit(db), runner, [create()], store)
@@ -667,7 +668,7 @@ test.each([
 test.each([
   ['SERVER_UNREACHABLE', 'could not connect to the directory', 'UPSTREAM_NETWORK_FAILED'],
   ['TLS_UNTRUSTED', 'certificate verification failed', 'UPSTREAM_TLS_FAILED'],
-])('scans the configured host before returning or caching %s', async (toolCode, message, code) => {
+])('scans the configured host before returning or caching %s', { timeout: nativeHealthTimeout }, async (toolCode, message, code) => {
   store.replaceCredential('ldap-axi', { url: 'ldaps://directory.test:636', auth: 'simple', bindDn: 'cn=synthetic',
     bindPassword: 'directory.test' }, 0, 'synthetic-development-user', Date.now())
   health = new ToolHealth(db, new Audit(db), runner, [createLdapAdapter(new EmbeddedSecretSource(store))], store)
