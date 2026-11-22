@@ -15,6 +15,9 @@ svg.i { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none;
 .skip { position: absolute; left: 12px; top: -48px; z-index: 100; padding: 8px 12px; border-radius: var(--r-sm); background: var(--primary); color: var(--primary-fg); text-decoration: none; font-size: var(--fs-sm); }
 .skip:focus { top: 12px; }
 
+.message { margin: 0; padding: 12px 14px; border: 1px solid var(--err-border); border-radius: var(--r-md); background: var(--err-soft); color: var(--err); font-size: var(--fs-sm); }
+.message:empty { display: none; }
+
 /* Layout helpers for page content */
 .list-row .grow strong a { text-decoration: none; }
 .list-row .grow strong a:hover { text-decoration: underline; }

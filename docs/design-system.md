@@ -9,11 +9,11 @@ This document describes the current screens and their design rules.
 | File | Owns |
 | --- | --- |
 | [tokens.ts](../src/server/admin/design/tokens.ts) | Legacy colour values and shared typography, radius, shadow, control-size and layout tokens, including light and dark palettes. |
-| [components.ts](../src/server/admin/design/components.ts) | Remaining component classes and geometry: the global base styles, side sheet and dialog styles, overflow and inline menus, signed-out auth screens, fallback controls and base elements outside the Astryx root, the `.btn-ghost.danger` and `.astryx-button.revoke` variants, and selectors that no rendered markup matches. |
+| [components.ts](../src/server/admin/design/components.ts) | Remaining component classes and geometry: the global base styles, side sheet and dialog styles including the `.message` form error box, overflow and inline menus, signed-out auth screens, fallback controls and base elements outside the Astryx root, the `.btn-ghost.danger` and `.astryx-button.revoke` variants, and selectors that no rendered markup matches. |
 | [frame.css](../src/server/admin/design/frame.css) | Hand-written styles for the top bar, breadcrumbs, side navigation footer, mobile navigation drawer, account menu, Learn panel and recent-authentication pill. Also owns the brand mark shared with sign-in and the popover styles, including button overrides shared with page action menus. Uses Astryx font weights, border width and zero spacing. |
 | [forms.css](../src/server/admin/design/forms.css) | Hand-written styles for shared `.btn` controls, text fields, selects, checkboxes, option cards and tiles, switches, segmented controls, filter chips, the credential editor and the operation picker. Also owns base form and fieldset styles in `.content` and dialogs, and the shared Astryx TextInput border override used by sign-in. Uses Astryx font weights, border width, zero spacing, focus outline width and the small element size. |
 | [tables.css](../src/server/admin/design/tables.css) | Hand-written styles for table wrappers and the people, roles, tools, instances, invitations, providers, rules, tokens, audit, SSH event and session tables, including their stacked narrow layouts and the base table styles for content outside the Astryx root. Uses Astryx font weights, border width, focus outline width and zero spacing. |
-| [cards.css](../src/server/admin/design/cards.css) | Hand-written styles for page messages, notes, hints and text utilities, cards and their body, foot and note parts, list rows, avatars, tool icons, status dots, page grids, the docked record sheet, key-value lists, code and copy blocks, vertical steps, setup steps, disclosure cards and the tool grid. Uses Astryx font weights, border width and zero spacing. |
+| [cards.css](../src/server/admin/design/cards.css) | Hand-written styles for notes, hints and text utilities, cards and their body, foot and note parts, list rows, avatars, tool icons, status dots, page grids, the docked record sheet, key-value lists, code and copy blocks, vertical steps, setup steps, disclosure cards and the tool grid. Uses Astryx font weights, border width and zero spacing. |
 | `src/server/admin/design/ui.ts` | Builds the typed breadcrumb, brand, navigation, account menu and help panel data for the frame. |
 | `src/views/frame.tsx` | Renders the frame, including its account menu and Learn disclosure. |
 | `src/views/theme-switch.tsx` | Renders the theme switch shared by the frame and auth views. |
@@ -46,9 +46,10 @@ The [tables CSS parity archive](tables-css-parity.zip) includes before-and-after
 See the archive's `README.txt` for the stylesheet checksums, exact capture coverage, screenshot comparison results and computed style checks.
 
 The card and layout styles keep their legacy surface, text, border and status colors, font sizes, corner radii, nonzero spacing, layout dimensions and viewport breakpoints.
-The extracted rules retain their relative order in `cards.css`, including the narrow-screen and 1080px rules that were at the end of `components.ts`, and the duplicated rules among them.
+The extracted rules in `cards.css` preserve the cascade, including the narrow-screen and 1080px layout rules.
 Selectors that no markup in `src/views` can match stay in `components.ts` with the dialog, auth, menu and base element rules.
-The [cards CSS parity archive](cards-css-parity.zip) includes before-and-after screenshots of the pages and of eight states that the fixture cannot render, built by changing the markup of real pages.
+The [cards CSS parity archive](cards-css-parity.zip) includes before-and-after screenshots of the pages, including Invitations with a synthetic provider, the open New invitation sheet, the populated Sign-in & SSO list and the provider setup page.
+It also retains earlier captures of eight states simulated in the markup of real pages.
 See the archive's `README.txt` for the stylesheet checksums, exact capture coverage, screenshot comparison results and computed style checks.
 
 ## Render seam

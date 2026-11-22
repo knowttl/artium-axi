@@ -1,17 +1,3 @@
-.message {
-  margin: var(--spacing-0);
-  padding: 12px 14px;
-  border: var(--border-width) solid var(--err-border);
-  border-radius: var(--r-md);
-  background: var(--err-soft);
-  color: var(--err);
-  font-size: var(--fs-sm);
-}
-
-.message:empty {
-  display: none;
-}
-
 .note {
   margin: var(--spacing-0);
   display: flex;
@@ -119,15 +105,6 @@
   position: absolute;
   top: 8px;
   right: 8px;
-}
-
-.copy-status:empty {
-  display: none;
-}
-
-.copy-status {
-  color: var(--text-muted);
-  font-size: var(--fs-xs);
 }
 
 .tool-grid {
@@ -239,10 +216,6 @@
   min-width: 0;
 }
 
-.dot.info {
-  background: var(--info);
-}
-
 .avatar.lg {
   width: 48px;
   height: 48px;
@@ -269,81 +242,6 @@
 
 .copy-status:empty {
   display: none;
-}
-
-.vsteps {
-  display: flex;
-  flex-direction: column;
-  margin: var(--spacing-0);
-  padding: var(--spacing-0);
-  list-style: none;
-}
-
-.vstep {
-  position: relative;
-  display: grid;
-  grid-template-columns: 24px minmax(0, 1fr);
-  gap: 12px;
-  padding-bottom: 18px;
-}
-
-.vstep:last-child {
-  padding-bottom: var(--spacing-0);
-}
-
-.vstep::before {
-  content: "";
-  position: absolute;
-  left: 11px;
-  top: 26px;
-  bottom: 2px;
-  width: 1px;
-  background: var(--border);
-}
-
-.vstep:last-child::before {
-  display: none;
-}
-
-.vstep .mark {
-  width: 24px;
-  height: 24px;
-  display: grid;
-  place-items: center;
-  border: var(--border-width) solid var(--border-strong);
-  border-radius: var(--r-full);
-  background: var(--bg);
-  color: var(--text-faint);
-  font-size: 11px;
-}
-
-.vstep .mark svg {
-  width: 13px;
-  height: 13px;
-  vertical-align: 0;
-}
-
-.vstep.done .mark {
-  background: var(--ok);
-  border-color: var(--ok);
-  color: var(--bg);
-}
-
-.vstep.current .mark {
-  border-color: var(--text);
-  color: var(--text);
-  font-weight: var(--font-weight-semibold);
-}
-
-.vstep strong {
-  display: block;
-  font-weight: var(--font-weight-medium);
-}
-
-.vstep p {
-  margin: 2px var(--spacing-0) var(--spacing-0);
-  color: var(--text-muted);
-  font-size: var(--fs-sm);
 }
 
 .vstep .btn {
@@ -455,13 +353,6 @@
   font-size: 11px;
   font-weight: var(--font-weight-bold);
   letter-spacing: -0.02em;
-}
-
-.tool-ico.lg {
-  width: 44px;
-  height: 44px;
-  border-radius: 10px;
-  font-size: 15px;
 }
 
 .audit-toolbar {
@@ -716,7 +607,7 @@
     min-width: 60%;
   }
 
-  .grid2, .tool-grid {
+  .tool-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 
