@@ -22,9 +22,6 @@ This document describes the stylesheets, their token policy, the render seam, th
 | `src/views/icon.tsx` | Owns the shared inline icon catalog and markup. |
 | `src/server/admin/design/status.ts` | The status vocabulary: one word and tone per state, the badge and status-dot helpers, and the product display name and mark of each tool. |
 
-Some selectors in these files match no class in the views or server code at this revision: `.nav-item`, `.auth-card`, `.tbl`, `.page-head`, `.field-label`, `.modal-foot`, `.dialog-actions`, `.inline-edit` and `.card-head`.
-They are residue of retired markup; the stylesheets still carry them.
-
 ## Stylesheet bundle
 
 Every page links one stylesheet, `/admin/assets/astryx.css`.
@@ -36,8 +33,9 @@ The same script builds the React and Astryx browser bundle, and writes both with
 All pages load the stylesheet; render-seam pages also load `hydrate.js`.
 
 The Astryx files put every rule in the cascade layers `reset`, `astryx-base` and `astryx-theme`.
-The hand-written files declare no layer, so their rules take precedence over the Astryx rules whatever the bundle order.
-Among the hand-written files, the order above decides ties of equal specificity.
+The hand-written files declare no layer, so their normal author declarations outrank normal author declarations in the Astryx layers.
+For `!important` author declarations, layer precedence reverses and earlier layers outrank later layers, which outrank unlayered declarations.
+Among the hand-written files, the later declaration wins when the other cascade criteria, including importance and specificity, are tied.
 
 ## Tokens
 
@@ -48,8 +46,11 @@ The Astryx stylesheets define the `--color-*`, `--font-weight-*`, `--spacing-*`,
 **Policy.**
 Where an Astryx token resolves to the value a rule used before, the rule uses the Astryx token.
 The extraction reviews checked this with computed styles, the frame, forms, tables and dialogs reviews at the default and 20px root font sizes (see the parity archives below).
-Every other value keeps its fixed pixel or palette value, because the Astryx value differs or scales with the browser root font size.
-These stay fixed:
+The credential editor is the exception to matching the old value.
+Its native `.input` and `.select` controls under `[data-credential-field]` or `[data-certificate]` inside the Astryx root use Astryx's surface colour, text colour and element radius to match the surrounding Astryx fields.
+Their border colour still uses `--field-border` from `tokens.css`.
+Elsewhere, keep the existing pixel or palette value where the Astryx value differs or scales with the browser root font size.
+That includes these values:
 
 - Surface, text, border and status colours, because the Astryx palettes yield different values in light or dark mode.
 - The popover shadow, because Astryx uses different offsets and opacity.
@@ -65,10 +66,6 @@ These come from Astryx:
 | `tables.css` | `--font-weight-normal`, `--font-weight-medium`, `--font-weight-semibold`, `--border-width`, `--spacing-0` and `--focus-outline-width`. |
 | `cards.css` | `--font-weight-bold`, `--font-weight-medium`, `--font-weight-semibold`, `--border-width` and `--spacing-0`. |
 | `dialogs.css` | `--font-weight-semibold`, `--border-width` and `--spacing-0`. |
-
-The credential editor rule in `forms.css` is the one place a hand-written rule takes Astryx's surface colour, text colour and element radius.
-It applies them to the native controls inside the editor's Astryx fields.
-All other colours in the hand-written stylesheets come from `tokens.css`.
 
 **Palette.**
 The palette is neutral grays plus the status hues and the focus colour.
@@ -98,7 +95,7 @@ The `light-dark()` values in `tokens.css` and in the Astryx theme resolve from t
 
 **Motion and icons.**
 Background, colour and border-colour transitions on links, buttons, summaries and `.btn` last 120ms, as do the switch thumb and the operation group icon.
-`base.css` removes every transition under `prefers-reduced-motion`.
+With reduced motion enabled, the `!important` reset in `base.css` disables these transitions, including the operation group icon transition declared later in `forms.css`.
 Icons are `svg.i`, shown at 16px with a 1.75 stroke in `currentColor`.
 
 ## Layout breakpoints
@@ -347,7 +344,7 @@ The Sessions table sits in a `session-list` container and turns into stacked car
 
 ## Rules
 
-Use palette tokens for hand-written styles and rendered colour presentation attributes.
+Use colour tokens for hand-written styles and rendered colour presentation attributes, following the [token policy](#tokens).
 `currentColor` uses the element's text colour, and `none` means no paint.
 Link the single CSS bundle described in [Stylesheet bundle](#stylesheet-bundle), keep resources same-origin, and follow the [style and CSP constraints](#constraints).
 Render icons through `Icon` in `src/views/icon.tsx`, which uses `svg.i` with inline shapes on a 24px grid.
@@ -432,5 +429,6 @@ The header stays one row there, and the recent-auth pill and the colour theme sw
 - Build render-seam views from Astryx components, subject to the constraints above.
 - Put each rule in the stylesheet that owns its component family (see [Files](#files)).
   A new stylesheet joins the bundle by being added to the `designStylesheets` list in `scripts/build-admin-client.mjs`, and to the colour-literal test in `test/design-system.test.ts`.
-- Express new colours as `light-dark()` palette tokens in `tokens.css` and reference them with `var()`, never as literals.
-- Use an Astryx token for a value only where it resolves to the value it replaces (see [Tokens](#tokens)).
+- Define new palette colours as `light-dark()` tokens in `tokens.css` and reference them with `var()`.
+- Use Astryx tokens when they resolve to the values they replace.
+  For native `.input` and `.select` controls in the credential editor's Astryx fields, use the Astryx surface colour, text colour and element radius from the [token policy](#tokens).
