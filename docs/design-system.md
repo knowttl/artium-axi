@@ -1,59 +1,148 @@
 # Design system
 
-The legacy web UI is built in four layers: tokens, then components, then patterns, then pages.
-Overview, People, the person detail page, the Roles list, the role detail page, Invitations, the Tools list, the tool page, the instance page, the Sign-in & SSO list, the who-matches page, the provider page, Access tokens, the Audit log, the SSH audit, the SSH hosts page, the SSH credentials page and the Account page use the Astryx render seam and page frame, and the sign-in, password, confirmation, CLI approval, result and error pages use the Astryx auth view; no page uses the legacy shell any more.
-This document describes the current screens and their design rules.
+The admin web UI is server-rendered Astryx React views styled by seven hand-written stylesheets that ship in one CSS bundle with the Astryx stylesheets.
+Overview, People, the person detail page, the Roles list, the role detail page, Invitations, the Tools list, the tool page, the instance page, the Sign-in & SSO list, the who-matches page, the provider page, Access tokens, the Audit log, the SSH audit, the SSH hosts page, the SSH credentials page and the Account page use the Astryx render seam and page frame.
+The sign-in, password, confirmation, CLI approval, result and error pages use the Astryx auth view.
+This document describes the stylesheets, their token policy, the render seam and the rules the tests enforce.
 
 ## Files
 
 | File | Owns |
 | --- | --- |
-| [tokens.ts](../src/server/admin/design/tokens.ts) | Legacy colour values and shared typography, radius, shadow, control-size and layout tokens, including light and dark palettes. |
-| [components.ts](../src/server/admin/design/components.ts) | Global base styles, overflow and inline menus, fallback controls and base elements outside the Astryx root, the `.btn-ghost.danger` and `.astryx-button.revoke` variants, and residual legacy selectors, including the unused `.modal-foot` and `.dialog-actions` rules. |
-| [frame.css](../src/server/admin/design/frame.css) | Hand-written styles for the top bar, breadcrumbs, side navigation footer, mobile navigation drawer, account menu, Learn panel and recent-authentication pill. Also owns the brand mark shared with sign-in and the popover styles, including button overrides shared with page action menus. Uses Astryx font weights, border width and zero spacing. |
-| [forms.css](../src/server/admin/design/forms.css) | Hand-written styles for shared `.btn` controls, text fields, selects, checkboxes, option cards and tiles, switches, segmented controls, filter chips, the credential editor and the operation picker. Also owns base form and fieldset styles in `.content` and dialogs, and the shared Astryx TextInput border override used by sign-in. Uses Astryx font weights, border width, zero spacing, focus outline width and the small element size. |
-| [tables.css](../src/server/admin/design/tables.css) | Hand-written styles for table wrappers and the people, roles, tools, instances, invitations, providers, rules, tokens, audit, SSH event and session tables, including their stacked narrow layouts and the base table styles for content outside the Astryx root. Uses Astryx font weights, border width, focus outline width and zero spacing. |
-| [cards.css](../src/server/admin/design/cards.css) | Hand-written styles for notes, hints and text utilities, card parts, list rows, avatars, tool icons, status dots, page grids, docked record sheets and shared sheet header and body layout, key-value lists, code and copy blocks, vertical and setup steps, disclosures including `.all-fields` summaries, and the tool grid. Also owns the Advanced tool tab's JSON validation note colors within the Astryx root. Uses Astryx font weights, border width and zero spacing. |
-| [dialogs.css](../src/server/admin/design/dialogs.css) | Hand-written styles for the `.message` form error box, modal side sheets with their scrim and footer, native dialogs and their backdrop, certificate inspection text and action-button wrapping, and auth views including their icon circles, footnote, sign-out form, help disclosure and theme row. Uses Astryx font weights, border width and zero spacing. |
-| `src/server/admin/design/ui.ts` | Builds the typed breadcrumb, brand, navigation, account menu and help panel data for the frame. |
+| [tokens.css](../src/server/admin/design/tokens.css) | The palette as custom properties, each light and dark value written once with CSS `light-dark()`, and the typography, radius, control-size, layout and gutter tokens. The only stylesheet that defines colour values. |
+| [base.css](../src/server/admin/design/base.css) | Global rules: box sizing, page background, body text, the focus ring, link colour, `code`, `pre` and `kbd` fonts, `[hidden]`, the 120ms colour transitions with their reduced-motion override, the `svg.i` icon, `.sr-only` and `.skip`. Fallback styles for plain headings, links, labels, text inputs, selects, textareas and buttons in `.content`, `.auth-card` and `dialog` outside `[data-astryx-root]`, and for details, summaries and `pre` in `.content` and `dialog`. The `.more-menu`, `.menu` and `.inline-edit` disclosure menus, `.popover-note`, the `.btn-ghost.danger` and `.astryx-button.revoke` variants, `.status` modifiers, form margin resets and the `.modal-foot` and `.dialog-actions` rules. |
+| [frame.css](../src/server/admin/design/frame.css) | The top bar, breadcrumbs, side navigation footer, mobile navigation drawer, header controls, account menu, Learn panel, recent-authentication pill (`.unlock`), the `.popover` surface with its button overrides shared with page action menus, and the `.logo` brand mark shared with the auth view. |
+| [forms.css](../src/server/admin/design/forms.css) | Shared `.btn` controls and `.link`, `.field`, `.input` and `.select`, `.check`, `.option` cards and `.tile` tiles, `.switch`, `.switch-row` and `.toggle`, the `.seg` segmented control, `.filters` and `.filter` chips, `.copyfield`, the CLI setup host picker (`.host-command`), the credential editor (`[data-credential-editor]`) and the operation picker (`.ops`, `.ops-group`, `label.op`). Base form, fieldset, legend, checkbox, radio and file input styles in `.content` and `dialog`, `fieldset[data-hydration-gate]` as `display: contents`, and the `.astryx-text-input` border override shared with sign-in. |
+| [tables.css](../src/server/admin/design/tables.css) | `.table-wrap`, the `.link-rows` row links, and the people, roles, tools, instances, invitations, providers, rules, tokens, audit, SSH events and session tables with their stacked narrow layouts. Base table, caption and cell styles for tables in `.content` and `dialog`; the table, cell and header rules skip `[data-astryx-root]`. |
+| [cards.css](../src/server/admin/design/cards.css) | `.note` and `.hint`, the `.muted`, `.faint` and `.mono` utilities, `.card-body`, `.card-foot` and `.card-note`, `.list-row`, `.avatar`, `.tool-ico`, `.dot` and `.status`, page grids, the `.split` layout with docked record sheets, `.kv` lists, `.code` and `.copyblock`, `.vsteps` and `.steps`, `.disclosure` and `.all-fields`, `.tool-grid`, `.audit-toolbar` and `.execution`. Also the Advanced tool tab's JSON validation note colours inside the Astryx root (`.note[data-valid]`). |
+| [dialogs.css](../src/server/admin/design/dialogs.css) | The `.message` form error box, modal side sheets (`dialog.sheet`, `.scrim`, `.sheet-foot`), native `dialog` and its `::backdrop`, the certificate inspection dialog text and name-change button, and the auth view (`.auth`, `.auth-wrap`, `.auth-foot`, `.auth-help`, `.theme-row`, `.ico-circle`). |
+| `src/server/admin/chrome.ts` | Builds the typed breadcrumb, brand, navigation, account menu and help panel data for the frame. |
 | `src/views/frame.tsx` | Renders the frame, including its account menu and Learn disclosure. |
 | `src/views/theme-switch.tsx` | Renders the theme switch shared by the frame and auth views. |
 | `src/views/icon.tsx` | Owns the shared inline icon catalog and markup. |
 | `src/server/admin/design/status.ts` | The status vocabulary: one word and tone per state, the badge and status-dot helpers, and the product display name and mark of each tool. |
 
-The [asset route](../src/server/admin/users.ts) concatenates the tokens, components, `frame.css`, `forms.css`, `tables.css`, `cards.css` and `dialogs.css` in that order and serves them from `/admin/assets/style.css`.
-It reads the stylesheet files from `design/` relative to its module at load time, so builds and server bundles must include them there.
-The build also produces a React and Astryx browser bundle and the Astryx neutral stylesheet, served at `/admin/assets/hydrate.js` and `/admin/assets/astryx.css`.
-All pages load the stylesheet; render-seam pages also load the browser bundle.
+Some selectors in these files match no class in the views or server code at this revision: `.nav-item`, `.auth-card`, `.tbl`, `.page-head`, `.field-label`, `.modal-foot`, `.dialog-actions`, `.inline-edit` and `.card-head`.
+They are residue of retired markup; the stylesheets still carry them.
 
-The frame keeps its legacy surface, text, border and status colors because the Astryx palettes yield different values in light or dark mode.
-It keeps the legacy popover shadow because Astryx uses different offsets and opacity.
-Font sizes, corner radii, nonzero spacing and layout dimensions retain their baseline values across browser font sizes.
-The [frame CSS parity archive](frame-css-parity.zip) contains 96 historical before-and-after screenshot pairs for base revision `64bba2600f9f421d22d67cc445e9cc05582d897d` and the stylesheet served by revision `7c94db0113048f39c255f689710b64841c3214de`.
-The archive's `README.txt` records the stylesheet checksums, screenshot comparison at the default root font size and computed token checks at the default and 20px root font sizes.
+## Stylesheet bundle
 
-The form controls keep their legacy surface, text, border and status colors for the same reason.
-They keep legacy font sizes, corner radii, nonzero spacing and layout dimensions across browser font sizes.
-Small buttons and filter chips use the Astryx small element size for height, and small icon buttons also use it for width.
-The `.input.mono` rule in `forms.css` sets the font size with higher specificity than the `.mono` utility in the later `cards.css`.
-Astryx puts the `.mono` class on the TextInput wrapper, so `forms.css` applies the monospace font to the nested input.
-The [forms CSS parity archive](forms-css-parity.zip) includes before-and-after screenshots from successive extraction revisions, including rendered sign-in and filled monospace fields.
-See its `README.txt` for the stylesheet checksums, capture coverage by revision and computed style checks.
+Every page links one stylesheet, `/admin/assets/astryx.css`.
+The retired `/admin/assets/style.css` route answers 404.
+`scripts/build-admin-client.mjs` writes the bundle at build time by concatenating, in this order, `tokens.css`, `base.css`, `frame.css`, `forms.css`, `tables.css`, `cards.css`, `dialogs.css`, the Astryx reset, the Astryx component stylesheet, the Astryx neutral theme and four self-hosted Figtree `@font-face` rules.
+The same script builds the React and Astryx browser bundle, and writes both with the font files to `src/server/admin/client/`, which git ignores.
+`registerAdminClientAssets()` in `src/server/admin/client-assets.ts` reads those files when it registers and serves them from `/admin/assets/`, so the server needs the built `client/` directory and none of the stylesheets in `design/`.
+`scripts/build.mjs` and the Dockerfile copy `src/server/admin/client` into the built output.
+All pages load the stylesheet; render-seam pages also load `hydrate.js`.
 
-The table styles keep their legacy surface, text and border colors, font sizes, corner radii, nonzero spacing, layout dimensions and container and viewport breakpoints.
-The extracted rules retain their relative order in `tables.css`, including the narrow-screen rules that were at the end of `components.ts`.
-The `.filters` margin reset now sits in the `.filters` rule in `forms.css`; `.card form` keeps its own reset in `components.ts`.
-The [tables CSS parity archive](tables-css-parity.zip) includes before-and-after page screenshots and captures with sample rows for tables that the fixture leaves empty.
-See the archive's `README.txt` for the stylesheet checksums, exact capture coverage, screenshot comparison results and computed style checks.
+The Astryx files put every rule in the cascade layers `reset`, `astryx-base` and `astryx-theme`.
+The hand-written files declare no layer, so their rules take precedence over the Astryx rules whatever the bundle order.
+Among the hand-written files, the order above decides ties of equal specificity.
 
-The card and layout styles keep their legacy surface, text, border and status colors, font sizes, corner radii, nonzero spacing, layout dimensions and viewport breakpoints.
-The extracted rules in `cards.css` preserve the cascade, including the narrow-screen and 1080px layout rules.
-The [cards CSS parity archive](cards-css-parity.zip) includes comparisons with the baseline across several stylesheet revisions.
-See its `README.txt` for capture coverage by revision, stylesheet checksums, screenshot comparison results and computed style checks.
+## Tokens
 
-The dialog and auth styles keep their legacy surface, text, border and status colors, font sizes, corner radii, nonzero spacing, layout dimensions, z-index values and the 760px viewport breakpoint.
-The extracted rules in `dialogs.css` keep their relative order, including the narrow-screen sheet width.
-See the `README.txt` in the [dialogs CSS parity archive](dialogs-css-parity.zip) for capture coverage, stylesheet checksums, comparison results and computed style checks.
+**Two token sources.**
+`tokens.css` holds the project's palette, type scale, radii, control heights and layout widths.
+The Astryx stylesheets define the `--color-*`, `--font-weight-*`, `--spacing-*`, `--border-width`, `--focus-outline-width`, `--size-element-*` and `--radius-element` tokens.
+
+**Policy.**
+Where an Astryx token resolves to the value a rule used before, the rule uses the Astryx token.
+The extraction reviews checked this with computed styles, the frame, forms, tables and dialogs reviews at the default and 20px root font sizes (see the parity archives below).
+Every other value keeps its fixed pixel or palette value, because the Astryx value differs or scales with the browser root font size.
+These stay fixed:
+
+- Surface, text, border and status colours, because the Astryx palettes yield different values in light or dark mode.
+- The popover shadow, because Astryx uses different offsets and opacity.
+- Font sizes, corner radii, nonzero spacing, layout dimensions, z-index values and breakpoints.
+
+These come from Astryx:
+
+| Stylesheet | Astryx tokens it uses |
+| --- | --- |
+| `tokens.css`, `base.css` | None. |
+| `frame.css` | `--font-weight-bold`, `--font-weight-medium`, `--font-weight-semibold`, `--border-width` and `--spacing-0`. |
+| `forms.css` | `--font-weight-normal`, `--font-weight-medium`, `--font-weight-semibold`, `--border-width`, `--spacing-0`, `--focus-outline-width` and `--size-element-sm` (the height of small buttons and filter chips, and the width of small icon buttons). Also `--radius-element`, `--color-background-surface` and `--color-text-primary` for native controls inside the credential editor's Astryx fields. |
+| `tables.css` | `--font-weight-normal`, `--font-weight-medium`, `--font-weight-semibold`, `--border-width`, `--spacing-0` and `--focus-outline-width`. |
+| `cards.css` | `--font-weight-bold`, `--font-weight-medium`, `--font-weight-semibold`, `--border-width` and `--spacing-0`. |
+| `dialogs.css` | `--font-weight-semibold`, `--border-width` and `--spacing-0`. |
+
+The credential editor rule in `forms.css` is the one place a hand-written rule takes Astryx's surface colour, text colour and element radius.
+It applies them to the native controls inside the editor's Astryx fields.
+All other colours in the hand-written stylesheets come from `tokens.css`.
+
+**Palette.**
+The palette is neutral grays plus the status hues and the focus colour.
+Every value is a `light-dark()` pair except `--danger-fg` (white) and `--transparent`.
+
+- Surfaces: `--bg`, `--bg-subtle`, `--bg-muted`, `--bg-hover`, `--bg-active`, `--code-bg`.
+- Lines: `--border` (decorative), `--border-strong` (labelled buttons and option cards), `--control` (inputs and checkboxes), `--field-border` (the Astryx TextInput border override and the native controls inside the credential editor's Astryx fields).
+- Text: `--text`, `--text-muted`, `--text-faint`.
+- Actions: `--primary`, `--primary-hover`, `--primary-fg`, `--danger-solid`, `--danger-fg`, `--focus`.
+- Status: `--ok`, `--warn`, `--err`, `--info`, each with `-soft` and `-border`.
+- Elevation: `--shadow-pop` and `--overlay` for floating layers; `--shadow-sm` for the selected segmented-control option.
+
+**Type, shape and layout.**
+`--font` is the system sans-serif stack and `--mono` the monospace stack.
+Sizes are `--fs-xs` (12px), `--fs-sm` (13px), `--fs-base` (14px), `--fs-md` (16px), `--fs-lg` (20px) and `--fs-xl` (24px).
+Radii are `--r-sm` (6px), `--r-md` (8px), `--r-lg` (12px) and `--r-full`.
+Control heights are `--ctl-h` (34px) and `--ctl-h-sm` (28px).
+Layout tokens are `--side-w`, `--content-max`, `--content-narrow`, `--aside-w`, `--topbar-h` and `--gutter`, which is 32px and 16px at 760px viewport width and narrower.
+
+**Themes.**
+The System, Light and Dark switch appears on GET pages, including sign-in and error pages, except under `/auth/sso/`.
+It is absent from POST responses, including completion and error pages.
+The choice is remembered in the `artium-theme` cookie (`system`, `light` or `dark`; anything else means system).
+The server writes explicit Light or Dark choices as `data-theme` on the root element and omits the attribute for System.
+The Astryx reset maps `data-theme` to `color-scheme` on `html`, which is `light dark` when the attribute is absent.
+The `light-dark()` values in `tokens.css` and in the Astryx theme resolve from that `color-scheme`, so System follows the browser's preference.
+
+**Motion and icons.**
+Background, colour and border-colour transitions on links, buttons, summaries and `.btn` last 120ms, as do the switch thumb and the operation group icon.
+`base.css` removes every transition under `prefers-reduced-motion`.
+Icons are `svg.i`, shown at 16px with a 1.75 stroke in `currentColor`.
+
+## Layout breakpoints
+
+The hand-written stylesheets switch layouts at these widths:
+
+| Width | Kind | Effect |
+| --- | --- | --- |
+| 760px and narrower | Viewport | The gutter halves, the top bar padding follows it and the Learn label is hidden. The people, roles, tools, invitations, providers and rules tables become stacked cards. Tiles, operation bodies and the credential editor use one column. List rows wrap, and the tool grid, split layouts and steps stack, with a docked sheet above its list. Side sheets fill the width. |
+| 767px and narrower | Viewport | The desktop side navigation is hidden and the header shows the navigation disclosure. |
+| 1080px and narrower | Viewport | `.grid2` becomes one column. |
+| Narrower than 760px | Container | The SSH events tables and the sessions table become stacked cards. |
+| Narrower than 880px | Container | The audit table becomes stacked cards. |
+| Narrower than 900px | Container | The instances and tokens tables become stacked cards. |
+
+## Parity archives
+
+Each extraction compared the new stylesheet with the one it replaced.
+Five archives under `docs/` keep the evidence: `frame-css-parity.zip`, `forms-css-parity.zip`, `tables-css-parity.zip`, `cards-css-parity.zip` and `dialogs-css-parity.zip`.
+Each holds a `README.txt`, a `before/` folder and an `after/` folder with one PNG per capture.
+The README records the baseline and candidate revisions, the stylesheet SHA-256 checksums, the capture method and coverage, and the computed style checks.
+
+| Archive | Pairs | Baseline revision |
+| --- | --- | --- |
+| `frame-css-parity.zip` | 96 | `64bba2600f9f421d22d67cc445e9cc05582d897d` |
+| `forms-css-parity.zip` | 100 | `e8ea8b5aa7ad05924025f1e85b0ced0960facc6d` |
+| `tables-css-parity.zip` | 106 | `e769a8670036ace6dfa66fb0973a0ad0ac2bff38` |
+| `cards-css-parity.zip` | 142 | `d61c6f773abf3b612c8d7ae11548677a2cee8a74` |
+| `dialogs-css-parity.zip` | 80 | `cd1e23edd58669fe899482b1139845de6f1ef16f` |
+
+Each baseline is the revision just before the extraction.
+The captures are historical records of those revisions.
+They were taken when the hand-written styles were served from `/admin/assets/style.css`, a route that no longer exists, so the archives are read, not re-run.
+Each README holds its comparison results; the tables README records three Account pairs that differ only in a synthetic port number.
+
+## Open follow-up
+
+[Issue 591](https://github.com/knowttl/artium-axi/issues/591) tracks what the final extraction review left open.
+The decision that affects the stylesheets is the `light-dark()` browser floor.
+`tokens.css` defines the whole palette with `light-dark()`, which needs a browser newer than the ones that support `color-scheme`.
+On a browser that supports `color-scheme` but not `light-dark()`, the palette custom properties are invalid at computed-value time, and the surfaces that use them lose their colour: the page background and focus outline in `base.css`, the header surface in `frame.css`, input borders in `forms.css`, row focus in `tables.css`, the card surface in `cards.css`, and the scrim, dialog, backdrop and sign-in surface in `dialogs.css`.
+The repository states no browser floor.
+The issue asks whether to revert to plain colours per theme, with two palette definitions, or to keep `light-dark()` and document the minimum browser versions.
+The issue also asks to tighten the bundle tests; `test/design-system.test.ts` checks that every page links `astryx.css` and not `style.css`, and it does not check the bundle order.
 
 ## Render seam
 
@@ -156,7 +245,7 @@ The status word and tone of a token come from the `token` entry of the status vo
 The props carry a token's id, label, creator, access, scope, expiry and status, never its value or hash.
 
 The page frame is `Frame` in `src/views/frame.tsx`, built on Astryx `AppShell`: a header with the breadcrumb, a content area with the page title, description and a row of action links (`FrameAction`: a primary or secondary button that is a link, optionally naming the sheet it opens through `sheetTrigger`), and the side navigation slot.
-`adminChrome()` in `src/server/admin/design/ui.ts` supplies the breadcrumb, brand, administration links, account menu and help panel data that `Frame` renders.
+`adminChrome()` in `src/server/admin/chrome.ts` supplies the breadcrumb, brand, administration links, account menu and help panel data that `Frame` renders.
 The side navigation is an Astryx `SideNav` with a `SideNavSection` per group and a `SideNavItem` per link, whose current page is derived from the request path.
 The frame renders `AccountMenu`, `HelpPanel` and `ThemeSwitch` from typed data.
 `pageHelp` in `src/server/admin/forms.ts` supplies plain-text paragraphs for both the frame's Learn panel and the auth view's Need help? disclosure, with fallback text for unknown topics.
@@ -194,8 +283,7 @@ Views render timestamps with `Time` in `src/views/time.tsx`.
 See [browser administration](admin-guide.md#browser-administration) for the timestamp display behavior.
 The CLI approval page's Go back button (`BackButton` in `src/views/auth.tsx`) renders hidden and appears once hydrated when the browser has history.
 Views avoid Astryx components that emit inline SVG or style values the hoister rejects (`Avatar`, `ProgressBar`, the default `Stepper` and `Banner` icons, and `Table` without its own `scrollWrapper`).
-The legacy base rules for headings, paragraphs, links, table elements, labels, selects, textareas, buttons and inputs other than checkboxes, radio buttons, hidden and file inputs skip content inside `[data-astryx-root]`.
-Tool views render without `legacyHtml` or `legacy-island` markup.
+The `base.css` and `tables.css` fallback rules for headings, links, table elements, labels, selects, textareas, buttons and inputs other than checkboxes, radio buttons, hidden and file inputs skip content inside `[data-astryx-root]`.
 The Audit log (`AuditLog` in `src/views/audit.tsx`, route `/admin/audit`) is the fourteenth page on the seam.
 It is a GET filter form (Request ID and Token ID search, the Time range link group, the Failed runs only link, native `select` chips for User, Tool, Instance, Event and Outcome, the Error code chip that appears only when the query sets it, and the From and To fields of a custom range), an Export menu (a native `details` with the CSV and JSON lines download links to `/v1/admin/audit/export` for the applied filters), the records table and a cursor pager.
 Its props carry what a row displays (time, event, break-glass flag, actor name, tool, instance and outcome word and tone) and no other stored field; the open record is a separate `detail` prop.
@@ -240,7 +328,7 @@ The Sessions table sits in a `session-list` container and turns into stacked car
 
 ## Constraints
 
-- Pages are server-rendered HTML through `browserPage` or, for render-seam views, `renderPage()` or `renderAuthPage()`.
+- Pages are server-rendered HTML: `renderPage()` and `renderAuthPage()` render the render-seam views, and `browserDocument()` in `src/server/auth/browser.ts` writes the document around them, with the link to `/admin/assets/astryx.css`.
 - The content security policy allows only same-origin scripts, styles and fonts, plus the response's own nonce for one `<style>` element, so there are no CDNs, inline scripts or `style` attributes.
   Each browser response gets a fresh unpredictable nonce, available to handlers as `reply.styleNonce`.
   The policy never includes `unsafe-inline` or a `style-src-attr` allowance.
@@ -253,82 +341,19 @@ The Sessions table sits in a `session-list` container and turns into stacked car
 
 ## Rules
 
-`test/design-system.test.ts` enforces these rules over the served stylesheet and rendered pages:
+`test/design-system.test.ts` enforces these rules over the stylesheet sources and rendered pages:
 
-- No colour literal of any form outside `tokens.ts`, including named colours, transparent, hex, rgb/rgba, hsl/hsla, hwb, oklch, oklab, lab, lch and color(), in stylesheets or rendered colour presentation attributes.
+- `base.css`, `frame.css`, `forms.css`, `tables.css`, `cards.css` and `dialogs.css` contain no colour literal of any form, including named colours, transparent, hex, rgb/rgba, hsl/hsla, hwb, oklch, oklab, lab, lch and color(), in shorthands, custom properties, nested at-rules and `var()` fallbacks.
+  `tokens.css` is where colour values live, and the test does not scan it.
+- Rendered colour presentation attributes (`fill`, `stroke`, `color`, `stop-color`, `flood-color`, `lighting-color`, `bgcolor`, `bordercolor`, `text`, `link`, `alink`, `vlink` and any attribute ending in `-color`) hold no colour literal.
 - `currentColor` and token references inherit colours; `none` means no paint.
+- `/admin/assets/style.css` answers 404, and every page links `/admin/assets/astryx.css` and not `style.css`.
 - No `style` attribute in any rendered page; at most one `<style>` element is allowed, and it must carry the response's nonce and contain no colour literal.
 - Every stylesheet and page resource is same-origin: no `@import`, no remote or `data:` `url()`, no remote `link`, `script` or `img`, and the policy has no `unsafe-` source, `style-src-attr` or remote `font-src`.
-- Hand-written client and view source under `src/client` and `src/views` has no colour literal; colours come from the Astryx theme.
-- Every icon is an `svg.i` rendered by the `Icon` component in `src/views/icon.tsx`, with its own inline shapes on a 24px grid.
-  Pages contain no ad hoc SVG shapes, sprite symbols or `<use>` references.
+- Every `<svg>` in a page is `svg.i` with a 24px grid `viewBox` and its own inline shapes, as the `Icon` component in `src/views/icon.tsx` renders it, and no page contains `<use>` or `<symbol>` references.
 - One `h1` per page.
 
-## Tokens
-
-Colours are neutral, and colour is reserved for status, so red, amber and green always mean something.
-The legacy palettes are defined in `tokens.ts`.
-The System, Light and Dark switch appears on GET pages, including sign-in and error pages, except under `/auth/sso/`.
-It is absent from POST responses, including completion and error pages.
-The choice is remembered in the `artium-theme` cookie (`system`, `light` or `dark`; anything else means system).
-The server writes explicit Light or Dark choices as `data-theme` on the root element and omits the attribute for System.
-Dark values apply under `data-theme="dark"`, or under `prefers-color-scheme: dark` when no explicit choice is set, and light values apply under `data-theme="light"` whatever the system prefers.
-Astryx views follow the same attribute through their `light-dark()` tokens.
-Text pairs meet WCAG 2.2 AA (4.5:1), and control outlines, focus rings and status colours meet 3:1, in both themes.
-
-- Surfaces: `--bg`, `--bg-subtle`, `--bg-muted`, `--bg-hover`, `--bg-active`.
-- Lines: `--border` (decorative), `--border-strong` (labelled buttons), `--control` (inputs and checkboxes).
-- Text: `--text`, `--text-muted`, `--text-faint`.
-- Actions: `--primary`, `--primary-hover`, `--primary-fg`, `--danger-solid`, `--danger-fg`, `--focus`.
-- Status: `--ok`, `--warn`, `--err`, `--info`, each with `-soft` and `-border`.
-- Elevation: `--shadow-pop` and `--overlay` for floating layers; `--shadow-sm` for the selected segmented-control option.
-- Type: `--font`, `--mono`, and sizes `--fs-xs`, `--fs-sm`, `--fs-base`, `--fs-md`, `--fs-lg`, `--fs-xl`; values are defined in `tokens.ts`.
-- Shape and layout: `--r-sm`, `--r-md`, `--r-lg`, `--r-full`, `--ctl-h`, `--ctl-h-sm`, `--side-w`, `--content-max`, `--content-narrow`, `--aside-w`, `--topbar-h`, `--gutter`.
-
-Use a 4px spacing grid for new components.
-Colour, background, switch-thumb and disclosure-icon transitions last 120ms, with no transitions under `prefers-reduced-motion`.
-Icons use a 1.75 stroke in `currentColor` and are shown at 16px.
-
-## Legacy components
-
-| Component | Markup | States | Accessibility |
-| --- | --- | --- | --- |
-| App shell | `appShell()`: `.app`, `.side`, `.main`, `.topbar`, `.content` | Administrator (sidebar), ordinary user (top bar only) | Skip link to `main#main`; sidebar `nav` labelled "Administration" |
-| Nav item | `.nav-item`, `.nav-label` | default, hover, current | `aria-current="page"` on the current section |
-| Account menu | `.account-menu` with `.popover` | closed, open | Native disclosure; "Signed in as" is announced |
-| Learn panel | `.learn` with `.learn-panel` | closed, open | Native disclosure holding the page help |
-| Breadcrumb | `.crumbs` | section group, or a parent page link on detail pages | Current page in `strong` |
-| Summary card | `.card` with `.summary` | neutral, warning | Label, value and one sentence |
-| Page header | `pageHeader()`: `.page-head`, `.actions`; identity variant `.page-head.identity`, `.meta` | title, optional one-line description, actions (at most one primary), identity variant with a lead avatar or `toolIcon(tool, 'lg')` and badges | The page's only `h1`; detail pages name their list page in the breadcrumb |
-| Button | `.btn` with `.btn-secondary`, `.btn-ghost`, `.btn-danger-outline` or `.btn-danger`; `.btn-sm`, `.btn-icon`; `.btn-ghost.danger` for a quiet destructive row action | default, hover, focus | Icon-only buttons need `aria-label`; verbs name the result |
-| Badge and status | `badge()`, `status()` from `status.ts`: `.badge` with `.ok`, `.warn`, `.err`, `.info`, `.solid`; `.status` with `.dot` | words from the status vocabulary only | The word is always present; the dot is `aria-hidden` |
-| Chip | `.chip`, `.chips` | plain, link | Role chips name the grant origin (Direct, SSO rule) where it matters |
-| Card | `card()`: `.card`, `.card-head`, `.card-body`, `.card-foot`, `.card-note`; `.card.danger`, `.card.empty` | plain, with header actions, with footer actions, danger zone, empty state | `h2` per card |
-| Table | `.tbl` in `.table-wrap`; `.cell-main`, `.row-link`, `.num`, `.actions-cell`, `.stacked`; `.row-links`, `.stack`, `tr.sel`; `pager()` footer | row links, selected row, dimmed row, numeric column, stacked rows below 760px | Real `<table>`; the row link is the first-cell anchor, stretched over the row, not a JavaScript click |
-| Field | `field()`: `.field`, `.hint`; `.input`, `.select`, `.input.mono`, `.input.narrow`; `checkOption()`: `.check`; `.options` fieldset | default, focus, invalid, disabled | `label for`; hints linked by `aria-describedby` |
-| Callout | `callout()`: `.callout` with `.info`, `.ok`, `.warn`, `.err` | with optional actions and additional detail | `role="status"` by default; blocking errors use `role="alert"` |
-| Steps | `.vsteps`, `.vstep` (`.done`, `.current`) | done, current, to do | Ordered list; done steps carry hidden "Done:" text |
-| Key-value list | `.kv` | | `<dl>` |
-| List row | `.rows`, `.list-row`, `.step-mark` | | Ordered list when the order matters |
-| Avatar and tool icon | `.avatar` (e.g., `AccountMenu` in `src/views/frame.tsx`), `.avatar.lg` (`Person` in `src/views/person.tsx`); `toolIcon()`: `.tool-ico`, `.tool-ico.lg`, using a mark from `toolProducts` | sm, lg | Initials and marks are `aria-hidden`; the name is adjacent text |
-| Overflow menu | `.more-menu` with `.popover` | closed, open | Native disclosure with `aria-label` on its icon summary |
-| Side sheet | `dialog.sheet` with `.sheet-head`, `.sheet-body`, `.sheet-foot`, `.scrim` | See [sheet behavior](#patterns) | Labelled by its heading |
-| Option tile | `.tiles`, `.tile`, `.tool-ico` | unchecked, checked | Native checkbox inside its label |
-| Inline editor and menu | `.inline-edit`, `.menu` with `.popover` | closed, open | Native disclosure; works without JavaScript |
-| Filter row | `.filters`, `.input-wrap`, `.seg`, `.filter`, `.filter.set` | unset (dashed), set (with clear link) | See [Browser administration](admin-guide.md#browser-administration) |
-| Docked sheet | `.split`, `.sheet.docked`, `.sheet-head`, `.sheet-body`, `.kv`, `.code`, `.copyfield` | open beside its list; above it below 760px | `aside` labelled by its `h2`; opened by a `?record=` link, so it works without JavaScript |
-| Option card | `.options`, `.option` | unchecked, checked | Native radio |
-| Code and copy | Copy controls use [`useCopy`](../src/views/copy.ts) in the hydrated React view | Idle, copied, or clipboard access unavailable (the source is selected for manual copying) | `role="status"` announces the copy result |
-| Disclosure card | `details.card.disclosure` | closed, open | Native disclosure |
-| Dialog | Astryx `Dialog` in [`Confirmation`](../src/views/confirmation.tsx) and [`ReauthDialog`](../src/views/reauth-dialog.tsx) | confirmation tier 2 or 3, identity confirmation | `showModal`, Esc closes, a backdrop press does not, the action confirmation title names the action, focus returns to the control that submitted |
-| Toasts | `Toasts` in `src/views/toasts.tsx` on the Astryx toast viewport | none, success, error, conflict with **Reload latest** | A saved success toast appears on the resulting page and is announced politely; an error from a form with no message area of its own is announced assertively and clears on the next submission of a form without its own message area |
-| Steps | `steps()`: `ol.steps`, `.step` | done, fail, to do, current | Ordered list; the state is in visually hidden text |
-| Segmented control and search | `.seg` with visually hidden radios, `.search`, `.filters` | checked | GET forms; JavaScript may apply them live |
-| Switch | `.switch` on a native checkbox, or `.toggle` button holding a decorative `.switch` | off, on, disabled | `role="switch"`; checkboxes save with their form; the Enabled button submits a confirmed change |
-| Operation catalogue | `.ops`, `details.ops-group`, `label.op` | collapsed, open, filtered, Delete and Bulk tags | Native disclosures and checkboxes; see [label and risk ownership](#write-operation-labels-and-risk) |
-| Credential editor | `CredentialEditor` styled through `[data-credential-editor]` and `[data-credential-field]` | stored secret, required, hidden | Controls have associated labels; `aria-describedby` links their hints |
-
-See [Files](#files) for ownership of base form styles and legacy button variants.
+`test/admin-client-assets.test.ts` checks that the served bundle loads only the four Figtree font files and declares the Astryx theme tokens `--color-text-primary`, `--color-background-surface`, `--color-accent` and `--radius-container`.
 
 ## Patterns
 
@@ -384,7 +409,7 @@ See [sheet behavior](#patterns) for server-rendered add and edit views and [brow
 
 ## Navigation
 
-The sidebar groups administration into Overview, Access (People, Roles, Invitations), Tools (Tools) and Security (Sign-in & SSO, Audit log).
+The sidebar groups administration into Overview, Access (People, Roles, Invitations), Tools (Tools) and Security (Sign-in & SSO, Access tokens, Audit log).
 The current section is derived from the request path.
 In the render-seam page frame the sidebar is an Astryx `SideNav`; at 767px and narrower it is replaced by a navigation disclosure in the header.
 The header stays one row there, and the recent-auth pill and the colour theme switch move into that disclosure.
@@ -392,4 +417,7 @@ The header stays one row there, and the recent-auth pill and the colour theme sw
 ## Changing the UI
 
 - Build render-seam views from Astryx components, subject to the constraints above.
-- Express new colours or sizes as new tokens, never literals.
+- Put each rule in the stylesheet that owns its component family (see [Files](#files)).
+  A new stylesheet joins the bundle by being added to the `designStylesheets` list in `scripts/build-admin-client.mjs`, and to the colour-literal test in `test/design-system.test.ts`.
+- Express new colours as `light-dark()` palette tokens in `tokens.css` and reference them with `var()`, never as literals.
+- Use an Astryx token for a value only where it resolves to the value it replaces (see [Tokens](#tokens)).
