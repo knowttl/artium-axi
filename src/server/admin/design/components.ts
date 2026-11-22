@@ -90,102 +90,9 @@ svg.i { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none;
 .card > form, .card-foot form, .list-row form, .tbl form, .page-head form { margin: 0; }
 .card-meta { margin: 0; color: var(--text-faint); font-size: var(--fs-xs); }
 
-/* Table */
-.table-wrap { overflow-x: auto; }
-.link-rows tbody tr { position: relative; }
-.link-rows tbody a:not(.row-chip)::after { content: ""; position: absolute; inset: 0; }
-.link-rows tbody a:not(.row-chip):focus-visible { outline: 0; }
-.link-rows tbody a:not(.row-chip):focus-visible::after { outline: 2px solid var(--focus); outline-offset: -2px; }
-.link-rows tbody tr:hover { background: var(--bg-subtle); }
-.link-rows .row-link { color: var(--text); text-decoration: none; }
-.link-rows tbody td.num { width: 48px; min-width: 48px; color: var(--text-faint); text-align: right; }
-.link-rows tbody tr.dim { opacity: 0.6; }
-.link-rows tbody td a.row-chip { position: relative; z-index: 1; }
-.roles-list .count { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.roles-list tbody tr:last-child th { border-bottom: 0; }
-.tools-list th, .tools-list td { max-width: none; overflow: visible; }
-@media (min-width: 761px) { .tools-list th, .tools-list td { white-space: nowrap; overflow-wrap: normal; word-break: normal; } }
-.tools-list tbody tr:last-child th, .tools-list tbody tr:last-child td { border-bottom: 0; }
-.astryx-card:has(.instances-list) { overflow: visible; }
-.instances-list { container-type: inline-size; }
-.instances-list th, .instances-list td { max-width: none; overflow: visible; }
-.instances-list tbody th { white-space: normal; overflow-wrap: anywhere; }
-@container (width >= 900px) { .instances-list tbody th { min-width: 12rem; } .instances-list td:not([data-label="Endpoint"]) { white-space: nowrap; overflow-wrap: normal; word-break: normal; } }
-.instances-list td[data-label="Endpoint"], .instances-list td[data-label="SHA-256"], .instances-list td[data-label="Expires"] { overflow-wrap: anywhere; white-space: normal; }
-.instances-list td[data-label="Endpoint"] { min-width: 12rem; }
-.instances-list td[data-label="SHA-256"] { max-width: 22rem; }
-.instances-list td[data-label="Expires"] { min-width: 11rem; }
-.instances-list td.actions-cell { text-align: right; }
-.instances-list tbody tr:last-child th, .instances-list tbody tr:last-child td { border-bottom: 0; }
-.invitations-list th, .invitations-list td { max-width: none; overflow: visible; }
-@media (min-width: 761px) { .invitations-list td:first-child, .invitations-list td:last-child, .invitations-list code { white-space: nowrap; overflow-wrap: normal; word-break: normal; } }
-.invitations-list tbody tr:last-child td { border-bottom: 0; }
-.providers-list th, .providers-list td { max-width: none; overflow: visible; }
-.providers-list code { overflow-wrap: anywhere; }
-.providers-list tbody tr:last-child td { border-bottom: 0; }
-.astryx-card:has(.rules-list) { overflow: visible; }
-.rules-list th, .rules-list td { min-width: 0; max-width: none; overflow: visible; overflow-wrap: anywhere; white-space: normal; }
-.rules-list .rule-grants > * { min-width: 0; }
-@media (min-width: 761px) { .rules-list th:nth-child(3), .rules-list td:nth-child(3) { white-space: nowrap; overflow-wrap: normal; } .rules-list td.actions-cell { width: 1%; } }
-.rules-list tbody tr:last-child th, .rules-list tbody tr:last-child td { border-bottom: 0; }
-.tokens-list { container-type: inline-size; }
-.tokens-list th, .tokens-list td { min-width: 0; max-width: none; overflow: visible; overflow-wrap: anywhere; white-space: normal; vertical-align: top; }
-.tokens-list th *, .tokens-list td * { min-width: 0; overflow-wrap: anywhere; }
-.token-scope { margin: 0; padding-left: 1.2em; }
 .astryx-button.revoke { color: var(--err); }
 .astryx-button.revoke:hover { background: var(--err-soft); }
-@container (width >= 900px) { .tokens-list td[data-label="Creator"] { min-width: 14rem; } .tokens-list td[data-label="Expires"], .tokens-list td.actions-cell { white-space: nowrap; overflow-wrap: normal; } .tokens-list td.actions-cell { width: 1%; } }
-.tokens-list tbody tr:last-child th, .tokens-list tbody tr:last-child td { border-bottom: 0; }
-@container (width < 900px) {
-  .instances-list thead, .tokens-list thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-  .instances-list tbody tr, .tokens-list tbody tr { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
-  .instances-list tbody tr:last-child, .tokens-list tbody tr:last-child { border-bottom: 0; }
-  .instances-list tbody th, .instances-list tbody td, .tokens-list tbody th, .tokens-list tbody td { display: block; width: auto; max-width: none; padding: 0; border: 0; }
-  .instances-list tbody th, .tokens-list tbody th, .tokens-list tbody td.token-access, .instances-list tbody td.actions-cell { flex-basis: 100%; }
-  .tokens-list tbody td.actions-cell { margin-left: auto; }
-  .instances-list tbody td.actions-cell { text-align: left; }
-  .instances-list tbody td[data-label]::before, .tokens-list tbody td[data-label]::before { content: attr(data-label) " "; color: var(--text-faint); }
-}
-.audit-list th, .audit-list td { min-width: 0; max-width: none; overflow: visible; overflow-wrap: anywhere; white-space: normal; vertical-align: top; }
-.audit-list tbody th { font-weight: 400; }
-.audit-list tbody tr.sel { background: var(--bg-muted); }
-.ssh-events { container-type: inline-size; }
-.ssh-events th, .ssh-events td { min-width: 0; max-width: none; overflow: visible; overflow-wrap: break-word; white-space: normal; vertical-align: top; }
-.ssh-events tbody th { font-weight: 400; }
-.ssh-events tbody th time { white-space: nowrap; }
-.ssh-events tbody tr:last-child th, .ssh-events tbody tr:last-child td { border-bottom: 0; }
-@container (min-width: 760px) {
-  .ssh-events td[data-label="Event"] { min-width: 6rem; } .ssh-events td.connection-cell { min-width: 11rem; }
-  .ssh-events td[data-label="Host"] { min-width: 8rem; } .ssh-events td[data-label="User"] { min-width: 10rem; } .ssh-events td[data-label="Request ID"] { min-width: 10rem; }
-  .ssh-events td[data-label="Outcome"] { min-width: 11rem; } .ssh-events td[data-label="Account type"] { min-width: 7rem; }
-  .ssh-events td[data-label="Person"] { min-width: 10rem; } .ssh-events td[data-label="Host use"], .ssh-events td[data-label="Sudo account"] { min-width: 8rem; }
-  .ssh-events td[data-label="Username"], .ssh-events td[data-label="Credential"] { min-width: 11rem; }
-}
-@container (width < 760px) {
-  .ssh-events thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-  .ssh-events tbody tr { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
-  .ssh-events tbody tr:last-child { border-bottom: 0; }
-  .ssh-events tbody th, .ssh-events tbody td { display: block; width: auto; padding: 0; border: 0; }
-  .ssh-events tbody td { flex: none; max-width: 100%; }
-  .ssh-events tbody td.connection-cell, .ssh-events tbody th { flex-basis: 100%; }
-  .ssh-events tbody td[data-label]::before { content: attr(data-label) " "; color: var(--text-faint); }
-  .ssh-events tbody td[data-label="Event"] > * { display: inline-flex; }
-}
-.event-detail { color: var(--text-muted); font-size: var(--fs-xs); }
 .ssh-limits { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr)); gap: 16px; }
-.audit-list tbody tr:last-child th, .audit-list tbody tr:last-child td { border-bottom: 0; }
-.audit-list { container-type: inline-size; }
-@container (min-width: 880px) { .audit-list tbody th { white-space: nowrap; overflow-wrap: normal; } .audit-list td[data-label="Event"] { min-width: 8rem; }
-  .audit-list td[data-label="Actor"], .audit-list td[data-label="Instance"] { min-width: 7rem; } .audit-list td[data-label="Tool"] { min-width: 6rem; } }
-@container (width < 880px) {
-  .audit-list thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-  .audit-list tbody tr { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
-  .audit-list tbody tr:last-child { border-bottom: 0; }
-  .audit-list tbody th, .audit-list tbody td { display: block; width: auto; padding: 0; border: 0; }
-  .audit-list tbody td { flex: none; max-width: 100%; }
-  .audit-list tbody th { flex-basis: 100%; }
-  .audit-list tbody td[data-label]::before { content: attr(data-label) " "; color: var(--text-faint); }
-}
 
 /* The filter row itself is shared below; the People count note sits at its end */
 .filters .count-note { margin-left: auto; color: var(--text-faint); font-size: var(--fs-xs); }
@@ -262,22 +169,6 @@ dialog h2 { margin: 0 0 6px; font-size: var(--fs-md); font-weight: 600; }
 :where(.content, dialog) :where(pre:empty) { display: none; }
 :where(.content, dialog) :where(label small) { display: block; margin-top: 4px; font-weight: 400; }
 :where(.content, dialog) :where(pre) { overflow-x: auto; padding: 12px 14px; background: var(--code-bg); border: 1px solid var(--border); border-radius: var(--r-md); font-size: var(--fs-xs); line-height: 1.7; }
-:where(.content, dialog) :where(table):where(:not([data-astryx-root] *)) { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); text-align: left; }
-:where(.content, dialog) :where(caption) { padding: 10px 14px; text-align: left; font-weight: 600; border-bottom: 1px solid var(--border); }
-:where(.content, dialog) :where(th, td):where(:not([data-astryx-root] *)) { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: top; overflow-wrap: break-word; }
-:where(.content, dialog) :where(thead th):where(:not([data-astryx-root] *)) { background: var(--bg-subtle); color: var(--text-faint); font-size: var(--fs-xs); font-weight: 500; white-space: nowrap; }
-:where(.content, dialog) :where(tbody th) { font-weight: 500; }
-:where(.content, dialog) :where(tbody tr:last-child) > *:where(:not([data-astryx-root] *)) { border-bottom: 0; }
-.session-table time, .session-table button, .session-table code { white-space: nowrap; }
-.session-table th, .session-table td { max-width: none; overflow: visible; }
-.session-list { container-type: inline-size; }
-@container (width < 760px) {
-  .session-table thead { display: none; }
-  .session-table tr { display: block; padding: 10px 0; border-bottom: 1px solid var(--border); }
-  .session-table tbody tr:last-child { border-bottom: 0; }
-  .session-table td { display: block; padding: 3px 14px; border: 0; }
-  .session-table td[data-label]::before { content: attr(data-label) ": "; color: var(--text-faint); }
-}
 
 /* Page header actions and record metadata */
 .muted { color: var(--text-muted); }
@@ -301,7 +192,7 @@ dialog h2 { margin: 0 0 6px; font-size: var(--fs-md); font-weight: 600; }
 .card-foot { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 12px 18px; border-top: 1px solid var(--border); border-radius: 0 0 var(--r-lg) var(--r-lg); background: var(--bg-subtle); color: var(--text-muted); font-size: var(--fs-sm); }
 .card-foot p { margin: 0; }
 .card-note { margin: 0; display: flex; align-items: center; gap: 8px; padding: 10px 18px; border-top: 1px solid var(--border); color: var(--text-muted); font-size: var(--fs-xs); }
-.card form, .filters { margin: 0; }
+.card form { margin: 0; }
 .list-row h2 { margin: 0; font-size: var(--fs-sm); font-weight: 500; }
 
 .tool-ico { width: 28px; height: 28px; flex: none; display: grid; place-items: center; border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--bg-subtle); color: var(--text-muted); font-size: 11px; font-weight: 700; letter-spacing: -0.02em; }
@@ -380,11 +271,6 @@ form.card, .card-foot form, .card-head form { margin: 0; }
 
 /* Narrow screens: the sidebar moves behind a menu button and works without JavaScript */
 @media (max-width: 760px) {
-  .people-list thead, .invitations-list thead, .providers-list thead { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
-  .people-list tbody tr, .invitations-list tbody tr, .providers-list tbody tr { display: block; padding: 10px 0; border-bottom: 1px solid var(--border); }
-  .people-list tbody tr:last-child, .invitations-list tbody tr:last-child, .providers-list tbody tr:last-child { border-bottom: 0; }
-  .people-list tbody th, .people-list tbody td, .invitations-list tbody td, .providers-list tbody td { display: block; width: auto; max-width: none; padding: 3px 14px; border: 0; text-align: left; }
-  .people-list tbody td.num { position: absolute; top: 10px; right: 0; width: auto; min-width: 0; pointer-events: none; }
   dialog.sheet { width: 100%; border-left: 0; }
   .list-row { flex-wrap: wrap; }
   .list-row .grow { min-width: 60%; }
@@ -392,14 +278,6 @@ form.card, .card-foot form, .card-head form { margin: 0; }
   .grid2, .tool-grid { grid-template-columns: minmax(0, 1fr); }
   .split.has-aside { grid-template-columns: minmax(0, 1fr); }
   .sheet.docked { position: static; max-height: none; order: -1; }
-  .roles-list thead, .tools-list thead, .rules-list thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-  .roles-list tbody tr, .tools-list tbody tr, .rules-list tbody tr { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
-  .roles-list tbody tr:last-child, .tools-list tbody tr:last-child, .rules-list tbody tr:last-child { border-bottom: 0; }
-  .roles-list tbody th, .roles-list tbody td, .tools-list tbody th, .tools-list tbody td, .rules-list tbody th, .rules-list tbody td { display: block; width: auto; max-width: none; padding: 0; border: 0; }
-  .roles-list tbody th, .tools-list tbody th, .rules-list tbody th, .rules-list tbody td.rule-grants { flex-basis: 100%; }
-  .rules-list tbody td.actions-cell { margin-left: auto; }
-  .roles-list tbody td[data-label]::before, .tools-list tbody td[data-label]::before { content: attr(data-label) " "; color: var(--text-faint); }
-  .roles-list tbody td.num { display: none; }
   .steps { grid-auto-flow: row; }
   .step { border-right: 0; border-bottom: 1px solid var(--border); }
   .step:last-child { border-bottom: 0; }
