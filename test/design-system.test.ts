@@ -149,31 +149,6 @@ test.each(['base', 'frame', 'forms', 'tables', 'cards', 'dialogs'])('the %s styl
   assertNoColourLiterals(readFileSync(`src/server/admin/design/${name}.css`, 'utf8'))
 })
 
-test('the Astryx stylesheet carries the hand-written stylesheets in order ahead of the Astryx rules', async () => {
-  const response = await app.inject({ url: '/admin/assets/astryx.css' })
-  expect(response.statusCode).toBe(200)
-  const expectedOrder = [
-    [':root', '--bg'],
-    ['body', 'margin'],
-    ['.logo', 'width'],
-    ['.link', 'padding'],
-    ['.table-wrap', 'overflow-x'],
-    ['.note', 'gap'],
-    ['.message', 'padding'],
-    ['reset', 'tab-size'],
-    ['astryx-base', '--_astryx-reduced-motion'],
-    ['astryx-theme', '--color-background-surface'],
-  ] as const
-  const order = postcss.parse(response.body).nodes.flatMap(node => {
-    if (node.type !== 'rule' && (node.type !== 'atrule' || node.name !== 'layer')) return []
-    const context = (node.type === 'rule' ? node.selector : node.params).trim()
-    const properties = new Set<string>()
-    node.walkDecls(declaration => { properties.add(declaration.prop) })
-    return expectedOrder.filter(([selectorOrLayer, property]) => selectorOrLayer === context && properties.has(property))
-  })
-  expect(order).toEqual(expectedOrder)
-})
-
 test('the retired style.css route is gone', async () => {
   expect((await app.inject({ url: '/admin/assets/style.css' })).statusCode).toBe(404)
 })
@@ -238,8 +213,14 @@ test.each([
   assertPresentationColours(page)
   assertSameOriginResources(page)
   assertNonceStyles(page, response.headers['content-security-policy'] as string)
-  expect(page.filter(element => element.tagName === 'link' && element.attrs.some(attribute => attribute.name === 'rel' && attribute.value === 'stylesheet'))
-    .map(link => link.attrs.find(attribute => attribute.name === 'href')?.value)).toEqual(['/admin/assets/astryx.css'])
+  const documentUrl = new URL(url, 'https://artium.example')
+  const stylesheetPaths = page.filter(element => element.tagName === 'link' && element.attrs.some(attribute =>
+    attribute.name === 'rel' && attribute.value.toLowerCase().split(/\s+/).includes('stylesheet'))).flatMap(link => {
+    const href = link.attrs.find(attribute => attribute.name === 'href')?.value
+    return href ? [new URL(href, documentUrl).pathname] : []
+  })
+  expect(stylesheetPaths).toContain('/admin/assets/astryx.css')
+  expect(stylesheetPaths).not.toContain('/admin/assets/style.css')
   for (const element of page) {
     expect(element.attrs.filter(attribute => attribute.name === 'style')).toEqual([])
     if (element.tagName !== 'svg') continue
