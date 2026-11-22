@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { decode } from '@toon-format/toon'
@@ -260,6 +260,11 @@ test.each([
   write('package.json', '{"scripts":{"lint":"node scripts/flaky-test-patterns.ts"}}\n')
   write('scripts/upstream-inventory.mjs', '')
   write('scripts/mg-headless-schema.ts', '')
+  write('vitest.config.mjs', "export default { test: { include: ['src/server/suite-execution.test.ts'] } }\n")
+  write('src/server/suite-execution.test.ts', `import { writeFileSync } from 'node:fs'
+import { test } from 'vitest'
+test('records suite execution', () => { writeFileSync('suite-result', 'executed') })
+`)
   write('src/server/unrelated.test.ts', 'await new Promise(done => setTimeout(done, 50))\n')
   git('add', '.')
   git('-c', 'user.name=Synthetic Developer', '-c', 'user.email=developer@example.test',
@@ -271,9 +276,12 @@ test.each([
     '-c', 'commit.gpgsign=false', 'commit', '--quiet', '-m', 'Committed lint violation')
   const result = spawnSync(process.execPath, ['scripts/test-gate.ts', ...(full ? [] : ['--base', ancestor])],
     { cwd: directory, encoding: 'utf8' })
-  expect(result.stdout).toContain(full ? 'exit: 0' : 'exit: 1')
+  expect(result.status, result.stdout + result.stderr).toBe(full ? 0 : 1)
   expect(result.stderr).toContain('src/server/feature.test.ts:1: fixed sleep')
   expect(result.stderr.includes('src/server/unrelated.test.ts:1: fixed sleep')).toBe(full)
+  const suiteResult = join(directory, 'suite-result')
+  if (full) expect(readFileSync(suiteResult, 'utf8')).toBe('executed')
+  else expect(existsSync(suiteResult)).toBe(false)
 })
 
 test('a failing selected check stops the gate with its exit status', () => {

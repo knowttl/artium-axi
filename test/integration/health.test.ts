@@ -61,6 +61,10 @@ function healthOutputText(output: unknown) {
   return JSON.stringify(output instanceof Error ? { ...output, message: output.message } : output)
 }
 
+async function healthRejection(check: ReturnType<ToolHealth['check']>): Promise<unknown> {
+  return check.then(() => { throw new Error('Expected the health check to reject') }, (error: unknown) => error)
+}
+
 function scriptPreflight(tlsError?: string) {
   vi.mocked(connectTcp).mockImplementationOnce(() => {
     const socket = new Socket()
@@ -578,7 +582,7 @@ describe.each(['synthetic-development-user', healthDefaults.actor])('destination
       if (actor !== healthDefaults.actor) scriptPreflight()
       failHealthProcess(text)
       health = new ToolHealth(db, new Audit(db), runner, [vectra], store)
-      const error = await health.check('vectra-axi', actor, 'native-transport', null).catch((error: unknown) => error)
+      const error = await healthRejection(health.check('vectra-axi', actor, 'native-transport', null))
       expect(error).toMatchObject({
         code: 'UPSTREAM_NETWORK_FAILED', diagnostic: { stage: 'TCP', toolCode: 'TRANSPORT_FAILED',
           message: 'Details unavailable.', checkedAt: expect.any(Number), credentialRevision: 1 },
@@ -621,7 +625,7 @@ describe.each(['synthetic-development-user', healthDefaults.actor])('destination
     const text = `code: ${toolCode}\nmessage: ${message}`
     if (actor !== healthDefaults.actor) scriptPreflight()
     failHealthProcess(text)
-    const error = await health.check(tool, actor, 'destination-test', null).catch((error: unknown) => error)
+    const error = await healthRejection(health.check(tool, actor, 'destination-test', null))
     expect(error).toMatchObject({
       code, diagnostic: { stage, toolCode, message: 'Details unavailable.', checkedAt: expect.any(Number), credentialRevision: 1 },
     })
@@ -641,7 +645,7 @@ test.each(['UPSTREAM_NETWORK_FAILED', 'UPSTREAM_TLS_FAILED'] as const)('omits th
   health = new ToolHealth(db, new Audit(db), runner,
     [createAzAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'))], store)
   scriptPreflight(code === 'UPSTREAM_TLS_FAILED' ? 'CERT_HAS_EXPIRED' : 'ECONNRESET')
-  const error = await health.check('az-axi', 'synthetic-development-user', 'specific-host', null).catch((error: unknown) => error)
+  const error = await healthRejection(health.check('az-axi', 'synthetic-development-user', 'specific-host', null))
   expect(error).toMatchObject({
     code, diagnostic: { stage: 'TLS', message: 'Details unavailable.', checkedAt: expect.any(Number), credentialRevision: 1 },
   })
@@ -674,7 +678,7 @@ test.each([
   health = new ToolHealth(db, new Audit(db), runner, [createLdapAdapter(new EmbeddedSecretSource(store))], store)
   scriptPreflight()
   failHealthProcess(`code: ${toolCode}\nmessage: ${message}`)
-  const error = await health.check('ldap-axi', 'synthetic-development-user', 'ldap-scan', null).catch((error: unknown) => error)
+  const error = await healthRejection(health.check('ldap-axi', 'synthetic-development-user', 'ldap-scan', null))
   expect(error).toMatchObject({
     code, diagnostic: undefined,
   })

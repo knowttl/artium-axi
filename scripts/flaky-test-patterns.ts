@@ -121,8 +121,13 @@ function resolvesOnTimeout(awaited: ts.Expression): boolean {
   if (!resolve || !ts.isIdentifier(resolve)) return false
 
   const namesResolver = (node: ts.Node) => ts.isIdentifier(node) && node.text === resolve.text
-  const isTimer = (node: ts.Node): node is ts.CallExpression =>
-    ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === 'setTimeout'
+  const isTimer = (node: ts.Node): node is ts.CallExpression => {
+    if (!ts.isCallExpression(node)) return false
+    const callee = unwrap(node.expression)
+    return ts.isIdentifier(callee) ? callee.text === 'setTimeout' :
+      isProperty(callee, 'setTimeout') && ts.isIdentifier(callee.expression) &&
+      ['window', 'globalThis'].includes(callee.expression.text)
+  }
   const localCallback = (callback: ts.Expression) => {
     if (inlineCallback(callback)) return callback
     if (!ts.isIdentifier(callback)) return
@@ -229,8 +234,7 @@ function runnerWaitsFor(callback: ts.Node | undefined): boolean {
 function countAssertion(matcher: ts.PropertyAccessExpression): ts.Node | undefined {
   const name = matcher.name.text
   const call = ts.isCallExpression(matcher.parent) && matcher.parent.expression === matcher ? matcher.parent : undefined
-  const mockLength = !!call && ['toHaveLength', 'length', 'lengthOf'].includes(name)
-  if (!countProperties.has(name) && !(call && (countMethods.has(name) || singleCallMethods.has(name) || mockLength))) return
+  if (!call && !countProperties.has(name)) return
   let target = matcher.expression
   let negated = false
   while (ts.isPropertyAccessExpression(target)) {
@@ -238,16 +242,15 @@ function countAssertion(matcher: ts.PropertyAccessExpression): ts.Node | undefin
     target = target.expression
   }
   if (!ts.isCallExpression(target) || rootName(target.expression) !== 'expect' || !target.arguments[0]) return
-  let mock = unwrap(target.arguments[0])
-  if (mockLength) {
-    if (!isProperty(mock, 'calls') || !isProperty(mock.expression, 'mock')) return
-    mock = unwrap(mock.expression.expression)
-  }
-  const expected = call?.arguments[0]
-  const once = singleCallMethods.has(name) || name === 'calledOnce' ||
-    (mockLength || countMethods.has(name)) && !!expected && ts.isNumericLiteral(expected) && Number(expected.text) === 1
-  if (once && !negated && isOutputSpy(mock)) {
-    if (['toHaveBeenCalledExactlyOnceWith', 'calledOnceWith'].includes(name) && isOneOutputLine(expected)) return
+  const mock = unwrap(target.arguments[0])
+  if (call) {
+    const scalarLength = isProperty(mock, 'length')
+    const list = scalarLength ? unwrap(mock.expression) : mock
+    if ((scalarLength || ['toHaveLength', 'length', 'lengthOf'].includes(name)) &&
+        isProperty(list, 'calls') && isProperty(unwrap(list.expression), 'mock')) return call
+    if (!countMethods.has(name) && !singleCallMethods.has(name) && !countProperties.has(name)) return
+    if (['toHaveBeenCalledExactlyOnceWith', 'calledOnceWith'].includes(name) && !negated &&
+        isOneOutputLine(call.arguments[0]) && isOutputSpy(mock)) return
   }
   return call ?? matcher
 }
@@ -311,7 +314,10 @@ function constInitializer(identifier: ts.Identifier): ts.Expression | undefined 
 type Callback = ts.ArrowFunction | ts.FunctionExpression
 
 function inspect(source: ts.SourceFile, report: (file: ts.SourceFile, start: number, end: number, at: number, message: string) => void,
-  inspectBrowserScripts = false) {
+  inspectBrowserScripts = false, evaluateSource = false) {
+  const first = source.statements[0]
+  const evaluated = evaluateSource && first && ts.isExpressionStatement(first) ? unwrap(first.expression) : undefined
+  const evaluatedCallback = evaluated && ts.isCallExpression(evaluated) ? unwrap(evaluated.expression) : evaluated
   const promiseTimers = new Set<string>()
   const timerModules = new Set<string>()
   for (const statement of source.statements) {
@@ -335,6 +341,11 @@ function inspect(source: ts.SourceFile, report: (file: ts.SourceFile, start: num
     if (ts.isBinaryExpression(expression) && expression.operatorToken.kind === ts.SyntaxKind.PlusToken) {
       inspectScript(expression.left)
       inspectScript(expression.right)
+      return
+    }
+    if (ts.isConditionalExpression(expression)) {
+      inspectScript(expression.whenTrue)
+      inspectScript(expression.whenFalse)
       return
     }
     if (ts.isIdentifier(expression)) {
@@ -375,7 +386,34 @@ function inspect(source: ts.SourceFile, report: (file: ts.SourceFile, start: num
       (_, first, end, at, message) => report(definition, first + start, end + start, at + start, message))
   }
 
+  const inspectQuotedEval = (argument: ts.Expression) => {
+    const literals: { node: ts.StringLiteralLike, start: number, end: number }[] = []
+    let text = '('
+    const append = (value: ts.Expression) => {
+      const expression = unwrap(value)
+      if (ts.isBinaryExpression(expression) && expression.operatorToken.kind === ts.SyntaxKind.PlusToken) {
+        append(expression.left)
+        append(expression.right)
+      } else if (ts.isStringLiteralLike(expression)) {
+        const start = text.length
+        text += expression.text
+        literals.push({ node: expression, start, end: text.length })
+      } else {
+        text += '0'
+      }
+    }
+    append(argument)
+    if (!literals.length) return
+    inspect(ts.createSourceFile('page-eval.js', text + '\n)', ts.ScriptTarget.Latest, true), (_, first, end, _at, message) => {
+      for (const literal of literals) {
+        if (literal.start < end && first < literal.end) mark(literal.node, message)
+      }
+    }, false, true)
+  }
+
   const mark = (node: ts.Node, message: string, at = node.getStart(source)) => report(source, node.getStart(source), node.end, at, message)
+  const awaitsCallback = (callback: ts.Node | undefined) =>
+    callback !== undefined && (callback === evaluatedCallback || runnerWaitsFor(callback))
   const visitCallback = (callback: Callback, fakeTimeout: boolean): boolean => {
     const after = visit(callback.body, fakeTimeout)
     return ts.isBlock(callback.body) ? after : clockChange(callback.body) ?? after
@@ -389,6 +427,7 @@ function inspect(source: ts.SourceFile, report: (file: ts.SourceFile, start: num
       const callee = node.expression
       const name = ts.isPropertyAccessExpression(callee) ? callee.name.text : ts.isIdentifier(callee) ? callee.text : ''
       if (name === 'waitForTimeout') mark(node, fixedSleep)
+      if (isPageEval(callee) && node.arguments[0]) inspectQuotedEval(node.arguments[0])
       if (inspectBrowserScripts && ts.isIdentifier(callee)) {
         const [first, second] = node.arguments
         const command = first && ts.isArrayLiteralExpression(first) ? first.elements[0] : undefined
@@ -404,9 +443,9 @@ function inspect(source: ts.SourceFile, report: (file: ts.SourceFile, start: num
     if (ts.isAwaitExpression(node)) {
       waited = node.expression
     } else if (ts.isReturnStatement(node) && node.expression) {
-      if (runnerWaitsFor(ts.findAncestor(node.parent, ts.isFunctionLike))) waited = node.expression
+      if (awaitsCallback(ts.findAncestor(node.parent, ts.isFunctionLike))) waited = node.expression
     } else if (ts.isArrowFunction(node.parent) && node.parent.body === node && !ts.isBlock(node.parent.body) &&
-        runnerWaitsFor(node.parent)) {
+        awaitsCallback(node.parent)) {
       waited = node.parent.body
     }
     if (waited && !fakeTimeout) {
