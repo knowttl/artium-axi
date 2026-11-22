@@ -120,7 +120,7 @@ svg.i { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none;
 
 /* Card parts */
 .card-body .list-row { padding: 10px 0; }
-.card > form, .card-foot form, .list-row form, .tbl form, .page-head form, .popover form { margin: 0; }
+.card > form, .card-foot form, .list-row form, .tbl form, .page-head form { margin: 0; }
 .card-meta { margin: 0; color: var(--text-faint); font-size: var(--fs-xs); }
 
 /* Table */

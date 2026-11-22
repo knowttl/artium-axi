@@ -10,7 +10,7 @@ This document describes the current screens and their design rules.
 | --- | --- |
 | [tokens.ts](../src/server/admin/design/tokens.ts) | Legacy colour values and shared typography, radius, shadow, control-size and layout tokens, including light and dark palettes. |
 | `src/server/admin/design/components.ts` | Component classes and geometry using the shared tokens, plus base element styles for content that has no component yet. |
-| [frame.css](../src/server/admin/design/frame.css) | Hand-written frame and chrome styles: the top bar, breadcrumbs, brand mark, account menu, Learn panel, popover menus and recent-authentication pill. Corner radii use the Astryx `--radius-*` tokens where their values equal the legacy radii; colours, type sizes and spacing stay on the legacy tokens because the Astryx neutral values differ. |
+| [frame.css](../src/server/admin/design/frame.css) | Hand-written frame and chrome styles: the top bar, breadcrumbs, brand mark, account menu, Learn panel, popover menus and recent-authentication pill. The frame retains the existing shared tokens to preserve its appearance, including fixed-pixel radii at different browser font sizes. |
 | `src/server/admin/design/ui.ts` | Builds the typed breadcrumb, brand, navigation, account menu and help panel data for the frame. |
 | `src/views/frame.tsx` | Renders the frame, including its account menu and Learn disclosure. |
 | `src/views/theme-switch.tsx` | Renders the theme switch shared by the frame and auth views. |
@@ -20,6 +20,8 @@ This document describes the current screens and their design rules.
 The tokens, components and `frame.css` in `src/server/admin/design` are concatenated, in that order, and served from `/admin/assets/style.css`.
 The build also produces a React and Astryx browser bundle and the Astryx neutral stylesheet, served at `/admin/assets/hydrate.js` and `/admin/assets/astryx.css`.
 All pages load the stylesheet; render-seam pages also load the browser bundle.
+
+The frame extraction was compared against base revision `64bba2600f9f421d22d67cc445e9cc05582d897d` with [96 before and after screenshot pairs](frame-css-parity.zip).
 
 ## Render seam
 

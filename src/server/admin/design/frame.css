@@ -1,7 +1,7 @@
 .logo {
   width: 22px;
   height: 22px;
-  border-radius: var(--radius-inner);
+  border-radius: var(--r-sm);
   background: var(--text);
   color: var(--bg);
   display: grid;
@@ -197,7 +197,7 @@
   align-items: center;
   gap: 10px;
   padding: 6px;
-  border-radius: var(--radius-inner);
+  border-radius: var(--r-sm);
   cursor: pointer;
   font-size: var(--fs-sm);
 }
@@ -257,7 +257,7 @@
   gap: 8px;
   height: auto;
   padding: 6px 8px;
-  border-radius: var(--radius-inner);
+  border-radius: var(--r-sm);
   color: var(--text);
   font-size: var(--fs-sm);
   text-decoration: none;
@@ -298,7 +298,7 @@
   padding: 16px 18px;
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: var(--radius-container);
+  border-radius: var(--r-lg);
   box-shadow: var(--shadow-pop);
   color: var(--text-muted);
   font-size: var(--fs-sm);
