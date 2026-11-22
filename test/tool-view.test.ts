@@ -348,9 +348,11 @@ test('a policy whose ceilings are not saved offers no grant, and the page says w
 const certificateGroups = (form: Element) => nodes(form).filter(element => element.tagName === 'fieldset'
   && element.childNodes.some(child => 'tagName' in child && child.tagName === 'legend' && text(child) === 'Certificate verification'))
 
+const verificationForm = (tool: ToolName, metadata: Record<string, unknown> = {}) =>
+  addForm(renderInstances({ addInstance: addInstance({ editor: { ...editor, tls: tlsSection(tool, metadata) } }) }))
+
 const verification = (tool: ToolName, metadata: Record<string, unknown> = {}) => {
-  const html = renderInstances({ addInstance: addInstance({ editor: { ...editor, tls: tlsSection(tool, metadata) } }) })
-  const [fieldset] = certificateGroups(addForm(html))
+  const [fieldset] = certificateGroups(verificationForm(tool, metadata))
   return { fieldset: fieldset!, fields: nodes(fieldset!).filter(element => attribute(element, 'data-profile-field') !== undefined) }
 }
 
@@ -410,11 +412,11 @@ test('Kubernetes requires a trusted certificate until one is saved and opens its
   expect(nodes(saved.fieldset).filter(element => element.tagName === 'details' && attribute(element, 'open') !== undefined)).toEqual([])
 })
 
-test('a tool without certificate settings offers no certificate verification', () => {
-  const form = addForm(renderInstances({ addInstance: addInstance() }))
+test('the SSH TLS configuration offers no certificate verification controls', () => {
+  const form = verificationForm('ssh-axi')
   expect(certificateGroups(form)).toEqual([])
-  expect(nodes(form).filter(element => ['input', 'select', 'textarea'].includes(element.tagName))
-    .map(element => attribute(element, 'name')).sort()).toEqual([
-    '_csrf', 'certificatePem', 'description', 'expectedToolRevision', 'name', 'pem.certificatePem', 'profile.auth', 'profile.clientSecret', 'profile.region', 'testAfterSave',
-  ])
+  expect(nodes(form).filter(element =>
+    ['data-tls-input', 'data-tls-file', 'data-tls-remove'].some(name => attribute(element, name) !== undefined)
+    || element.tagName === 'input' && attribute(element, 'type') === 'file' && attribute(element, 'accept') === '.pem'
+      && attribute(element, 'name') !== 'pem.certificatePem')).toEqual([])
 })

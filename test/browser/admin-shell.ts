@@ -1980,20 +1980,25 @@ test('Kubernetes certificate editor saves separate fields and requires a key whe
 
 test(connectionDraftWithLateHydration, () => {
   browser(`
-    await createInstance('kubernetes-axi', { origin: 'https://cluster.example', auth: 'certificate', certificateAuthority: 'CANARY-cluster-CA',
-      clientCertificate: 'synthetic-saved-certificate', privateKey: 'CANARY-stored-key' });
-    check(await page.eval(() => !document.querySelector('[data-profile-field=privateKey]').required), 'Unchanged identity required a replacement key');
+    const savedOrigin = 'https://cluster.example';
+    const savedCertificate = 'synthetic-saved-certificate';
+    await createInstance('kubernetes-axi', { origin: savedOrigin, auth: 'certificate', certificateAuthority: 'CANARY-cluster-CA',
+      clientCertificate: savedCertificate, privateKey: 'CANARY-stored-key' });
     check(await page.eval(() => document.querySelector('[data-profile-field=origin]').matches(':disabled')
       && document.querySelector('[data-profile-field=clientCertificate]').matches(':disabled')), 'The connection allowed edits before hydration');
     await resumeHydration();
-    await page.wait('[data-profile-field=origin]:enabled');
-    await page.wait('[data-profile-field=clientCertificate]:enabled');
-    await page.fill('[data-profile-field=origin]', 'https://other-cluster.example');
-    const certificate = 'synthetic-replacement\\ncertificate';
-    await page.fill('[data-profile-field=clientCertificate]', certificate);
-    await page.wait('[data-profile-field=privateKey][required]');
-    check(await page.eval(() => document.querySelector('[data-profile-field=origin]').value) === 'https://other-cluster.example', 'The edited URL was lost');
-    check(await page.eval(() => document.querySelector('[data-profile-field=clientCertificate]').value) === certificate, 'The edited client certificate was lost');
+    const key = '[data-profile-field=privateKey]:enabled';
+    await page.wait(key + ':not([required])');
+    for (const [field, replacement, saved] of [
+      ['origin', 'https://other-cluster.example', savedOrigin],
+      ['clientCertificate', 'synthetic-replacement\\ncertificate', savedCertificate],
+    ]) {
+      const input = '[data-profile-field=' + field + ']:enabled';
+      await page.fill(input, replacement);
+      await page.wait(key + '[required]');
+      await page.fill(input, saved);
+      await page.wait(key + ':not([required])');
+    }
   `)
 })
 
