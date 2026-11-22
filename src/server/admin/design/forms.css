@@ -61,26 +61,11 @@
   width: var(--size-element-sm);
 }
 
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
 .seg input {
   position: absolute;
   opacity: 0;
   width: 1px;
   height: 1px;
-}
-
-.seg label {
-  margin: var(--spacing-0);
-  padding: 3px 10px;
-  border-radius: 5px;
-  color: var(--text-muted);
-  font-size: var(--fs-xs);
-  font-weight: var(--font-weight-normal);
-  cursor: pointer;
 }
 
 .seg input:checked + label {
@@ -112,12 +97,6 @@
 
 :where(.content, .auth-card, dialog) .field :where(input, select, textarea) {
   margin-top: var(--spacing-0);
-}
-
-.options {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
 }
 
 :where(.content, dialog, [data-astryx-root]) .option {
@@ -155,20 +134,17 @@
   display: flex;
   gap: 10px;
   align-items: flex-start;
+  margin: var(--spacing-0);
   font-size: var(--fs-sm);
+  font-weight: var(--font-weight-normal);
 }
 
 .check input {
+  flex: none;
   margin: 3px var(--spacing-0) var(--spacing-0);
   accent-color: var(--primary);
   width: 15px;
   height: 15px;
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
 }
 
 .input, .select {
@@ -200,19 +176,10 @@ textarea.input {
   resize: vertical;
 }
 
-.input[aria-invalid="true"] {
-  border-color: var(--err);
-}
-
 .input:disabled {
   background: var(--bg-muted);
   color: var(--text-faint);
   cursor: not-allowed;
-}
-
-.check {
-  margin: var(--spacing-0);
-  font-weight: var(--font-weight-normal);
 }
 
 .check strong {
@@ -224,10 +191,6 @@ textarea.input {
   display: block;
   color: var(--text-muted);
   font-size: var(--fs-xs);
-}
-
-.check input {
-  flex: none;
 }
 
 .options {
@@ -266,10 +229,6 @@ textarea.input {
   --color-border-emphasized: var(--field-border);
 }
 
-.astryx-text-input.mono input {
-  font-family: var(--mono);
-}
-
 :where(.content, dialog) :where(form) {
   margin: 12px var(--spacing-0);
 }
@@ -306,19 +265,13 @@ textarea.input {
   margin: 6px var(--spacing-0);
 }
 
-:where(.content, dialog) :where(form p, fieldset p, label small) {
+:where(.content, dialog) :where(form p, fieldset p) {
   color: var(--text-muted);
   font-size: var(--fs-xs);
 }
 
 :where(.content, dialog) :where([role=alert]) {
   color: var(--err);
-}
-
-.btn[aria-disabled="true"] {
-  opacity: 0.5;
-  cursor: default;
-  pointer-events: none;
 }
 
 .tiles {
@@ -490,7 +443,7 @@ fieldset[data-hydration-gate] {
   white-space: nowrap;
 }
 
-.seg [aria-current="page"], .seg label:has(input:checked) {
+.seg label:has(input:checked) {
   background: var(--bg);
   color: var(--text);
   font-weight: var(--font-weight-medium);

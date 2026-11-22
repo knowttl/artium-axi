@@ -32,8 +32,9 @@ The archive's `README.txt` records the stylesheet checksums, screenshot comparis
 The form controls keep their legacy surface, text, border and status colors for the same reason.
 They keep font sizes, corner radii, nonzero spacing and layout dimensions at their baseline values across browser font sizes, except the small control height, which matches the Astryx small element size at every root font size.
 Because `forms.css` is served after the `.mono` utility in `components.ts`, the `.input.mono` rule sets its own font size so the monospace size is unchanged.
-The [forms CSS parity archive](forms-css-parity.zip) contains 95 before-and-after screenshot pairs at the default root font size for base revision `e8ea8b5aa7ad05924025f1e85b0ced0960facc6d`.
-Its `README.txt` records the stylesheet checksums and the computed style comparison, which covers 190 page, theme, width and root font size cases at both root font sizes, with synthetic markup for every form control class in content, dialog, sign-in card and Astryx root contexts.
+The [forms CSS parity archive](forms-css-parity.zip) contains 96 before-and-after screenshot pairs at the default root font size for base revision `e8ea8b5aa7ad05924025f1e85b0ced0960facc6d`.
+The first 95 pairs compare the original extraction on authenticated pages, and the sign-in pair compares the stylesheet after review on the rendered `/login` form.
+The archive's `README.txt` records the stylesheet checksums and the computed style comparison for the original extraction, which covers 190 cases across two root font sizes and includes synthetic markup for form controls in content, dialogs, sign-in cards and Astryx roots.
 Rules for markup that no view renders any more, such as the legacy form element styles outside the Astryx root, stay in `components.ts`.
 
 ## Render seam
@@ -281,7 +282,7 @@ Icons use a 1.75 stroke in `currentColor` and are shown at 16px.
 | Breadcrumb | `.crumbs` | section group, or a parent page link on detail pages | Current page in `strong` |
 | Summary card | `.card` with `.summary` | neutral, warning | Label, value and one sentence |
 | Page header | `pageHeader()`: `.page-head`, `.actions`; identity variant `.page-head.identity`, `.meta` | title, optional one-line description, actions (at most one primary), identity variant with a lead avatar or `toolIcon(tool, 'lg')` and badges | The page's only `h1`; detail pages name their list page in the breadcrumb |
-| Button | `.btn` with `.btn-secondary`, `.btn-ghost`, `.btn-danger-outline` or `.btn-danger`; `.btn-sm`, `.btn-icon`; `.btn-ghost.danger` for a quiet destructive row action | default, hover, focus, disabled | Icon-only buttons need `aria-label`; verbs name the result |
+| Button | `.btn` with `.btn-secondary`, `.btn-ghost`, `.btn-danger-outline` or `.btn-danger`; `.btn-sm`, `.btn-icon`; `.btn-ghost.danger` for a quiet destructive row action | default, hover, focus | Icon-only buttons need `aria-label`; verbs name the result |
 | Badge and status | `badge()`, `status()` from `status.ts`: `.badge` with `.ok`, `.warn`, `.err`, `.info`, `.solid`; `.status` with `.dot` | words from the status vocabulary only | The word is always present; the dot is `aria-hidden` |
 | Chip | `.chip`, `.chips` | plain, link | Role chips name the grant origin (Direct, SSO rule) where it matters |
 | Card | `card()`: `.card`, `.card-head`, `.card-body`, `.card-foot`, `.card-note`; `.card.danger`, `.card.empty` | plain, with header actions, with footer actions, danger zone, empty state | `h2` per card |
@@ -304,7 +305,7 @@ Icons use a 1.75 stroke in `currentColor` and are shown at 16px.
 | Dialog | Astryx `Dialog` in [`Confirmation`](../src/views/confirmation.tsx) and [`ReauthDialog`](../src/views/reauth-dialog.tsx) | confirmation tier 2 or 3, identity confirmation | `showModal`, Esc closes, a backdrop press does not, the action confirmation title names the action, focus returns to the control that submitted |
 | Toasts | `Toasts` in `src/views/toasts.tsx` on the Astryx toast viewport | none, success, error, conflict with **Reload latest** | A saved success toast appears on the resulting page and is announced politely; an error from a form with no message area of its own is announced assertively and clears on the next submission of a form without its own message area |
 | Steps | `steps()`: `ol.steps`, `.step` | done, fail, to do, current | Ordered list; the state is in visually hidden text |
-| Segmented control and search | `.seg` (links or visually hidden radios), `.search`, `.filters` | current or checked | GET forms; JavaScript may apply them live |
+| Segmented control and search | `.seg` with visually hidden radios, `.search`, `.filters` | checked | GET forms; JavaScript may apply them live |
 | Switch | `.switch` on a native checkbox, or `.toggle` button holding a decorative `.switch` | off, on, disabled | `role="switch"`; checkboxes save with their form; the Enabled button submits a confirmed change |
 | Operation catalogue | `.ops`, `details.ops-group`, `label.op` | collapsed, open, filtered, Delete and Bulk tags | Native disclosures and checkboxes; see [label and risk ownership](#write-operation-labels-and-risk) |
 | Credential editor | `CredentialEditor` styled through `[data-credential-editor]` and `[data-credential-field]` | stored secret, required, hidden | Controls have associated labels; `aria-describedby` links their hints |

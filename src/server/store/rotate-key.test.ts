@@ -118,13 +118,8 @@ test('maintenance excludes another owner until release', () => {
 
 async function bundle(contents: string, name: string) {
   const entry = join(directory, `${name}.mjs`)
-  if (name === 'maintenance') {
-    symlinkSync(join(process.cwd(), 'node_modules'), join(directory, 'node_modules'), 'dir')
-    cpSync('src/server/store/migrations', join(directory, 'migrations'), { recursive: true })
-    cpSync('src/server/admin/client', join(directory, 'client'), { recursive: true })
-    cpSync('src/server/admin/design/frame.css', join(directory, 'design', 'frame.css'))
-    cpSync('src/server/admin/design/forms.css', join(directory, 'design', 'forms.css'))
-  }
+  symlinkSync(join(process.cwd(), 'node_modules'), join(directory, 'node_modules'), 'dir')
+  cpSync('src/server/store/migrations', join(directory, 'migrations'), { recursive: true })
   await build({ stdin: { contents, resolveDir: process.cwd() }, outfile: entry,
     bundle: true, platform: 'node', format: 'esm', packages: 'external' })
   return entry
@@ -173,7 +168,9 @@ test('a running real server blocks rotation and releases maintenance after a cra
     VALUES ('synthetic-admin', 'synthetic-admin', 'Synthetic Admin', 'unusable', 1);
     INSERT INTO bootstrap_metadata VALUES (1, 1)`)
   seeded.close()
-  await bundle("import './src/server/maintenance.ts'", 'maintenance')
+  cpSync('src/server/admin/client', join(directory, 'client'), { recursive: true })
+  cpSync('src/server/admin/design/frame.css', join(directory, 'design', 'frame.css'))
+  cpSync('src/server/admin/design/forms.css', join(directory, 'design', 'forms.css'))
   const entry = await bundle(`
     import { Server } from 'node:net';
     import { serverDefaults } from './src/server/config.ts';
