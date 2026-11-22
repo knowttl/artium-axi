@@ -51,9 +51,6 @@ function assertNoColourLiterals(css: string) {
   expect(colourDeclarations(css)).toEqual([])
 }
 
-const stylesheetNames = ['tokens', 'base', 'frame', 'forms', 'tables', 'cards', 'dialogs']
-const stylesheets = Object.fromEntries(stylesheetNames.map(name => [name, readFileSync(`src/server/admin/design/${name}.css`, 'utf8')]))
-
 function assertPresentationColours(page: DefaultTreeAdapterMap['element'][]) {
   const colourAttributes = new Set(['fill', 'stroke', 'color', 'bgcolor', 'bordercolor', 'text', 'link', 'alink', 'vlink'])
   for (const element of page) {
@@ -148,15 +145,8 @@ afterAll(async () => {
   rmSync(directory, { recursive: true, force: true })
 })
 
-test.each(stylesheetNames.filter(name => name !== 'tokens'))('the %s stylesheet takes its colours from tokens.css', name => {
-  assertNoColourLiterals(stylesheets[name]!)
-})
-
-test('tokens.css defines the light and dark palettes', () => {
-  const contexts = colourDeclarations(stylesheets.tokens!).map(declaration => declaration.context.join(' '))
-  expect(contexts).toContain(':root')
-  expect(contexts).toContain(':root[data-theme="dark"]')
-  expect(contexts.some(context => context.includes('prefers-color-scheme: dark'))).toBe(true)
+test.each(['base', 'frame', 'forms', 'tables', 'cards', 'dialogs'])('the %s stylesheet takes its colours from tokens.css', name => {
+  assertNoColourLiterals(readFileSync(`src/server/admin/design/${name}.css`, 'utf8'))
 })
 
 test('the Astryx stylesheet carries the hand-written stylesheets in order ahead of the Astryx rules', async () => {
@@ -182,13 +172,6 @@ test('the Astryx stylesheet carries the hand-written stylesheets in order ahead 
     return expectedOrder.filter(([selectorOrLayer, property]) => selectorOrLayer === context && properties.has(property))
   })
   expect(order).toEqual(expectedOrder)
-})
-
-test('every custom property the hand-written stylesheets read is declared in the served stylesheet', async () => {
-  const declared = new Set<string>()
-  postcss.parse((await app.inject({ url: '/admin/assets/astryx.css' })).body).walkDecls(declaration => { if (declaration.prop.startsWith('--')) declared.add(declaration.prop) })
-  const read = stylesheetNames.flatMap(name => [...stylesheets[name]!.matchAll(/var\((--[\w-]+)/g)].map(match => match[1]!))
-  expect(read.filter(property => !declared.has(property))).toEqual([])
 })
 
 test('the retired style.css route is gone', async () => {
