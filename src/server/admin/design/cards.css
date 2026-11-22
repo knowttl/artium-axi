@@ -169,11 +169,6 @@
   font-size: var(--fs-sm);
 }
 
-.list-row .grow {
-  flex: 1;
-  min-width: 0;
-}
-
 .list-row .grow strong {
   font-weight: var(--font-weight-medium);
 }
@@ -477,6 +472,14 @@
   margin: var(--spacing-0);
   padding: var(--spacing-0);
   border: 0;
+}
+
+.all-fields > summary {
+  list-style: none;
+}
+
+.all-fields > summary::-webkit-details-marker {
+  display: none;
 }
 
 .all-fields[open] > summary {

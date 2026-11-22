@@ -110,8 +110,8 @@ dialog h2 { margin: 0 0 6px; font-size: var(--fs-md); font-weight: 600; }
 /* Inline editor and menus: native disclosures holding a popover */
 .inline-edit, .menu { position: relative; margin: 0; padding: 0; border: 0; }
 .menu { flex: none; }
-.inline-edit > summary, .menu > summary, .all-fields > summary { list-style: none; }
-.inline-edit > summary::-webkit-details-marker, .menu > summary::-webkit-details-marker, .all-fields > summary::-webkit-details-marker { display: none; }
+.inline-edit > summary, .menu > summary { list-style: none; }
+.inline-edit > summary::-webkit-details-marker, .menu > summary::-webkit-details-marker { display: none; }
 .inline-edit[open] > summary, .menu[open] > summary { background: var(--bg-hover); color: var(--text); }
 .menu .popover { right: 0; top: calc(100% + 6px); min-width: 260px; }
 .theme-row { display: flex; justify-content: center; padding: 0 8px 4px; }
