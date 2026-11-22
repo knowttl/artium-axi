@@ -9,16 +9,17 @@ This document describes the current screens and their design rules.
 | File | Owns |
 | --- | --- |
 | [tokens.ts](../src/server/admin/design/tokens.ts) | Legacy colour values and shared typography, radius, shadow, control-size and layout tokens, including light and dark palettes. |
-| `src/server/admin/design/components.ts` | Component classes and geometry using the shared tokens, plus base element styles for content that has no component yet. |
-| [frame.css](../src/server/admin/design/frame.css) | Hand-written styles for the top bar, breadcrumbs, side navigation footer, mobile navigation drawer, account menu, Learn panel and recent-authentication pill. Also owns the brand mark shared with sign-in and the popover styles shared with page action menus. Uses Astryx font weights, border width and zero spacing. |
+| [components.ts](../src/server/admin/design/components.ts) | Remaining component classes and geometry, including neutral section and table styles, fallback controls outside the Astryx root, and the `.btn-ghost.danger` variant. |
+| [frame.css](../src/server/admin/design/frame.css) | Hand-written styles for the top bar, breadcrumbs, side navigation footer, mobile navigation drawer, account menu, Learn panel and recent-authentication pill. Also owns the brand mark shared with sign-in and the popover styles, including button overrides shared with page action menus. Uses Astryx font weights, border width and zero spacing. |
+| [forms.css](../src/server/admin/design/forms.css) | Hand-written styles for shared `.btn` controls, text fields, selects, checkboxes, option cards and tiles, switches, segmented controls, filter chips, the credential editor and the operation picker. Also owns base form and fieldset styles in `.content` and dialogs, and the shared Astryx TextInput border override used by sign-in. Uses Astryx font weights, border width, zero spacing, focus outline width and the small element size. |
 | `src/server/admin/design/ui.ts` | Builds the typed breadcrumb, brand, navigation, account menu and help panel data for the frame. |
 | `src/views/frame.tsx` | Renders the frame, including its account menu and Learn disclosure. |
 | `src/views/theme-switch.tsx` | Renders the theme switch shared by the frame and auth views. |
 | `src/views/icon.tsx` | Owns the shared inline icon catalog and markup. |
 | `src/server/admin/design/status.ts` | The status vocabulary: one word and tone per state, the badge and status-dot helpers, and the product display name and mark of each tool. |
 
-The tokens, components and `frame.css` in `src/server/admin/design` are concatenated, in that order, and served from `/admin/assets/style.css`.
-The [asset route](../src/server/admin/users.ts) reads `design/frame.css` relative to its module at load time, so builds and server bundles must include the stylesheet at that relative path.
+The tokens, components, `frame.css` and `forms.css` in `src/server/admin/design` are concatenated, in that order, and served from `/admin/assets/style.css`.
+The [asset route](../src/server/admin/users.ts) reads `design/frame.css` and `design/forms.css` relative to its module at load time, so builds and server bundles must include both stylesheets at those relative paths.
 The build also produces a React and Astryx browser bundle and the Astryx neutral stylesheet, served at `/admin/assets/hydrate.js` and `/admin/assets/astryx.css`.
 All pages load the stylesheet; render-seam pages also load the browser bundle.
 
@@ -27,6 +28,14 @@ It keeps the legacy popover shadow because Astryx uses different offsets and opa
 Font sizes, corner radii, nonzero spacing and layout dimensions retain their baseline values across browser font sizes.
 The [frame CSS parity archive](frame-css-parity.zip) contains 96 historical before-and-after screenshot pairs for base revision `64bba2600f9f421d22d67cc445e9cc05582d897d` and the stylesheet served by revision `7c94db0113048f39c255f689710b64841c3214de`.
 The archive's `README.txt` records the stylesheet checksums, screenshot comparison at the default root font size and computed token checks at the default and 20px root font sizes.
+
+The form controls keep their legacy surface, text, border and status colors for the same reason.
+They keep legacy font sizes, corner radii, nonzero spacing and layout dimensions across browser font sizes.
+Small buttons and filter chips use the Astryx small element size for height, and small icon buttons also use it for width.
+Because `forms.css` is served after the `.mono` utility in `components.ts`, the `.input.mono` rule sets its own font size so the monospace size is unchanged.
+Astryx puts the `.mono` class on the TextInput wrapper, so `forms.css` applies the monospace font to the nested input.
+The [forms CSS parity archive](forms-css-parity.zip) includes before-and-after screenshots from successive extraction revisions, including rendered sign-in and filled monospace fields.
+See its `README.txt` for the stylesheet checksums, capture coverage by revision and computed style checks.
 
 ## Render seam
 
@@ -273,7 +282,7 @@ Icons use a 1.75 stroke in `currentColor` and are shown at 16px.
 | Breadcrumb | `.crumbs` | section group, or a parent page link on detail pages | Current page in `strong` |
 | Summary card | `.card` with `.summary` | neutral, warning | Label, value and one sentence |
 | Page header | `pageHeader()`: `.page-head`, `.actions`; identity variant `.page-head.identity`, `.meta` | title, optional one-line description, actions (at most one primary), identity variant with a lead avatar or `toolIcon(tool, 'lg')` and badges | The page's only `h1`; detail pages name their list page in the breadcrumb |
-| Button | `.btn` with `.btn-secondary`, `.btn-ghost`, `.btn-danger-outline` or `.btn-danger`; `.btn-sm`, `.btn-icon`; `.btn-ghost.danger` for a quiet destructive row action | default, hover, focus, disabled | Icon-only buttons need `aria-label`; verbs name the result |
+| Button | `.btn` with `.btn-secondary`, `.btn-ghost`, `.btn-danger-outline` or `.btn-danger`; `.btn-sm`, `.btn-icon`; `.btn-ghost.danger` for a quiet destructive row action | default, hover, focus | Icon-only buttons need `aria-label`; verbs name the result |
 | Badge and status | `badge()`, `status()` from `status.ts`: `.badge` with `.ok`, `.warn`, `.err`, `.info`, `.solid`; `.status` with `.dot` | words from the status vocabulary only | The word is always present; the dot is `aria-hidden` |
 | Chip | `.chip`, `.chips` | plain, link | Role chips name the grant origin (Direct, SSO rule) where it matters |
 | Card | `card()`: `.card`, `.card-head`, `.card-body`, `.card-foot`, `.card-note`; `.card.danger`, `.card.empty` | plain, with header actions, with footer actions, danger zone, empty state | `h2` per card |
@@ -296,12 +305,12 @@ Icons use a 1.75 stroke in `currentColor` and are shown at 16px.
 | Dialog | Astryx `Dialog` in [`Confirmation`](../src/views/confirmation.tsx) and [`ReauthDialog`](../src/views/reauth-dialog.tsx) | confirmation tier 2 or 3, identity confirmation | `showModal`, Esc closes, a backdrop press does not, the action confirmation title names the action, focus returns to the control that submitted |
 | Toasts | `Toasts` in `src/views/toasts.tsx` on the Astryx toast viewport | none, success, error, conflict with **Reload latest** | A saved success toast appears on the resulting page and is announced politely; an error from a form with no message area of its own is announced assertively and clears on the next submission of a form without its own message area |
 | Steps | `steps()`: `ol.steps`, `.step` | done, fail, to do, current | Ordered list; the state is in visually hidden text |
-| Segmented control and search | `.seg` (links or visually hidden radios), `.search`, `.filters` | current or checked | GET forms; JavaScript may apply them live |
+| Segmented control and search | `.seg` with visually hidden radios, `.search`, `.filters` | checked | GET forms; JavaScript may apply them live |
 | Switch | `.switch` on a native checkbox, or `.toggle` button holding a decorative `.switch` | off, on, disabled | `role="switch"`; checkboxes save with their form; the Enabled button submits a confirmed change |
 | Operation catalogue | `.ops`, `details.ops-group`, `label.op` | collapsed, open, filtered, Delete and Bulk tags | Native disclosures and checkboxes; see [label and risk ownership](#write-operation-labels-and-risk) |
 | Credential editor | `CredentialEditor` styled through `[data-credential-editor]` and `[data-credential-field]` | stored secret, required, hidden | Controls have associated labels; `aria-describedby` links their hints |
 
-Elements that no component covers yet (sections, tables, forms, fieldsets and plain buttons inside page content) get neutral base styles from `components.ts`, so existing pages stay readable until they are rebuilt from components.
+See [Files](#files) for ownership of base form styles and legacy button variants.
 
 ## Patterns
 
