@@ -39,14 +39,10 @@ The [forms CSS parity archive](forms-css-parity.zip) includes before-and-after s
 See its `README.txt` for the stylesheet checksums, capture coverage by revision and computed style checks.
 
 The table styles keep their legacy surface, text and border colors, font sizes, corner radii, nonzero spacing, layout dimensions and container and viewport breakpoints.
-Because `tables.css` is served after the rest of the legacy sheet, it holds every table rule in its original relative order, including the narrow-screen rules that were at the end of `components.ts`.
+The extracted rules retain their relative order in `tables.css`, including the narrow-screen rules that were at the end of `components.ts`.
 The `.filters` margin reset now sits in the `.filters` rule in `forms.css`; `.card form` keeps its own reset in `components.ts`.
-The [tables CSS parity archive](tables-css-parity.zip) contains 106 before-and-after screenshot pairs, including 82 page pairs and 24 populated table pairs.
-The populated captures append tables with sample rows to the real pages for invitations, sign-in providers, role rules, access tokens, SSH events and trusted certificates because those tables are empty in the fixture.
-Of the 106 retained pairs, 103 are identical both as PNG files and as decoded RGBA pixels.
-The three 1280px Account pairs differ only in the synthetic localhost port shown in the CLI setup command.
-A separate computed-style comparison on a synthetic page covering every selector in `tables.css` supports the retained screenshots, and the synthetic page screenshots were omitted from the archive.
-See its `README.txt` for the stylesheet checksums, capture coverage and computed style checks at the default and 20px root font sizes.
+The [tables CSS parity archive](tables-css-parity.zip) includes before-and-after page screenshots and captures with sample rows for tables that the fixture leaves empty.
+See the archive's `README.txt` for the stylesheet checksums, exact capture coverage, screenshot comparison results and computed style checks.
 
 ## Render seam
 
