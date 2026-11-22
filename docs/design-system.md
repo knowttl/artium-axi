@@ -43,8 +43,8 @@ Because `tables.css` is served after the rest of the legacy sheet, it holds ever
 The `.filters` margin reset now sits in the `.filters` rule in `forms.css`; `.card form` keeps its own reset in `components.ts`.
 The [tables CSS parity archive](tables-css-parity.zip) contains 106 before-and-after screenshot pairs, including 82 page pairs and 24 populated table pairs.
 The populated captures append tables with sample rows to the real pages for invitations, sign-in providers, role rules, access tokens, SSH events and trusted certificates because those tables are empty in the fixture.
-All 24 populated pairs and 79 of the 82 page pairs are byte-identical.
-The archive README overstates the number of byte-identical page pairs by three because the 1280px Account captures differ in the synthetic localhost port shown in the CLI setup command.
+Of the 106 retained pairs, 103 are identical both as PNG files and as decoded RGBA pixels.
+The three 1280px Account pairs differ only in the synthetic localhost port shown in the CLI setup command.
 A separate computed-style comparison on a synthetic page covering every selector in `tables.css` supports the retained screenshots, and the synthetic page screenshots were omitted from the archive.
 See its `README.txt` for the stylesheet checksums, capture coverage and computed style checks at the default and 20px root font sizes.
 
