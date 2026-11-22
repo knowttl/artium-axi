@@ -6,9 +6,7 @@ import ts from 'typescript'
 const root = process.cwd()
 const fixedSleep = 'fixed sleep: wait for the observable outcome instead'
 const callCount = 'call-count assertion: assert the outcome, not how often a collaborator was called'
-const countMethods = new Set(['toHaveBeenCalledTimes', 'toBeCalledTimes', 'callCount'])
-const singleCallMethods = new Set(['toHaveBeenCalledOnce', 'toHaveBeenCalledExactlyOnceWith', 'calledOnceWith'])
-const countProperties = new Set(['calledOnce', 'calledTwice', 'calledThrice'])
+const countMethods = new Set(['toHaveBeenCalledTimes', 'toBeCalledTimes', 'toHaveBeenCalledOnce', 'toHaveBeenCalledExactlyOnceWith'])
 const failures = new Set<string>()
 
 function git(args: string[]) {
@@ -231,10 +229,10 @@ function runnerWaitsFor(callback: ts.Node | undefined): boolean {
     (name === 'context' && ['before', 'after', 'beforeEach', 'afterEach'].includes(callee.name.text))
 }
 
-function countAssertion(matcher: ts.PropertyAccessExpression): ts.Node | undefined {
+function countAssertion(matcher: ts.PropertyAccessExpression): ts.CallExpression | undefined {
   const name = matcher.name.text
-  const call = ts.isCallExpression(matcher.parent) && matcher.parent.expression === matcher ? matcher.parent : undefined
-  if (!call && !countProperties.has(name)) return
+  const call = matcher.parent
+  if (!ts.isCallExpression(call) || call.expression !== matcher) return
   let target = matcher.expression
   let negated = false
   while (ts.isPropertyAccessExpression(target)) {
@@ -243,16 +241,14 @@ function countAssertion(matcher: ts.PropertyAccessExpression): ts.Node | undefin
   }
   if (!ts.isCallExpression(target) || rootName(target.expression) !== 'expect' || !target.arguments[0]) return
   const mock = unwrap(target.arguments[0])
-  if (call) {
-    const scalarLength = isProperty(mock, 'length')
-    const list = scalarLength ? unwrap(mock.expression) : mock
-    if ((scalarLength || ['toHaveLength', 'length', 'lengthOf'].includes(name)) &&
-        isProperty(list, 'calls') && isProperty(unwrap(list.expression), 'mock')) return call
-    if (!countMethods.has(name) && !singleCallMethods.has(name) && !countProperties.has(name)) return
-    if (['toHaveBeenCalledExactlyOnceWith', 'calledOnceWith'].includes(name) && !negated &&
-        isOneOutputLine(call.arguments[0]) && isOutputSpy(mock)) return
-  }
-  return call ?? matcher
+  const scalarLength = isProperty(mock, 'length')
+  const list = scalarLength ? unwrap(mock.expression) : mock
+  if ((scalarLength || ['toHaveLength', 'length', 'lengthOf'].includes(name)) &&
+      isProperty(list, 'calls') && isProperty(unwrap(list.expression), 'mock')) return call
+  if (!countMethods.has(name)) return
+  if (name === 'toHaveBeenCalledExactlyOnceWith' && !negated &&
+      isOneOutputLine(call.arguments[0]) && isOutputSpy(mock)) return
+  return call
 }
 
 function isOneOutputLine(value: ts.Expression | undefined): boolean {
@@ -481,8 +477,11 @@ function inspect(source: ts.SourceFile, report: (file: ts.SourceFile, start: num
           continue
         }
         if (name === 'test' || name === 'it') {
-          entries.push(checkRegistration(registration(call), (active, { setup, cleanup }) =>
-            applyHooks(visitCallback(callback, applyHooks(active, setup)), cleanup)))
+          entries.push(checkRegistration(registration(call), (active, { setup, cleanup }) => {
+            const beforeTest = applyHooks(active, setup)
+            visitCallback(callback, beforeTest)
+            return applyHooks(beforeTest, cleanup)
+          }))
           continue
         }
         if (name === 'describe' || name === 'suite') {
@@ -534,8 +533,8 @@ function inspect(source: ts.SourceFile, report: (file: ts.SourceFile, start: num
           const table = ts.isAsExpression(argument) ? unwrap(argument.expression) : argument
           rows = ts.isArrayLiteralExpression(table) && !table.elements.some(ts.isSpreadElement) ? table.elements.length : 2
         }
-        skipped ||= modifier === 'skipIf' && argument.kind === ts.SyntaxKind.TrueKeyword ||
-          modifier === 'runIf' && argument.kind === ts.SyntaxKind.FalseKeyword
+        skipped ||= modifier === 'skipIf' && argument.kind !== ts.SyntaxKind.FalseKeyword ||
+          modifier === 'runIf' && argument.kind !== ts.SyntaxKind.TrueKeyword
       }
       callee = callee.expression
     }
