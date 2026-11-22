@@ -6,5 +6,6 @@ coverage/
 .env.*
 !.env.example
 private/
+.no-mistakes/validation-failure-digest.txt
 *.tsbuildinfo
 src/server/admin/client/

@@ -62,8 +62,9 @@ Product and scope decisions require owner approval.
 The repository declares `no_ci: true`: there is no hosted test CI, and local no-mistakes validation is the change gate.
 Release automation is separate from local acceptance.
 
-The local Test step uses `pnpm test:gate` (G1 affected-test selection).
-It compares the working tree, staged changes and untracked inputs with the unique merge base of `HEAD` and `origin/main`.
+The local Test step runs `pnpm test:gate` (G1 affected-test selection) through `commands.test` in the [gate configuration](.no-mistakes.yaml).
+If the configured command fails, use the failure digest described in the Test instructions in that configuration.
+The selector compares the working tree, staged changes and untracked inputs with the unique merge base of `HEAD` and `origin/main`.
 Use `pnpm test:gate --base <commit>` only with a known ancestor when the default base is unavailable.
 `pnpm test:gate --plan` prints the selected tests, commands, reasons, base, head and SHA-256 of repository input bytes and the Node version without executing checks.
 Keep that output with the validation evidence.
