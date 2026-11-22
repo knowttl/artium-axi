@@ -246,6 +246,11 @@ test.each([
 await page.eval('() => (' + (() => new Promise(done => setTimeout(done, 50))).toString() + ')()')
 await page.eval('() => new Promise(done => setTimeout(done, 50))')
 ` },
+  { name: 'page.eval calls inside evaluated DOM code', path: 'test/browser/example.mjs',
+    text: `await page.eval('() => page.eval(() => new Promise(done => setTimeout(done, 50)))')
+await page.eval('() => page.eval("() => (" + (() => new Promise(done => setTimeout(done, 50))).toString() + ")()")')
+await page.eval('() => page.eval("() => new Promise(done => setTimeout(done, 50))")')
+` },
   { name: 'code outside test files', path: 'src/server/helper.ts', text: 'await new Promise(resolve => setTimeout(resolve, 50))\n' },
 ])('accepts $name', ({ path, text }) => {
   write(path, text)
