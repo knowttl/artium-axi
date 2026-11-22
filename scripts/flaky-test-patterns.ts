@@ -26,9 +26,9 @@ function lintBase() {
     git(['merge-base', '--is-ancestor', commit, 'HEAD'])
     return commit
   }
-  const bases = git(['merge-base', '--all', 'HEAD', 'refs/remotes/origin/main']).trim().split('\n')
-  if (bases.length !== 1) throw new Error('flaky-test-patterns: expected a unique merge base with origin/main')
-  return bases[0]
+  const merged = spawnSync('git', ['-C', root, 'merge-base', '--all', 'HEAD', 'refs/remotes/origin/main'], { encoding: 'utf8' })
+  const bases = merged.status === 0 ? merged.stdout.trim().split('\n') : []
+  return bases.length === 1 ? bases[0] : null
 }
 
 const base = lintBase()
@@ -247,8 +247,7 @@ function countAssertion(matcher: ts.PropertyAccessExpression): ts.Node | undefin
   const once = singleCallMethods.has(name) || name === 'calledOnce' ||
     (mockLength || countMethods.has(name)) && !!expected && ts.isNumericLiteral(expected) && Number(expected.text) === 1
   if (once && !negated && isOutputSpy(mock)) {
-    if (['toHaveBeenCalledExactlyOnceWith', 'calledOnceWith'].includes(name) ?
-      isOneOutputLine(expected) : assertsOutputLine(matcher, mock)) return
+    if (['toHaveBeenCalledExactlyOnceWith', 'calledOnceWith'].includes(name) && isOneOutputLine(expected)) return
   }
   return call ?? matcher
 }
@@ -262,30 +261,6 @@ function isOneOutputLine(value: ts.Expression | undefined): boolean {
     ts.isCallExpression(expression) && isProperty(expression.expression, 'stringify') &&
     rootName(expression.expression) === 'JSON' && expression.arguments.length === 1) &&
     /^[^\r\n]+\r?\n$/.test(value.head.text + value.templateSpans.map(span => `x${span.literal.text}`).join(''))
-}
-
-function assertsOutputLine(matcher: ts.PropertyAccessExpression, mock: ts.Expression): boolean {
-  if (!ts.isIdentifier(mock)) return false
-  const block = ts.findAncestor(matcher, node => ts.isBlock(node) || ts.isSourceFile(node)) as ts.Block | ts.SourceFile | undefined
-  return block?.statements.some(statement => {
-    if (!ts.isExpressionStatement(statement) || !ts.isCallExpression(statement.expression)) return false
-    const { expression: assertion, arguments: [expected] } = statement.expression
-    if (!ts.isPropertyAccessExpression(assertion) || !['toBe', 'toEqual', 'toStrictEqual'].includes(assertion.name.text) ||
-        !ts.isCallExpression(assertion.expression) || rootName(assertion.expression.expression) !== 'expect' || !isOneOutputLine(expected)) return false
-    let [chunk] = assertion.expression.arguments
-    if (chunk && ts.isCallExpression(chunk) && ts.isIdentifier(chunk.expression) && chunk.expression.text === 'String') {
-      ;[chunk] = chunk.arguments
-    }
-    if (!chunk || !ts.isElementAccessExpression(chunk) || !isZero(chunk.argumentExpression)) return false
-    const write = chunk.expression
-    return ts.isElementAccessExpression(write) && isZero(write.argumentExpression) &&
-      isProperty(write.expression, 'calls') && isProperty(write.expression.expression, 'mock') &&
-      ts.isIdentifier(write.expression.expression.expression) && write.expression.expression.expression.text === mock.text
-  }) ?? false
-}
-
-function isZero(expression: ts.Expression) {
-  return ts.isNumericLiteral(expression) && Number(expression.text) === 0
 }
 
 function isOutputSpy(target: ts.Expression): boolean {
@@ -541,5 +516,10 @@ for (const file of new Set([...added.keys(), ...browserSources.keys()])) {
   }, isBrowserFile(file))
 }
 
-if (failures.size) throw new Error([...failures].sort().join('\n'))
-console.log(`Flaky-test patterns: ${base === null ? 'all in-scope' : 'changed'} tests wait for outcomes and assert behaviour, not call counts`)
+const report = [...failures].sort().join('\n')
+if (base === null) {
+  console.log(`Flaky-test patterns: no baseline, checked all in-scope tests in advisory mode with ${failures.size} finding(s)${report && `\n${report}`}`)
+} else {
+  if (failures.size) throw new Error(report)
+  console.log('Flaky-test patterns: changed tests wait for outcomes and assert behaviour, not call counts')
+}

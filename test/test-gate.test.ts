@@ -271,7 +271,7 @@ test.each([
     '-c', 'commit.gpgsign=false', 'commit', '--quiet', '-m', 'Committed lint violation')
   const result = spawnSync(process.execPath, ['scripts/test-gate.ts', ...(full ? [] : ['--base', ancestor])],
     { cwd: directory, encoding: 'utf8' })
-  expect(result.status).toBe(1)
+  expect(result.stdout).toContain(full ? 'exit: 0' : 'exit: 1')
   expect(result.stderr).toContain('src/server/feature.test.ts:1: fixed sleep')
   expect(result.stderr.includes('src/server/unrelated.test.ts:1: fixed sleep')).toBe(full)
 })

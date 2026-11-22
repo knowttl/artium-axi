@@ -36,9 +36,10 @@ pnpm test:gate
 
 `pnpm lint` also runs `scripts/flaky-test-patterns.ts` on added or changed lines in `*.test.ts` and the browser runner's `test/browser/*.ts` and `test/browser/*.mjs` files.
 Standalone lint uses the unique merge base with `origin/main`, and `pnpm test:gate` passes its selected base to lint.
+When no baseline can be established, the check runs over every in-scope test file in advisory mode: it lists the findings and exits successfully so the full suite still runs.
 It checks the full file when a rename brings it into test scope.
 It checks TypeScript or JavaScript code and browser script literals, including concatenated and imported fragments, for `waitForTimeout`, promise waits resolved by a real `setTimeout`, and call-count assertions, including length checks on mock call lists.
-An exact single-write assertion on a spy of `process.stdout.write` or `process.stderr.write` is allowed when the same assertion or a companion assertion checks the text of one newline-terminated line.
+An exact single-write assertion on a spy of `process.stdout.write` or `process.stderr.write` is allowed when the same assertion checks the text of one newline-terminated line.
 The check covers timer promises awaited directly or returned directly by a test, hook, or inline or serialized `page.eval` callback.
 The checker exempts a wait when the callback's setup or body establishes fake `setTimeout` and the clock still holds at the wait.
 An event-driven promise may use a timer to report failure when readiness misses its deadline.

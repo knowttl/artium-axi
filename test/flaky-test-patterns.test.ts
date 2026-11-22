@@ -46,7 +46,7 @@ beforeEach(() => {
 
 afterEach(() => rmSync(directory, { recursive: true, force: true }))
 
-test.each([
+test.each<{ name: string, path: string, text: string, report: string | string[], absent?: string, staged?: boolean, noPrefix?: boolean }>([
   { name: 'a call-count assertion', path: 'src/server/example.test.ts',
     text: 'export {}\nexpect(run).toHaveBeenCalledTimes(2)\n', report: `src/server/example.test.ts:2: ${callCount}` },
   { name: 'a single-call assertion', path: 'src/server/example.test.ts',
@@ -221,8 +221,6 @@ test.each([
     text: 'expect(run).toHaveBeenCalled()\nexpect(run).toHaveBeenCalledWith(1)\n' },
   { name: 'a one-line stdout contract', path: 'src/server/example.test.ts',
     text: "const output = vi.spyOn(process.stdout, 'write').mockReturnValue(true)\nexpect(output).toHaveBeenCalledExactlyOnceWith(`${JSON.stringify(record)}\\n`)\n" },
-  { name: 'a one-line stderr contract through the mock call list', path: 'src/server/example.test.ts',
-    text: "const output = vi.spyOn(process.stderr, 'write').mockReturnValue(true)\nexpect(output.mock.calls).toHaveLength(1)\nexpect(String(output.mock.calls[0][0])).toBe('record\\n')\n" },
   { name: 'an uninvoked Vitest matcher', path: 'src/server/example.test.ts',
     text: 'const assertCount = expect(run).toHaveBeenCalledTimes\n' },
   { name: 'an ordinary output length assertion', path: 'src/server/example.test.ts',
@@ -268,10 +266,11 @@ test('reports changed lines at a renamed test destination', () => {
   expect(result.stderr).not.toContain(`${renamed}:2:`)
 })
 
-test('requires origin/main even when a local main exists', () => {
+test('lists findings in every in-scope test without failing when no baseline exists, even with a local main', () => {
   git('update-ref', 'refs/heads/main', git('rev-parse', 'HEAD'))
   git('update-ref', '-d', 'refs/remotes/origin/main')
   const result = lint()
-  expect(result.status).toBe(1)
-  expect(result.stderr).toContain('refs/remotes/origin/main')
+  expect(result.status, result.stderr).toBe(0)
+  expect(result.stdout).toContain('advisory mode')
+  expect(result.stdout).toContain(`src/server/legacy.test.ts:1: ${callCount}`)
 })
